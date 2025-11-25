@@ -97,10 +97,8 @@ function createAutoCRUD(app: Express, config: {
           OR ${ilike(table.phoneNo, s)} 
           OR ${ilike(table.address, s)} 
           OR ${ilike(table.emailId, s)}
-          // --- ✅ NEW SEARCH FIELDS ADDED ---
           OR ${ilike(table.nameOfFirm, s)}
           OR ${ilike(table.underSalesPromoterName, s)}
-          // --- END NEW SEARCH FIELDS ---
           )`
       );
     }
@@ -125,7 +123,7 @@ function createAutoCRUD(app: Express, config: {
   // --- ✅ SORT BY SALES GROWTH ADDED ---
   const buildSort = (sortByRaw?: string, sortDirRaw?: string) => {
     const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
-    
+
     // Use an explicit switch to be type-safe
     switch (sortByRaw) {
       case 'name':
@@ -139,7 +137,7 @@ function createAutoCRUD(app: Express, config: {
       case 'verificationStatus':
       case 'verification_status':
         return direction === 'asc' ? asc(table.verificationStatus) : desc(table.verificationStatus);
-      
+
       // --- ✅ NEW SORT OPTION ---
       case 'salesGrowthPercentage':
         return direction === 'asc' ? asc(table.salesGrowthPercentage) : desc(table.salesGrowthPercentage);
@@ -154,10 +152,13 @@ function createAutoCRUD(app: Express, config: {
   };
   // --- END FIX ---
 
-
   const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
     try {
       const { limit = '50', page = '1', sortBy, sortDir, ...filters } = req.query;
+    //   console.log('DEALERS LIST HIT', {
+    //   rawQuery: req.query,
+    //   filters,
+    // });
       const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 50));
       const pg = Math.max(1, parseInt(String(page), 10) || 1);
       const offset = (pg - 1) * lmt;
@@ -165,7 +166,23 @@ function createAutoCRUD(app: Express, config: {
       const extra = buildWhere(filters);
       const whereCondition = baseWhere ? (extra ? and(baseWhere, extra) : baseWhere) : extra;
 
-      const orderExpr = buildSort(String(sortBy), String(sortDir));
+      // --- SMART SORT LOGIC ---
+      let orderExpr: SQL | any = buildSort(String(sortBy), String(sortDir));
+
+      // If searching AND no specific sort requested, prioritize relevance
+      if (filters.search && !sortBy) {
+        const s = String(filters.search).trim();
+        // Priority: 1. Exact Name match, 2. Starts with Name, 3. Alphabetical
+        orderExpr = sql`
+          CASE 
+            WHEN ${table.name} ILIKE ${s} THEN 0 
+            WHEN ${table.name} ILIKE ${s + '%'} THEN 1 
+            ELSE 2 
+          END, 
+          ${table.name} ASC
+        `;
+      }
+      // --- END CHANGE ---
 
       // 1. Start query
       let q = db.select().from(table).$dynamic();
@@ -198,16 +215,16 @@ function createAutoCRUD(app: Express, config: {
     }
     const base = eq(table.userId, uid);
     return listHandler(req, res, base);
-    });
+  });
 
   // ===== GET BY ID =====
   app.get(`/api/${endpoint}/:id`, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       const [record] = await db.select().from(table).where(eq(table.id, id)).limit(1);
-      
+
       if (!record) return res.status(404).json({ success: false, error: `${tableName} not found` });
-      
+
       res.json({ success: true, data: record });
     } catch (error) {
       console.error(`Get ${tableName} error:`, error);

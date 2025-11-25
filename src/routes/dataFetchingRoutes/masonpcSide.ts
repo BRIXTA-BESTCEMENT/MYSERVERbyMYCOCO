@@ -40,7 +40,7 @@ function createAutoCRUD(app: Express, config: {
       conds.push(eq(table.dealerId, String(dealerId)));
     }
     if (kycStatus) {
-      conds.push(eq(table.kycStatus, String(kycStatus))); 
+      conds.push(eq(table.kycStatus, String(kycStatus)));
     }
     const referred = boolish(isReferred);
     if (referred !== undefined) {
@@ -65,7 +65,7 @@ function createAutoCRUD(app: Express, config: {
   // Build ORDER BY expression
   const buildSort = (sortByRaw?: string, sortDirRaw?: string) => {
     const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
-    
+
     switch (sortByRaw) {
       case 'name':
         return direction === 'asc' ? asc(table.name) : desc(table.name);
@@ -81,7 +81,6 @@ function createAutoCRUD(app: Express, config: {
     }
   };
 
-  // Generic list handler
   const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
     try {
       const { limit = '50', page = '1', sortBy, sortDir, ...filters } = req.query;
@@ -91,16 +90,32 @@ function createAutoCRUD(app: Express, config: {
 
       const extra = buildWhere(filters);
       const whereCondition = baseWhere ? (extra ? and(baseWhere, extra) : baseWhere) : extra;
-      const orderExpr = buildSort(String(sortBy), String(sortDir));
+
+      // ---Smart Sort Logic ---
+      let orderExpr: SQL | any = buildSort(String(sortBy), String(sortDir));
+
+      // If searching AND no specific sort requested, prioritize relevance on Name
+      if (filters.search && !sortBy) {
+        const s = String(filters.search).trim();
+        orderExpr = sql`
+          CASE 
+            WHEN ${table.name} ILIKE ${s} THEN 0       -- Exact Match
+            WHEN ${table.name} ILIKE ${s + '%'} THEN 1 -- Starts With
+            ELSE 2 
+          END, 
+          ${table.name} ASC
+        `;
+      }
+      // --- END CHANGE ---
 
       // 1. Start query - This is where we add joins
       let q = db.select({
-          // Select all columns from masonPcSide
-          ...getTableColumns(table),
-          // And add joined names
-          dealerName: dealers.name,
-          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
-        })
+        // Select all columns from masonPcSide
+        ...getTableColumns(table),
+        // And add joined names
+        dealerName: dealers.name,
+        userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
+      })
         .from(table)
         .leftJoin(dealers, eq(table.dealerId, dealers.id))
         .leftJoin(users, eq(table.userId, users.id))
@@ -110,12 +125,10 @@ function createAutoCRUD(app: Express, config: {
       if (whereCondition) {
         q = q.where(whereCondition);
       }
-      
+
       // 3. Apply sorting/paging and execute
       const data = await q.orderBy(orderExpr).limit(lmt).offset(offset);
 
-      // We trust the snake_case -> camelCase conversion from Drizzle/node-postgres
-      // The result `data` will have { ...masonPcSide_fields, dealerName, userName }
       res.json({ success: true, page: pg, limit: lmt, count: data.length, data });
     } catch (error) {
       console.error(`Get ${tableName}s error:`, error);
@@ -137,18 +150,18 @@ function createAutoCRUD(app: Express, config: {
     try {
       const { id } = req.params;
       const [record] = await db.select({
-          ...getTableColumns(table),
-          dealerName: dealers.name,
-          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
-        })
+        ...getTableColumns(table),
+        dealerName: dealers.name,
+        userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
+      })
         .from(table)
         .leftJoin(dealers, eq(table.dealerId, dealers.id))
         .leftJoin(users, eq(table.userId, users.id))
         .where(eq(table.id, id))
         .limit(1);
-      
+
       if (!record) return res.status(404).json({ success: false, error: `${tableName} not found` });
-      
+
       res.json({ success: true, data: record });
     } catch (error) {
       console.error(`Get ${tableName} error:`, error);
@@ -169,12 +182,12 @@ function createAutoCRUD(app: Express, config: {
     const base = eq(table.userId, uid);
     return listHandler(req, res, base);
   });
-  
+
   // ===== GET BY DEALER =====
   app.get(`/api/${endpoint}/dealer/:dealerId`, (req, res) => {
     const { dealerId } = req.params;
     if (!dealerId) {
-       return res.status(400).json({ success: false, error: 'Invalid Dealer ID' });
+      return res.status(400).json({ success: false, error: 'Invalid Dealer ID' });
     }
     const base = eq(table.dealerId, dealerId);
     return listHandler(req, res, base);
@@ -188,6 +201,6 @@ export default function setupMasonsPcSideRoutes(app: Express) {
     table: masonPcSide,
     tableName: 'Mason',
   });
-  
+
   console.log('✅ Masons (PC Side) GET endpoints setup complete');
 }

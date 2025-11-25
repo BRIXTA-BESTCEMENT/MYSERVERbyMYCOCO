@@ -82,7 +82,7 @@ function createAutoCRUD(app: Express, config: {
   // --- buildSort: Custom sort logic for TechnicalSite ---
   const buildSort = (sortByRaw?: string, sortDirRaw?: string) => {
     const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
-    
+
     switch (sortByRaw) {
       case 'siteName':
         return direction === 'asc' ? asc(table.siteName) : desc(table.siteName);
@@ -112,7 +112,22 @@ function createAutoCRUD(app: Express, config: {
       const extra = buildWhere(filters);
       const whereCondition = baseWhere ? (extra ? and(baseWhere, extra) : baseWhere) : extra;
 
-      const orderExpr = buildSort(String(sortBy), String(sortDir));
+      // ---Smart Sort Logic ---
+      let orderExpr: SQL | any = buildSort(String(sortBy), String(sortDir));
+
+      // If searching AND no specific sort requested, prioritize relevance on Site Name
+      if (filters.search && !sortBy) {
+        const s = String(filters.search).trim();
+        orderExpr = sql`
+          CASE 
+            WHEN ${table.siteName} ILIKE ${s} THEN 0       -- Exact Match
+            WHEN ${table.siteName} ILIKE ${s + '%'} THEN 1 -- Starts With
+            ELSE 2 
+          END, 
+          ${table.siteName} ASC
+        `;
+      }
+      // --- END CHANGE ---
 
       let q = db.select().from(table).$dynamic();
       if (whereCondition) {
@@ -141,9 +156,9 @@ function createAutoCRUD(app: Express, config: {
     try {
       const { id } = req.params;
       const [record] = await db.select().from(table).where(eq(table.id, id)).limit(1);
-      
+
       if (!record) return res.status(404).json({ success: false, error: `${tableName} not found` });
-      
+
       res.json({ success: true, data: record });
     } catch (error) {
       console.error(`Get ${tableName} error:`, error);
@@ -161,9 +176,9 @@ function createAutoCRUD(app: Express, config: {
     try {
       const { phoneNo } = req.params;
       const [record] = await db.select().from(table).where(eq(table.phoneNo, phoneNo)).limit(1);
-      
+
       if (!record) return res.status(404).json({ success: false, error: `${tableName} not found` });
-      
+
       res.json({ success: true, data: record });
     } catch (error) {
       console.error(`Get ${tableName} error:`, error);
@@ -196,13 +211,13 @@ function createAutoCRUD(app: Express, config: {
 export default function setupTechnicalSitesRoutes(app: Express) {
   // Assuming 'insertTechnicalSiteSchema' exists and is imported from schema.ts
   // You would typically define POST/PUT/DELETE handlers here, but this example focuses on GET
-  
+
   createAutoCRUD(app, {
     endpoint: 'technical-sites',
     table: technicalSites,
     schema: insertTechnicalSiteSchema,
     tableName: 'Technical Site',
   });
-  
+
   console.log('✅ Technical Sites GET endpoints setup complete');
 }
