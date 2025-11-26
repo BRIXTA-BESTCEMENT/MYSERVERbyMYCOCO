@@ -38,12 +38,10 @@ function createAutoCRUD(app: Express, config: {
       // 2. Generate a UUID for the primary key
       const generatedId = randomUUID();
       
-      // 3. Prepare data for insertion, handling date coercion if needed
+      // 3. Prepare data for insertion
       const insertData: TechnicalSiteInsert = {
         ...validatedData,
         id: generatedId,
-        // Drizzle will handle the default timestamps (createdAt/updatedAt) if not provided,
-        // but it's often safer to explicitly cast/set Date fields from Zod strings.
         constructionStartDate: validatedData.constructionStartDate ? new Date(validatedData.constructionStartDate) : null,
         constructionEndDate: validatedData.constructionEndDate ? new Date(validatedData.constructionEndDate) : null,
         firstVistDate: validatedData.firstVistDate ? new Date(validatedData.firstVistDate) : null,
@@ -54,7 +52,6 @@ function createAutoCRUD(app: Express, config: {
       // 4. Insert the record
       const [newRecord] = await db.insert(table).values(insertData as any).returning();
 
-      // 5. Send success response
       res.status(201).json({
         success: true,
         message: `${tableName} created successfully with ID ${newRecord.id}`,
@@ -64,35 +61,33 @@ function createAutoCRUD(app: Express, config: {
       console.error(`Create ${tableName} error:`, error);
       
       if (error instanceof z.ZodError) {
-        return res.status(400).json({
-          success: false,
-          error: 'Validation failed',
-          details: error.errors
-        });
+        return res.status(400).json({ success: false, error: 'Validation failed', details: error.errors });
       }
       
-      // Handle Foreign Key (23503) or Unique Constraint (23505) violations if the database returns them
       const msg = String(error?.message ?? '').toLowerCase();
       if (error?.code === '23503' || msg.includes('violates foreign key constraint')) {
         return res.status(400).json({ success: false, error: 'Foreign Key violation: Related Dealer/Mason/PC ID does not exist.' });
       }
 
-      res.status(500).json({
-        success: false,
-        error: `Failed to create ${tableName}`,
-        details: error instanceof Error ? error.message : 'Unknown error'
-      });
+      res.status(500).json({ success: false, error: `Failed to create ${tableName}`, details: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 }
 
-// Function call in the same file
 export default function setupTechnicalSitesPostRoutes(app: Express) {
-  // NOTE: Assuming insertTechnicalSiteSchema is defined in schema.ts
+  
+  // 🔥 THE FIX IS HERE 🔥
+  // We create a "patched" schema that overrides strict string checks.
+  // z.coerce.string() will take the Number from Flutter and turn it into a String automatically.
+  const patchedSchema = insertTechnicalSiteSchema.extend({
+    latitude: z.coerce.string(), 
+    longitude: z.coerce.string(),
+  });
+
   createAutoCRUD(app, {
     endpoint: 'technical-sites',
     table: technicalSites,
-    schema: insertTechnicalSiteSchema,
+    schema: patchedSchema, // <--- Use the patched schema here
     tableName: 'Technical Site',
   });
   
