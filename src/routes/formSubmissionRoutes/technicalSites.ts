@@ -48,6 +48,7 @@ function createAutoCRUD(app: Express, config: {
         constructionEndDate: validatedData.constructionEndDate ? new Date(validatedData.constructionEndDate) : null,
         firstVistDate: validatedData.firstVistDate ? new Date(validatedData.firstVistDate) : null,
         lastVisitDate: validatedData.lastVisitDate ? new Date(validatedData.lastVisitDate) : null,
+        imageUrl: validatedData.imageUrl ?? null,
       };
 
       // 4. Insert the record

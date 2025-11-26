@@ -63,6 +63,7 @@ const technicalSiteBaseSchema = z.object({
 
   convertedSite: boolOrNull,
   needFollowUp: boolOrNull,
+  imageUrl: strOrNull,
 
   // Foreign Keys (must be UUID string or null)
   relatedDealerID: strOrNull, // z.string().uuid().nullable().optional() equivalent

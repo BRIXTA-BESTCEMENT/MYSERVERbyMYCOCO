@@ -39,6 +39,12 @@ export default function setupBagLiftsGetRoutes(app: Express) {
             conds.push(eq(bagLifts.masonId, String(q.masonId)));
         }
 
+        const userId = numberish(q.userId);
+        if (userId !== undefined) {
+            // matches 'userId' column in mason_pc_side table
+            conds.push(eq(masonPcSide.userId, userId)); 
+        }
+
         // Filter by dealerId (VARCHAR)
         if (q.dealerId) {
             conds.push(eq(bagLifts.dealerId, String(q.dealerId)));
@@ -125,6 +131,7 @@ export default function setupBagLiftsGetRoutes(app: Express) {
                 ...getTableColumns(bagLifts),
                 // Add joined data
                 masonName: masonPcSide.name,
+                masonTsoId: masonPcSide.userId,
                 dealerName: dealers.name,
                 approverName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
             })
@@ -167,6 +174,7 @@ export default function setupBagLiftsGetRoutes(app: Express) {
             const [record] = await db.select({
                 ...getTableColumns(bagLifts),
                 masonName: masonPcSide.name,
+                masonTsoId: masonPcSide.userId,
                 dealerName: dealers.name,
                 approverName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`
             })

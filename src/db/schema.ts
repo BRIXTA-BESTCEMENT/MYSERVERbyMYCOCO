@@ -821,6 +821,7 @@ export const technicalSites = pgTable("technical_sites", {
   firstVistDate: date("first_visit_date"),
   lastVisitDate: date("last_visit_date"),
   needFollowUp: boolean("need_follow_up").default(false),
+  imageUrl: text("image_url"),
 
   // PRIMARY RELATIONS (Foreign Keys)
   relatedDealerID: varchar("related_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),

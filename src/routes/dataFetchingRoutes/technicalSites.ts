@@ -3,7 +3,7 @@
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { technicalSites, insertTechnicalSiteSchema } from '../../db/schema';
-import { eq, and, desc, asc, ilike, sql, SQL, gte, lte } from 'drizzle-orm';
+import { eq, and, desc, asc, ilike, sql, SQL, gte, lte, isNotNull, not } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Ensure the table type is correctly inferred for Drizzle ORM helpers
@@ -48,11 +48,18 @@ function createAutoCRUD(app: Express, config: {
     const needFollowUp = boolish(q.needFollowUp);
     if (needFollowUp !== undefined) conds.push(eq(table.needFollowUp, needFollowUp));
 
+    const hasPhoto = boolish(q.hasPhoto);
+    if (hasPhoto === true) {
+      conds.push(and(isNotNull(table.imageUrl), not(eq(table.imageUrl, ''))));
+    } else if (hasPhoto === false) {
+      conds.push(sql`(${table.imageUrl} IS NULL OR ${table.imageUrl} = '')`);
+    }
+
     // Primary FK filters
     if (q.relatedDealerID) conds.push(eq(table.relatedDealerID, String(q.relatedDealerID)));
     if (q.relatedMasonpcID) conds.push(eq(table.relatedMasonpcID, String(q.relatedMasonpcID)));
 
-    // Date Range Filters (using firstVistDate or lastVisitDate for convenience)
+    // Date Range Filters
     const dateField = table.firstVistDate;
     if (q.startDate && q.endDate && dateField) {
       conds.push(
@@ -63,7 +70,7 @@ function createAutoCRUD(app: Express, config: {
       );
     }
 
-    // Search filter (siteName, concernedPerson, phoneNo, keyPersonName)
+    // Search filter
     if (q.search) {
       const s = `%${String(q.search).trim()}%`;
       conds.push(
@@ -94,10 +101,11 @@ function createAutoCRUD(app: Express, config: {
         return direction === 'asc' ? asc(table.firstVistDate) : desc(table.firstVistDate);
       case 'convertedSite':
         return direction === 'asc' ? asc(table.convertedSite) : desc(table.convertedSite);
+      case 'imageUrl':
+        return direction === 'asc' ? asc(table.imageUrl) : desc(table.imageUrl);
       case 'createdAt':
         return direction === 'asc' ? asc(table.createdAt) : desc(table.createdAt);
       default:
-        // Default to last visited date if available, otherwise createdAt
         return desc(table.lastVisitDate || table.createdAt);
     }
   };
@@ -112,7 +120,6 @@ function createAutoCRUD(app: Express, config: {
       const extra = buildWhere(filters);
       const whereCondition = baseWhere ? (extra ? and(baseWhere, extra) : baseWhere) : extra;
 
-      // ---Smart Sort Logic ---
       let orderExpr: SQL | any = buildSort(String(sortBy), String(sortDir));
 
       // If searching AND no specific sort requested, prioritize relevance on Site Name
@@ -127,8 +134,7 @@ function createAutoCRUD(app: Express, config: {
           ${table.siteName} ASC
         `;
       }
-      // --- END CHANGE ---
-
+      
       let q = db.select().from(table).$dynamic();
       if (whereCondition) {
         q = q.where(whereCondition);
@@ -147,11 +153,9 @@ function createAutoCRUD(app: Express, config: {
   };
 
   // ===== GET ALL (Base Filtered List) =====
-  // /api/technical-sites
   app.get(`/api/${endpoint}`, (req, res) => listHandler(req, res));
 
   // ===== GET BY ID =====
-  // /api/technical-sites/:id
   app.get(`/api/${endpoint}/:id`, async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
@@ -171,7 +175,6 @@ function createAutoCRUD(app: Express, config: {
   });
 
   // ===== GET BY PHONE NUMBER (Unique Lookup) =====
-  // /api/technical-sites/phone/:phoneNo
   app.get(`/api/${endpoint}/phone/:phoneNo`, async (req: Request, res: Response) => {
     try {
       const { phoneNo } = req.params;
@@ -187,21 +190,18 @@ function createAutoCRUD(app: Express, config: {
   });
 
   // ===== GET BY REGION =====
-  // /api/technical-sites/region/:region
   app.get(`/api/${endpoint}/region/:region`, (req, res) => {
     const base = eq(table.region, String(req.params.region));
     return listHandler(req, res, base);
   });
 
   // ===== GET BY AREA =====
-  // /api/technical-sites/area/:area
   app.get(`/api/${endpoint}/area/:area`, (req, res) => {
     const base = eq(table.area, String(req.params.area));
     return listHandler(req, res, base);
   });
 
   // ===== GET BY DEALER ID (Primary Dealer) =====
-  // /api/technical-sites/dealer/:dealerId
   app.get(`/api/${endpoint}/dealer/:dealerId`, (req, res) => {
     const base = eq(table.relatedDealerID, String(req.params.dealerId));
     return listHandler(req, res, base);
@@ -209,9 +209,6 @@ function createAutoCRUD(app: Express, config: {
 }
 
 export default function setupTechnicalSitesRoutes(app: Express) {
-  // Assuming 'insertTechnicalSiteSchema' exists and is imported from schema.ts
-  // You would typically define POST/PUT/DELETE handlers here, but this example focuses on GET
-
   createAutoCRUD(app, {
     endpoint: 'technical-sites',
     table: technicalSites,
