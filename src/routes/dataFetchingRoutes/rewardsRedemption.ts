@@ -17,10 +17,20 @@ export default function setupRewardsRedemptionGetRoutes(app: Express) {
   
   const buildWhere = (q: any): SQL | undefined => {
     const conds: SQL[] = [];
+    
     if (q.masonId) { conds.push(eq(table.masonId, String(q.masonId))); }
+    
+    //Add userId filter (TSO Filtering)
+    const userId = numberish(q.userId);
+    if (userId !== undefined) {
+        conds.push(eq(masonPcSide.userId, userId));
+    }
+
     const rewardId = numberish(q.rewardId);
     if (rewardId !== undefined) { conds.push(eq(table.rewardId, rewardId)); }
+    
     if (q.status) { conds.push(eq(table.status, String(q.status))); }
+    
     const minPoints = numberish(q.minPoints);
     if (minPoints !== undefined) conds.push(sql`${table.pointsDebited} >= ${minPoints}`);
 
@@ -58,6 +68,7 @@ export default function setupRewardsRedemptionGetRoutes(app: Express) {
         let query = db.select({
             ...getTableColumns(table),
             masonName: masonPcSide.name,
+            masonTsoId: masonPcSide.userId, // Added for debugging
             rewardName: rewards.itemName,
             rewardMeta: rewards.meta,
         })
@@ -118,5 +129,5 @@ export default function setupRewardsRedemptionGetRoutes(app: Express) {
       return listHandler(req, res, base);
   });
 
-  console.log('✅ Reward Redemptions GET endpoints (Order History) setup complete');
+  console.log('✅ Reward Redemptions GET endpoints (Order History & TSO Filter) setup complete');
 }

@@ -52,8 +52,9 @@ export default function setupKycSubmissionsRoutes(app: Express) {
       // 🟢 4. Perform the Join
       const records = await db.select({
           ...getTableColumns(kycSubmissions),
-          masonName: masonPcSide.name, // 🟢 Add Mason Name for the UI
-          masonTsoId: masonPcSide.userId, // Useful for debugging
+          masonName: masonPcSide.name, 
+          masonPhone: masonPcSide.phoneNumber,
+          masonTsoId: masonPcSide.userId,
       })
       .from(kycSubmissions)
       .leftJoin(masonPcSide, eq(kycSubmissions.masonId, masonPcSide.id)) // 🟢 Join logic
