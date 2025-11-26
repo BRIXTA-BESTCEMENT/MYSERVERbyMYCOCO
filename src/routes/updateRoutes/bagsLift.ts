@@ -8,16 +8,13 @@ import { randomUUID } from 'crypto';
 
 // --- IMPORT CORE CALCULATION LOGIC ---
 import { calculateBaseAndBonanzaPoints, calculateExtraBonusPoints, checkReferralBonusTrigger } from '../../utils/pointsCalcLogic';
-import { tsoAuth } from '../../middleware/tsoAuth';
-
-interface CustomRequest extends Request {
-    auth?: { sub: string; role: string; phone: string; kyc: string; };
-}
 
 // Input Schema
+// Added 'approvedBy' so you can pass the User ID from the frontend
 const bagLiftApprovalSchema = z.object({
   status: z.enum(['approved', 'rejected', 'pending']),
   memo: z.string().max(500).optional(),
+  approvedBy: z.number().int().optional(), // <--- PASS USER ID HERE FROM FRONTEND
   
   // Optional Corrections
   bagCount: z.number().int().positive().optional(),
@@ -35,14 +32,14 @@ const bagLiftApprovalSchema = z.object({
 
 export default function setupBagLiftsPatchRoute(app: Express) {
   
-  app.patch('/api/bag-lifts/:id', tsoAuth, async (req: CustomRequest, res: Response) => {
+  // NO MIDDLEWARE - Direct access
+  app.patch('/api/bag-lifts/:id', async (req: Request, res: Response) => {
     const tableName = 'Bag Lift';
     try {
       const { id } = req.params;
-      const authenticatedUserId = parseInt(req.auth!.sub, 10);
       
       const input = bagLiftApprovalSchema.parse(req.body);
-      const { status, memo } = input;
+      const { status, memo, approvedBy } = input;
 
       // 1. Find existing record
       const [existingRecord] = await db.select().from(bagLifts).where(eq(bagLifts.id, id)).limit(1);
@@ -51,7 +48,7 @@ export default function setupBagLiftsPatchRoute(app: Express) {
       const currentStatus = existingRecord.status;
       const masonId = existingRecord.masonId;
 
-      // 2. Determine Final Data (Use input if provided, else existing)
+      // 2. Determine Final Data
       const finalBagCount = input.bagCount ?? existingRecord.bagCount;
       const finalPurchaseDate = input.purchaseDate ?? existingRecord.purchaseDate;
       
@@ -76,7 +73,8 @@ export default function setupBagLiftsPatchRoute(app: Express) {
       if (input.verificationProofImageUrl !== undefined) updates.verificationProofImageUrl = input.verificationProofImageUrl;
 
       if (status === 'approved') {
-          updates.approvedBy = authenticatedUserId;
+          // Use the ID passed from frontend, or null if not provided
+          updates.approvedBy = approvedBy || null; 
           updates.approvedAt = new Date();
       }
 
@@ -105,9 +103,9 @@ export default function setupBagLiftsPatchRoute(app: Express) {
                 id: randomUUID(),
                 masonId: masonId,
                 sourceType: 'bag_lift',
-                sourceId: updated.id, // Links to BagLift ID
+                sourceId: updated.id, 
                 points: recalculatedPoints, 
-                memo: memo || `Credit for ${finalBagCount} bags (Approved by TSO).`,
+                memo: memo || `Credit for ${finalBagCount} bags.`,
             });
 
             // 3. Get Mason state for Bonus Checks
@@ -117,8 +115,6 @@ export default function setupBagLiftsPatchRoute(app: Express) {
             }).from(masonPcSide).where(eq(masonPcSide.id, masonId)).limit(1);
 
             if (masonState) {
-                // The bagsLifted fetched above INCLUDES the current lift because we just updated it.
-                // We need the "old" total to check if a slab was crossed.
                 const currentTotal = masonState.bagsLifted ?? 0;
                 const previousTotal = currentTotal - finalBagCount;
 
@@ -130,8 +126,8 @@ export default function setupBagLiftsPatchRoute(app: Express) {
                         id: randomUUID(),
                         masonId: masonId,
                         points: extraBonus,
-                        sourceType: 'adjustment', // Or 'bonus'
-                        sourceId: null, // Cannot link to BagLift ID again (unique constraint). Use Null or random UUID.
+                        sourceType: 'adjustment',
+                        sourceId: null,
                         memo: `Extra Bonus: Slab Crossed via BagLift ${updated.id}.`,
                     });
                     await tx.update(masonPcSide).set({ pointsBalance: sql`${masonPcSide.pointsBalance} + ${extraBonus}` }).where(eq(masonPcSide.id, masonId));
@@ -159,7 +155,7 @@ export default function setupBagLiftsPatchRoute(app: Express) {
         
         // --- LOGIC FOR REJECTION (Approved -> Rejected) ---
         else if (status === 'rejected' && currentStatus === 'approved') {
-             const pointsToDebit = existingRecord.pointsCredited!; // Debit original amount
+             const pointsToDebit = existingRecord.pointsCredited!;
              
              await tx.update(masonPcSide)
                 .set({
@@ -173,7 +169,7 @@ export default function setupBagLiftsPatchRoute(app: Express) {
                 masonId: masonId,
                 sourceType: 'adjustment',
                 sourceId: null,
-                points: -pointsToDebit, // Negative
+                points: -pointsToDebit, 
                 memo: memo || `Debit: Bag Lift ${id} rejected after approval.`
              });
         }
@@ -189,5 +185,5 @@ export default function setupBagLiftsPatchRoute(app: Express) {
       res.status(500).json({ success: false, error: `Failed to update.`, details: error.message });
     }
   });
-  console.log('✅ Bag Lifts PATCH (Full Transactional Logic) endpoint ready');
+  console.log('✅ Bag Lifts PATCH (NO AUTH) endpoint ready');
 }

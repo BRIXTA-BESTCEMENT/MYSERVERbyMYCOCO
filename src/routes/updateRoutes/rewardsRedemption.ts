@@ -1,5 +1,5 @@
 // server/src/routes/updateRoutes/rewardsRedemption.ts
-// Reward Redemption PATCH endpoint for TSO/Admin fulfillment status update
+// Reward Redemption PATCH endpoint (NO AUTH - PUBLIC)
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
@@ -11,16 +11,10 @@ import {
 } from '../../db/schema'; 
 import { eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
+import crypto from 'crypto';
 
-// Define custom request interface for your Auth middleware
-interface CustomRequest extends Request {
-    auth?: {
-        sub: string; 
-        role: string;
-        phone: string;
-        kyc: string;
-    };
-}
+// REMOVED: import { requireAuth } ...
+// REMOVED: import { tsoAuth } ...
 
 const redemptionFulfillmentSchema = z.object({
   status: z.enum(['approved', 'shipped', 'delivered', 'rejected']),
@@ -29,17 +23,14 @@ const redemptionFulfillmentSchema = z.object({
 
 export default function setupRewardsRedemptionPatchRoute(app: Express) {
   
-  app.patch('/api/rewards-redemption/:id', async (req: CustomRequest, res: Response) => {
+  // NO MIDDLEWARE - Direct access
+  app.patch('/api/rewards-redemption/:id', async (req: Request, res: Response) => {
     const tableName = 'Reward Redemption';
     
     try {
       const { id } = req.params;
 
-      // 1. Auth Check
-      if (!req.auth || !req.auth.sub) {
-        return res.status(401).json({ success: false, error: "Authentication details missing." });
-      }
-      const authenticatedUserId = parseInt(req.auth.sub, 10);
+      // REMOVED: Auth checks and req.auth.sub extraction
       
       // Validate UUID
       if (!z.string().uuid().safeParse(id).success) {
@@ -99,7 +90,6 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
                   .set({ 
                       status: 'approved', 
                       updatedAt: new Date() 
-                      // We could save fulfillmentNotes here if you add a column for it
                   })
                   .where(eq(rewardRedemptions.id, id))
                   .returning();
@@ -115,7 +105,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
               
               // Refund Points Logic
               await tx.insert(pointsLedger).values({
-                  id: crypto.randomUUID(), // Ensure your DB generates UUIDs or import crypto
+                  id: crypto.randomUUID(), 
                   masonId: masonId,
                   sourceType: 'adjustment', // or 'refund'
                   sourceId: id, // Link back to the order
@@ -211,5 +201,5 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
     }
   });
 
-  console.log('✅ Reward Redemptions PATCH (Inventory & Financials) endpoint setup complete');
+  console.log('✅ Reward Redemptions PATCH (NO AUTH) endpoint ready');
 }
