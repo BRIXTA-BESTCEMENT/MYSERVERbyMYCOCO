@@ -737,6 +737,12 @@ export const bagLifts = pgTable("bag_lifts", {
   pointsCredited: integer("points_credited").notNull(), 
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   imageUrl: text("image_url"),
+  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
+  siteKeyPersonName: varchar("site_key_person_name", { length: 255 }),
+  siteKeyPersonPhone: varchar("site_key_person_phone", { length: 20 }),
+  verificationSiteImageUrl: text("verification_site_image_url"),
+  verificationProofImageUrl: text("verification_proof_image_url"),
+
   approvedBy: integer("approved_by").references(() => users.id, { onDelete: "set null" }), 
   approvedAt: timestamp("approved_at", { withTimezone: true, precision: 6 }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
@@ -744,6 +750,8 @@ export const bagLifts = pgTable("bag_lifts", {
   index("idx_bag_lifts_mason_id").on(t.masonId),
   index("idx_bag_lifts_dealer_id").on(t.dealerId),
   index("idx_bag_lifts_status").on(t.status),
+  // New index for faster queries on site_id
+  index("idx_bag_lifts_site_id").on(t.siteId),
 ]);
 
 /* ========================= points_ledger (MODIFIED to match Prisma) ========================= */
