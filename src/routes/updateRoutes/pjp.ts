@@ -1,6 +1,4 @@
 // server/src/routes/updateRoutes/pjp.ts
-// --- UPDATED to use dealerId ---
-
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { permanentJourneyPlans } from '../../db/schema';
@@ -18,14 +16,11 @@ const strOrNull = z.preprocess((val) => {
 const pjpPatchSchema = z.object({
   userId: z.coerce.number().int().positive().optional(),
   createdById: z.coerce.number().int().positive().optional(),
-  
-  // --- ✅ FIX ---
-  dealerId: strOrNull, // Replaced visitDealerName
-  // --- END FIX ---
-  
+  dealerId: strOrNull, 
+  siteId: strOrNull,  
   planDate: z.coerce.date().optional(),
   areaToBeVisited: z.string().max(500).optional(),
-  description: z.string().max(500).optional().nullable(), // Allow regular null
+  description: z.string().max(500).optional().nullable(), 
   status: z.string().max(50).optional(),
   verificationStatus: z.string().max(50).optional().nullable(),
   additionalVisitRemarks: z.string().max(500).optional().nullable(),
@@ -60,9 +55,8 @@ export default function setupPjpPatchRoutes(app: Express) {
       if (input.userId !== undefined) patch.userId = input.userId;
       if (input.createdById !== undefined) patch.createdById = input.createdById;
       
-      // --- ✅ FIX ---
       if (input.dealerId !== undefined) patch.dealerId = input.dealerId;
-      // --- END FIX ---
+      if (input.siteId !== undefined) patch.siteId = input.siteId;
 
       if (input.planDate !== undefined) patch.planDate = toDateOnly(input.planDate);
       if (input.areaToBeVisited !== undefined) patch.areaToBeVisited = input.areaToBeVisited;
@@ -97,5 +91,5 @@ export default function setupPjpPatchRoutes(app: Express) {
     }
   });
 
-  console.log('✅ PJP PATCH endpoints (using dealerId) setup complete');
+  console.log('✅ PJP PATCH endpoints (dealerId + siteId) setup complete');
 }

@@ -1,5 +1,4 @@
-// server/src/routes/postRoutes/permanentJourneyPlans.ts
-
+// server/src/routes/formSubmissionRoutes/pjp.ts
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { permanentJourneyPlans } from '../../db/schema';
@@ -19,20 +18,22 @@ const strOrNull = z.preprocess((val) => {
 const pjpInputSchema = z.object({
   userId: z.coerce.number().int().positive(),
   createdById: z.coerce.number().int().positive(),
-  dealerId: strOrNull,                         // nullable FK -> dealers.id
+  dealerId: strOrNull,                         
+  siteId: strOrNull,                           
   planDate: z.coerce.date(),
   areaToBeVisited: z.string().max(500).min(1),
   description: strOrNull,
   status: z.string().max(50).min(1).default('PENDING'),
   verificationStatus: strOrNull,
   additionalVisitRemarks: strOrNull,
-  idempotencyKey: z.string().max(120).optional(), // harmless to keep, not used in conflict now
+  idempotencyKey: z.string().max(120).optional(), 
 }).strict();
 
 const bulkSchema = z.object({
   userId: z.coerce.number().int().positive(),
   createdById: z.coerce.number().int().positive(),
-  dealerIds: z.array(z.string().min(1)).min(1),
+  dealerIds: z.array(z.string().min(1)).optional(), 
+  siteIds: z.array(z.string().min(1)).optional(),   
   baseDate: z.coerce.date(),
   batchSizePerDay: z.coerce.number().int().min(1).max(500).default(8),
   areaToBeVisited: z.string().max(500).min(1),
@@ -40,7 +41,9 @@ const bulkSchema = z.object({
   status: z.string().max(50).default('PENDING'),
   bulkOpId: z.string().max(50).optional(),
   idempotencyKey: z.string().max(120).optional(),
-}).strict();
+}).strict().refine(data => data.dealerIds?.length || data.siteIds?.length, {
+  message: "Either dealerIds or siteIds must be provided",
+});
 
 export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
   // SINGLE CREATE
@@ -55,16 +58,18 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           userId: input.userId,
           createdById: input.createdById,
           dealerId: input.dealerId ?? null,
+          siteId: input.siteId ?? null, 
           planDate: toDateOnly(input.planDate),
           areaToBeVisited: input.areaToBeVisited,
           description: input.description ?? null,
           status: input.status,
-          verificationStatus: input.verificationStatus ?? null,
+          verificationStatus: input.verificationStatus ?? 'PENDING', 
           additionalVisitRemarks: input.additionalVisitRemarks ?? null,
           idempotencyKey: input.idempotencyKey,
         })
         .onConflictDoNothing({
-          // use the composite unique that definitely exists
+          // Note: This target only protects USER + DEALER + DATE.
+          // It does NOT protect USER + SITE + DATE currently unless you add a unique index for that.
           target: [
             permanentJourneyPlans.userId,
             permanentJourneyPlans.dealerId,
@@ -75,7 +80,7 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
 
       return res.status(201).json({
         success: true,
-        message: record ? 'Permanent Journey Plan created successfully' : 'Skipped (already exists for user+dealer+date)',
+        message: record ? 'Permanent Journey Plan created successfully' : 'Skipped (already exists)',
         data: record ?? null,
       });
     } catch (error) {
@@ -87,8 +92,7 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
     }
   });
 
-  // BULK CREATE (unchanged; already targets composite unique)
-  // BULK CREATE — FIXED to write verificationStatus
+  // BULK CREATE
   app.post('/api/bulkpjp', async (req: Request, res: Response) => {
     try {
       const input = bulkSchema.parse(req.body);
@@ -97,34 +101,34 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
         userId,
         createdById,
         dealerIds,
+        siteIds, 
         baseDate,
         batchSizePerDay,
         areaToBeVisited,
         description,
         status,
-        //verificationStatus,            // <<— grab it
         bulkOpId,
         idempotencyKey,
       } = input;
 
-      const rows = dealerIds.map((dealerId, i) => {
+      // Determine which ID list to use
+      const targetIds = dealerIds && dealerIds.length > 0 ? dealerIds : (siteIds || []);
+      const isDealerBatch = dealerIds && dealerIds.length > 0;
+
+      const rows = targetIds.map((id, i) => {
         const dayOffset = Math.floor(i / batchSizePerDay);
         const planDate = toDateOnly(addDays(baseDate, dayOffset));
         return {
           id: randomUUID(),
           userId,
           createdById,
-          dealerId,
+          dealerId: isDealerBatch ? id : null, 
+          siteId: !isDealerBatch ? id : null,  
           planDate,
           areaToBeVisited,
           description: description ?? null,
-
-          // status comes from UI (PENDING)
           status,
-
-          // ✅ Hard-code verificationStatus to PENDING at insert time
           verificationStatus: 'PENDING',
-
           bulkOpId,
           idempotencyKey,
         };
@@ -152,9 +156,9 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
       return res.status(201).json({
         success: true,
         message: 'Bulk PJP creation complete',
-        requestedDealers: dealerIds.length,
+        requestedCount: targetIds.length,
         totalRowsCreated: totalCreated,
-        totalRowsSkipped: dealerIds.length - totalCreated,
+        totalRowsSkipped: targetIds.length - totalCreated,
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -167,5 +171,5 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
     }
   });
 
-  console.log('✅ PJP POST endpoints (using dealerId) setup complete');
+  console.log('✅ PJP POST endpoints (using dealerId & siteId) setup complete');
 }
