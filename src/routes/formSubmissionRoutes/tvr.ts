@@ -1,10 +1,8 @@
 // server/src/routes/postRoutes/tvr.ts
-// --- FULLY REBUILT ---
-// Technical Visit Reports POST — schema-accurate, coercions, app-generated id
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { technicalVisitReports, insertTechnicalVisitReportSchema } from '../../db/schema';
+import { technicalVisitReports } from '../../db/schema';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
@@ -27,66 +25,75 @@ const nullableString = z
   .optional()
   .nullable();
 
+const nullableBoolean = z.boolean().optional().nullable();
+
 // --- Zod schema that EXACTLY matches the DB table ---
 const tvrInputSchema = z
   .object({
+    // --- Core & Contact ---
     userId: z.coerce.number().int().positive(),
     reportDate: z.coerce.date(),
     visitType: z.string().max(50),
     siteNameConcernedPerson: z.string().max(255),
     phoneNo: z.string().max(20),
+    whatsappNo: nullableString, 
     emailId: nullableString,
-    clientsRemarks: z.string().max(500),
-    salespersonRemarks: z.string().max(500),
-    checkInTime: z.coerce.date(),
-    checkOutTime: z.coerce.date().nullable().optional(),
-    inTimeImageUrl: nullableString,
-    outTimeImageUrl: nullableString,
-    
-    // Array fields
-    siteVisitBrandInUse: z.preprocess(toStringArray, z.array(z.string()).min(1, "siteVisitBrandInUse requires at least one brand")),
-    influencerType: z.preprocess(toStringArray, z.array(z.string()).min(1, "influencerType requires at least one type")),
-
-    // Nullable text fields
+    siteAddress: nullableString,
+    marketName: nullableString, 
+    visitCategory: nullableString, 
+    customerType: nullableString,  
+    purposeOfVisit: nullableString,
     siteVisitStage: nullableString,
+    constAreaSqFt: z.coerce.number().int().nullable().optional(), 
+    siteVisitBrandInUse: z.preprocess(toStringArray, z.array(z.string()).min(1, "siteVisitBrandInUse requires at least one brand")),
+    currentBrandPrice: z.coerce.number().nullable().optional(), 
+    siteStock: z.coerce.number().nullable().optional(),         
+    estRequirement: z.coerce.number().nullable().optional(),    
+    supplyingDealerName: nullableString, 
+    nearbyDealerName: nullableString,    
+    associatedPartyName: nullableString, 
+    channelPartnerVisit: nullableString, 
+    isConverted: nullableBoolean, 
+    conversionType: nullableString, 
     conversionFromBrand: nullableString,
-    conversionQuantityUnit: nullableString,
-    associatedPartyName: nullableString,
-    serviceType: nullableString,
-    qualityComplaint: nullableString,
-    promotionalActivity: nullableString,
-    channelPartnerVisit: nullableString,
-
-    // Nullable numeric
     conversionQuantityValue: z.coerce.number().nullable().optional(),
-
-    siteVisitType: nullableString,
+    conversionQuantityUnit: nullableString,
+    isTechService: nullableBoolean, 
+    serviceDesc: nullableString,    
+    serviceType: nullableString,
     dhalaiVerificationCode: nullableString,
     isVerificationStatus: nullableString,
+    qualityComplaint: nullableString,
+    influencerName: nullableString,  
+    influencerPhone: nullableString, 
+    isSchemeEnrolled: nullableBoolean, 
+    influencerProductivity: nullableString, 
+    influencerType: z.preprocess(toStringArray, z.array(z.string()).min(1, "influencerType requires at least one type")),
+    clientsRemarks: z.string().max(500),
+    salespersonRemarks: z.string().max(500),
+    promotionalActivity: nullableString,
+    checkInTime: z.coerce.date(),
+    checkOutTime: z.coerce.date().nullable().optional(),
+    timeSpentinLoc: nullableString,
+    inTimeImageUrl: nullableString,
+    outTimeImageUrl: nullableString,
+    sitePhotoUrl: nullableString,
+    siteVisitType: nullableString,
     meetingId: nullableString,
     pjpId: nullableString,
-
-    timeSpentinLoc: nullableString,
-    purposeOfVisit: nullableString,
-    sitePhotoUrl: nullableString,
-    
+    masonId: nullableString,
+    siteId: nullableString,   
     firstVisitTime: z.coerce.date().nullable().optional(),
     lastVisitTime: z.coerce.date().nullable().optional(),
-    
     firstVisitDay: nullableString,
     lastVisitDay: nullableString,
-
     siteVisitsCount: z.coerce.number().int().nullable().optional(),
     otherVisitsCount: z.coerce.number().int().nullable().optional(),
     totalVisitsCount: z.coerce.number().int().nullable().optional(),
-
     region: nullableString,
     area: nullableString,
-
     latitude: z.coerce.number().nullable().optional(),
     longitude: z.coerce.number().nullable().optional(),
-    
-    masonId: nullableString,
   })
   .strict();
 
@@ -107,66 +114,89 @@ function createAutoCRUD(app: Express, config: {
         id: randomUUID(), // App-generated UUID
         userId: input.userId,
         reportDate: toDateOnly(input.reportDate), // Normalize to YYYY-MM-DD
-        visitType: input.visitType,
+        
+        // --- Core Contact ---
         siteNameConcernedPerson: input.siteNameConcernedPerson,
         phoneNo: input.phoneNo,
+        whatsappNo: input.whatsappNo ?? null,
         emailId: input.emailId ?? null,
+        siteAddress: input.siteAddress ?? null,
+        marketName: input.marketName ?? null,
+        region: input.region ?? null,
+        area: input.area ?? null,
+        latitude: input.latitude != null ? String(input.latitude) : null,
+        longitude: input.longitude != null ? String(input.longitude) : null,
+
+        // --- Visit Info ---
+        visitType: input.visitType,
+        visitCategory: input.visitCategory ?? null,
+        customerType: input.customerType ?? null,
+        purposeOfVisit: input.purposeOfVisit ?? null,
+
+        // --- Construction & Stock ---
+        siteVisitStage: input.siteVisitStage ?? null,
+        constAreaSqFt: input.constAreaSqFt ?? null,
+        siteVisitBrandInUse: input.siteVisitBrandInUse,
+        currentBrandPrice: input.currentBrandPrice != null ? String(input.currentBrandPrice) : null,
+        siteStock: input.siteStock != null ? String(input.siteStock) : null,
+        estRequirement: input.estRequirement != null ? String(input.estRequirement) : null,
+
+        // --- Dealers ---
+        supplyingDealerName: input.supplyingDealerName ?? null,
+        nearbyDealerName: input.nearbyDealerName ?? null,
+        associatedPartyName: input.associatedPartyName ?? null,
+        channelPartnerVisit: input.channelPartnerVisit ?? null,
+
+        // --- Conversion ---
+        isConverted: input.isConverted ?? null,
+        conversionType: input.conversionType ?? null,
+        conversionFromBrand: input.conversionFromBrand ?? null,
+        conversionQuantityValue: input.conversionQuantityValue != null ? String(input.conversionQuantityValue) : null,
+        conversionQuantityUnit: input.conversionQuantityUnit ?? null,
+
+        // --- Technical Services ---
+        isTechService: input.isTechService ?? null,
+        serviceDesc: input.serviceDesc ?? null,
+        serviceType: input.serviceType ?? null,
+        dhalaiVerificationCode: input.dhalaiVerificationCode ?? null,
+        isVerificationStatus: input.isVerificationStatus ?? null,
+        qualityComplaint: input.qualityComplaint ?? null,
+
+        // --- Influencer / Mason ---
+        influencerName: input.influencerName ?? null,
+        influencerPhone: input.influencerPhone ?? null,
+        isSchemeEnrolled: input.isSchemeEnrolled ?? null,
+        influencerProductivity: input.influencerProductivity ?? null,
+        influencerType: input.influencerType,
+
+        // --- Remarks ---
         clientsRemarks: input.clientsRemarks,
         salespersonRemarks: input.salespersonRemarks,
+        promotionalActivity: input.promotionalActivity ?? null,
+
+        // --- Time & Images ---
         checkInTime: input.checkInTime, // Full timestamp
         checkOutTime: input.checkOutTime ?? null,
         inTimeImageUrl: input.inTimeImageUrl ?? null,
         outTimeImageUrl: input.outTimeImageUrl ?? null,
-        siteVisitBrandInUse: input.siteVisitBrandInUse,
-        influencerType: input.influencerType,
-        siteVisitStage: input.siteVisitStage ?? null,
-        conversionFromBrand: input.conversionFromBrand ?? null,
-        
-        // --- ✅ TS FIX ---
-        // Convert number|null to string|null for Drizzle 'numeric' type
-        conversionQuantityValue: input.conversionQuantityValue !== null && input.conversionQuantityValue !== undefined 
-                                  ? String(input.conversionQuantityValue) 
-                                  : null,
-        // --- END FIX ---
-
-        conversionQuantityUnit: input.conversionQuantityUnit ?? null,
-        associatedPartyName: input.associatedPartyName ?? null,
-        serviceType: input.serviceType ?? null,
-        qualityComplaint: input.qualityComplaint ?? null,
-        promotionalActivity: input.promotionalActivity ?? null,
-        channelPartnerVisit: input.channelPartnerVisit ?? null,
-        siteVisitType: input.siteVisitType ?? null,
-        dhalaiVerificationCode: input.dhalaiVerificationCode ?? null,
-        isVerificationStatus: input.isVerificationStatus ?? null,
-        meetingId: input.meetingId ?? null,
-        pjpId: input.pjpId ?? null,
-
         timeSpentinLoc: input.timeSpentinLoc ?? null,
-        purposeOfVisit: input.purposeOfVisit ?? null,
         sitePhotoUrl: input.sitePhotoUrl ?? null,
         
+        // --- Meta / Legacy / Foreign Keys ---
+        siteVisitType: input.siteVisitType ?? null,
+        meetingId: input.meetingId ?? null,
+        pjpId: input.pjpId ?? null,
+        masonId: input.masonId ?? null,
+        siteId: input.siteId ?? null,
+
+        // --- Counters ---
         firstVisitTime: input.firstVisitTime ?? null,
         lastVisitTime: input.lastVisitTime ?? null,
-        
         firstVisitDay: input.firstVisitDay ?? null,
         lastVisitDay: input.lastVisitDay ?? null,
-
         siteVisitsCount: input.siteVisitsCount ?? null,
         otherVisitsCount: input.otherVisitsCount ?? null,
         totalVisitsCount: input.totalVisitsCount ?? null,
-
-        region: input.region ?? null,
-        area: input.area ?? null,
-
-        // Convert number|null to string|null for Drizzle 'numeric' type
-        latitude: input.latitude !== null && input.latitude !== undefined 
-                    ? String(input.latitude) 
-                    : null,
-        longitude: input.longitude !== null && input.longitude !== undefined 
-                    ? String(input.longitude) 
-                    : null,
-        
-        masonId: input.masonId ?? null,
       };
 
       // 3) insert + return

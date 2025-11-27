@@ -1,6 +1,4 @@
 // server/src/routes/updateRoutes/tvr.ts
-// --- NEW FILE ---
-// Technical Visit Reports PATCH — coercions, partial updates, safe nulls
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
@@ -27,55 +25,68 @@ const nullableString = z
   .optional()
   .nullable();
 
+const nullableBoolean = z.boolean().optional().nullable();
+
 // --- Zod schema for PATCH (all fields optional) ---
 const tvrPatchSchema = z
   .object({
+    // Core & Contact
     userId: z.coerce.number().int().positive().optional(),
     reportDate: z.coerce.date().optional(),
     visitType: z.string().max(50).optional(),
     siteNameConcernedPerson: z.string().max(255).optional(),
     phoneNo: z.string().max(20).optional(),
+    whatsappNo: nullableString,
     emailId: nullableString,
+    siteAddress: nullableString, 
+    marketName: nullableString,  
+    visitCategory: nullableString, 
+    customerType: nullableString,  
+    purposeOfVisit: nullableString,
+    siteVisitStage: nullableString,
+    constAreaSqFt: z.coerce.number().int().nullable().optional(), 
+    siteVisitBrandInUse: z.preprocess(toStringArray, z.array(z.string()).min(1)).optional(),
+    currentBrandPrice: z.coerce.number().nullable().optional(),
+    siteStock: z.coerce.number().nullable().optional(),         
+    estRequirement: z.coerce.number().nullable().optional(), 
+    supplyingDealerName: nullableString, 
+    nearbyDealerName: nullableString,   
+    associatedPartyName: nullableString, 
+    channelPartnerVisit: nullableString, 
+    isConverted: nullableBoolean, 
+    conversionType: nullableString, 
+    conversionFromBrand: nullableString,
+    conversionQuantityValue: z.coerce.number().nullable().optional(),
+    conversionQuantityUnit: nullableString,
+    isTechService: nullableBoolean,
+    serviceDesc: nullableString,   
+    serviceType: nullableString,
+    dhalaiVerificationCode: nullableString,
+    isVerificationStatus: nullableString,
+    qualityComplaint: nullableString,
+    influencerName: nullableString,  
+    influencerPhone: nullableString, 
+    isSchemeEnrolled: nullableBoolean, 
+    influencerProductivity: nullableString, 
+    influencerType: z.preprocess(toStringArray, z.array(z.string()).min(1)).optional(),
     clientsRemarks: z.string().max(500).optional(),
     salespersonRemarks: z.string().max(500).optional(),
+    promotionalActivity: nullableString,
     checkInTime: z.coerce.date().optional(),
     checkOutTime: z.coerce.date().nullable().optional(),
     inTimeImageUrl: nullableString,
     outTimeImageUrl: nullableString,
-    
-    // Array fields
-    siteVisitBrandInUse: z.preprocess(toStringArray, z.array(z.string()).min(1)).optional(),
-    influencerType: z.preprocess(toStringArray, z.array(z.string()).min(1)).optional(),
-
-    // Nullable text fields
-    siteVisitStage: nullableString,
-    conversionFromBrand: nullableString,
-    conversionQuantityUnit: nullableString,
-    associatedPartyName: nullableString,
-    serviceType: nullableString,
-    qualityComplaint: nullableString,
-    promotionalActivity: nullableString,
-    channelPartnerVisit: nullableString,
-
-    // Nullable numeric
-    conversionQuantityValue: z.coerce.number().nullable().optional(),
-
+    sitePhotoUrl: nullableString,
+    timeSpentinLoc: nullableString,
     siteVisitType: nullableString,
-    dhalaiVerificationCode: nullableString,
-    isVerificationStatus: nullableString,
     meetingId: nullableString,
     pjpId: nullableString,
-
-    timeSpentinLoc: nullableString,
-    purposeOfVisit: nullableString,
-    sitePhotoUrl: nullableString,
-    
+    masonId: nullableString,
+    siteId: nullableString, 
     firstVisitTime: z.coerce.date().nullable().optional(),
     lastVisitTime: z.coerce.date().nullable().optional(),
-    
     firstVisitDay: nullableString,
     lastVisitDay: nullableString,
-
     siteVisitsCount: z.coerce.number().int().nullable().optional(),
     otherVisitsCount: z.coerce.number().int().nullable().optional(),
     totalVisitsCount: z.coerce.number().int().nullable().optional(),
@@ -85,8 +96,6 @@ const tvrPatchSchema = z
 
     latitude: z.coerce.number().nullable().optional(),
     longitude: z.coerce.number().nullable().optional(),
-    
-    masonId: nullableString,
   })
   .strict();
 
@@ -119,42 +128,94 @@ export default function setupTechnicalVisitReportsPatchRoutes(app: Express) {
       }
       
       // 3) build patch object safely
-      // We manually build 'patch' to avoid 'undefined' values
+      // We manually build 'patch' to avoid 'undefined' values from input overwriting existing data with undefined
       const patch: any = {};
       
-      // Manually map fields to handle date normalization and explicit nulls
+      // Core & Contact
       if (input.userId !== undefined) patch.userId = input.userId;
       if (input.reportDate !== undefined) patch.reportDate = toDateOnly(input.reportDate);
       if (input.visitType !== undefined) patch.visitType = input.visitType;
       if (input.siteNameConcernedPerson !== undefined) patch.siteNameConcernedPerson = input.siteNameConcernedPerson;
       if (input.phoneNo !== undefined) patch.phoneNo = input.phoneNo;
+      if (input.whatsappNo !== undefined) patch.whatsappNo = input.whatsappNo;
       if (input.emailId !== undefined) patch.emailId = input.emailId;
+      if (input.siteAddress !== undefined) patch.siteAddress = input.siteAddress;
+      if (input.marketName !== undefined) patch.marketName = input.marketName;
+      if (input.region !== undefined) patch.region = input.region;
+      if (input.area !== undefined) patch.area = input.area;
+
+      // Visit Specifics
+      if (input.visitCategory !== undefined) patch.visitCategory = input.visitCategory;
+      if (input.customerType !== undefined) patch.customerType = input.customerType;
+      if (input.purposeOfVisit !== undefined) patch.purposeOfVisit = input.purposeOfVisit;
+
+      // Construction & Site
+      if (input.siteVisitStage !== undefined) patch.siteVisitStage = input.siteVisitStage;
+      if (input.constAreaSqFt !== undefined) patch.constAreaSqFt = input.constAreaSqFt;
+      if (input.siteVisitBrandInUse !== undefined) patch.siteVisitBrandInUse = input.siteVisitBrandInUse;
+      
+      // Numeric handling for decimals (nullable number -> nullable string)
+      if (input.currentBrandPrice !== undefined) {
+        patch.currentBrandPrice = input.currentBrandPrice !== null ? String(input.currentBrandPrice) : null;
+      }
+      if (input.siteStock !== undefined) {
+        patch.siteStock = input.siteStock !== null ? String(input.siteStock) : null;
+      }
+      if (input.estRequirement !== undefined) {
+        patch.estRequirement = input.estRequirement !== null ? String(input.estRequirement) : null;
+      }
+
+      // Dealers
+      if (input.supplyingDealerName !== undefined) patch.supplyingDealerName = input.supplyingDealerName;
+      if (input.nearbyDealerName !== undefined) patch.nearbyDealerName = input.nearbyDealerName;
+      if (input.associatedPartyName !== undefined) patch.associatedPartyName = input.associatedPartyName;
+      if (input.channelPartnerVisit !== undefined) patch.channelPartnerVisit = input.channelPartnerVisit;
+
+      // Conversion
+      if (input.isConverted !== undefined) patch.isConverted = input.isConverted;
+      if (input.conversionType !== undefined) patch.conversionType = input.conversionType;
+      if (input.conversionFromBrand !== undefined) patch.conversionFromBrand = input.conversionFromBrand;
+      if (input.conversionQuantityUnit !== undefined) patch.conversionQuantityUnit = input.conversionQuantityUnit;
+      if (input.conversionQuantityValue !== undefined) {
+        patch.conversionQuantityValue = input.conversionQuantityValue !== null ? String(input.conversionQuantityValue) : null;
+      }
+
+      // Technical Services
+      if (input.isTechService !== undefined) patch.isTechService = input.isTechService;
+      if (input.serviceDesc !== undefined) patch.serviceDesc = input.serviceDesc;
+      if (input.serviceType !== undefined) patch.serviceType = input.serviceType;
+      if (input.dhalaiVerificationCode !== undefined) patch.dhalaiVerificationCode = input.dhalaiVerificationCode;
+      if (input.isVerificationStatus !== undefined) patch.isVerificationStatus = input.isVerificationStatus;
+      if (input.qualityComplaint !== undefined) patch.qualityComplaint = input.qualityComplaint;
+
+      // Influencer / Mason
+      if (input.influencerName !== undefined) patch.influencerName = input.influencerName;
+      if (input.influencerPhone !== undefined) patch.influencerPhone = input.influencerPhone;
+      if (input.isSchemeEnrolled !== undefined) patch.isSchemeEnrolled = input.isSchemeEnrolled;
+      if (input.influencerProductivity !== undefined) patch.influencerProductivity = input.influencerProductivity;
+      if (input.influencerType !== undefined) patch.influencerType = input.influencerType;
+
+      // Remarks
       if (input.clientsRemarks !== undefined) patch.clientsRemarks = input.clientsRemarks;
       if (input.salespersonRemarks !== undefined) patch.salespersonRemarks = input.salespersonRemarks;
+      if (input.promotionalActivity !== undefined) patch.promotionalActivity = input.promotionalActivity;
+
+      // Timings & Images
       if (input.checkInTime !== undefined) patch.checkInTime = input.checkInTime;
       if (input.checkOutTime !== undefined) patch.checkOutTime = input.checkOutTime;
       if (input.inTimeImageUrl !== undefined) patch.inTimeImageUrl = input.inTimeImageUrl;
       if (input.outTimeImageUrl !== undefined) patch.outTimeImageUrl = input.outTimeImageUrl;
-      if (input.siteVisitBrandInUse !== undefined) patch.siteVisitBrandInUse = input.siteVisitBrandInUse;
-      if (input.influencerType !== undefined) patch.influencerType = input.influencerType;
-      if (input.siteVisitStage !== undefined) patch.siteVisitStage = input.siteVisitStage;
-      if (input.conversionFromBrand !== undefined) patch.conversionFromBrand = input.conversionFromBrand;
-      if (input.conversionQuantityValue !== undefined) patch.conversionQuantityValue = input.conversionQuantityValue;
-      if (input.conversionQuantityUnit !== undefined) patch.conversionQuantityUnit = input.conversionQuantityUnit;
-      if (input.associatedPartyName !== undefined) patch.associatedPartyName = input.associatedPartyName;
-      if (input.serviceType !== undefined) patch.serviceType = input.serviceType;
-      if (input.qualityComplaint !== undefined) patch.qualityComplaint = input.qualityComplaint;
-      if (input.promotionalActivity !== undefined) patch.promotionalActivity = input.promotionalActivity;
-      if (input.channelPartnerVisit !== undefined) patch.channelPartnerVisit = input.channelPartnerVisit;
+      if (input.sitePhotoUrl !== undefined) patch.sitePhotoUrl = input.sitePhotoUrl;
+      if (input.timeSpentinLoc !== undefined) patch.timeSpentinLoc = input.timeSpentinLoc;
+
+      // Meta / Legacy / FKs
       if (input.siteVisitType !== undefined) patch.siteVisitType = input.siteVisitType;
-      if (input.dhalaiVerificationCode !== undefined) patch.dhalaiVerificationCode = input.dhalaiVerificationCode;
-      if (input.isVerificationStatus !== undefined) patch.isVerificationStatus = input.isVerificationStatus;
       if (input.meetingId !== undefined) patch.meetingId = input.meetingId;
       if (input.pjpId !== undefined) patch.pjpId = input.pjpId;
+      if (input.masonId !== undefined) patch.masonId = input.masonId;
+      if (input.siteId !== undefined) patch.siteId = input.siteId;
 
-      if (input.timeSpentinLoc !== undefined) patch.timeSpentinLoc = input.timeSpentinLoc;
-      if (input.purposeOfVisit !== undefined) patch.purposeOfVisit = input.purposeOfVisit;
-      if (input.sitePhotoUrl !== undefined) patch.sitePhotoUrl = input.sitePhotoUrl;
+      // Counters & Geo
       if (input.firstVisitTime !== undefined) patch.firstVisitTime = input.firstVisitTime;
       if (input.lastVisitTime !== undefined) patch.lastVisitTime = input.lastVisitTime;
       if (input.firstVisitDay !== undefined) patch.firstVisitDay = input.firstVisitDay;
@@ -162,25 +223,12 @@ export default function setupTechnicalVisitReportsPatchRoutes(app: Express) {
       if (input.siteVisitsCount !== undefined) patch.siteVisitsCount = input.siteVisitsCount;
       if (input.otherVisitsCount !== undefined) patch.otherVisitsCount = input.otherVisitsCount;
       if (input.totalVisitsCount !== undefined) patch.totalVisitsCount = input.totalVisitsCount;
-      if (input.region !== undefined) patch.region = input.region;
-      if (input.area !== undefined) patch.area = input.area;
-      if (input.masonId !== undefined) patch.masonId = input.masonId;
-
-      // Handle numeric-to-string conversion for patch
-      if (input.conversionQuantityValue !== undefined) {
-        patch.conversionQuantityValue = input.conversionQuantityValue !== null 
-          ? String(input.conversionQuantityValue) 
-          : null;
-      }
+      
       if (input.latitude !== undefined) {
-        patch.latitude = input.latitude !== null 
-          ? String(input.latitude) 
-          : null;
+        patch.latitude = input.latitude !== null ? String(input.latitude) : null;
       }
       if (input.longitude !== undefined) {
-        patch.longitude = input.longitude !== null 
-          ? String(input.longitude) 
-          : null;
+        patch.longitude = input.longitude !== null ? String(input.longitude) : null;
       }
 
       patch.updatedAt = new Date(); // always touch updatedAt

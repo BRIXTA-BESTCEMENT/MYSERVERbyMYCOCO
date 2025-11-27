@@ -1,7 +1,4 @@
 // server/src/routes/dataFetchingRoutes/tvr.ts 
-// --- REFACTORED & FIXED (AGAIN) ---
-// Technical Visit Reports GET endpoints with robust, centralized filtering
-
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { technicalVisitReports } from '../../db/schema';
@@ -31,28 +28,36 @@ function buildWhere(q: any) {
     ));
   }
 
-  // --- ✅ TS FIX: Explicit checks, no loop ---
-  if (q.visitType) {
-    conds.push(eq(table.visitType, String(q.visitType)));
-  }
-  if (q.serviceType) {
-    conds.push(eq(table.serviceType, String(q.serviceType)));
-  }
-  if (q.pjpId) {
-    conds.push(eq(table.pjpId, String(q.pjpId)));
-  }
-  if (q.meetingId) {
-    conds.push(eq(table.meetingId, String(q.meetingId)));
-  }
-  if (q.isVerificationStatus) {
-    conds.push(eq(table.isVerificationStatus, String(q.isVerificationStatus)));
-  }
-  if (q.siteVisitType) {
-    conds.push(eq(table.siteVisitType, String(q.siteVisitType)));
-  }
-  // --- END FIX ---
+  // --- Explicit checks for String Fields ---
+  if (q.visitType) conds.push(eq(table.visitType, String(q.visitType)));
+  if (q.serviceType) conds.push(eq(table.serviceType, String(q.serviceType)));
+  if (q.pjpId) conds.push(eq(table.pjpId, String(q.pjpId)));
+  if (q.meetingId) conds.push(eq(table.meetingId, String(q.meetingId)));
+  if (q.isVerificationStatus) conds.push(eq(table.isVerificationStatus, String(q.isVerificationStatus)));
+  if (q.siteVisitType) conds.push(eq(table.siteVisitType, String(q.siteVisitType)));
+  if (q.region) conds.push(eq(table.region, String(q.region)));
+  if (q.area) conds.push(eq(table.area, String(q.area)));
+  if (q.marketName) conds.push(eq(table.marketName, String(q.marketName)));
+  if (q.visitCategory) conds.push(eq(table.visitCategory, String(q.visitCategory)));
+  if (q.customerType) conds.push(eq(table.customerType, String(q.customerType)));
+  if (q.supplyingDealerName) conds.push(eq(table.supplyingDealerName, String(q.supplyingDealerName)));
+  
+  // UUIDs
+  if (q.masonId) conds.push(eq(table.masonId, String(q.masonId)));
+  if (q.siteId) conds.push(eq(table.siteId, String(q.siteId)));
 
-  // Handle number filter
+  // --- Boolean Filters ---
+  if (q.isConverted !== undefined && q.isConverted !== '') {
+    conds.push(eq(table.isConverted, String(q.isConverted) === 'true'));
+  }
+  if (q.isTechService !== undefined && q.isTechService !== '') {
+    conds.push(eq(table.isTechService, String(q.isTechService) === 'true'));
+  }
+  if (q.isSchemeEnrolled !== undefined && q.isSchemeEnrolled !== '') {
+    conds.push(eq(table.isSchemeEnrolled, String(q.isSchemeEnrolled) === 'true'));
+  }
+
+  // Handle number filter (User ID)
   const uid = numberish(q.userId);
   if (uid !== undefined) {
     conds.push(eq(table.userId, uid));
