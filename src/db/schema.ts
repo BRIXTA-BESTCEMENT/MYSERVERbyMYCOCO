@@ -788,7 +788,7 @@ export const pointsLedger = pgTable("points_ledger", {
   index("idx_points_ledger_source_id").on(t.sourceId),
 ]);
 
-/* ========================= reward_redemptions (new - to cover missing orders table) ========================= */
+/* ========================= reward_redemptions (to cover missing orders table) ========================= */
 export const rewardRedemptions = pgTable("reward_redemptions", {
   id: uuid("id").primaryKey().defaultRandom(),
   masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }),
@@ -807,7 +807,7 @@ export const rewardRedemptions = pgTable("reward_redemptions", {
   index("idx_reward_redemptions_status").on(t.status),
 ]);
 
-// --- END NEW LOYALTY TABLES FROM SAMPLE SCHEMA ---
+// --- END LOYALTY TABLES FROM SAMPLE SCHEMA ---
 
 export const technicalSites = pgTable("technical_sites", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
@@ -879,6 +879,46 @@ export const masonSlabAchievements = pgTable("mason_slab_achievements", {
 }, (t) => [
   index("idx_msa_mason_id").on(t.masonId),
   uniqueIndex("unique_mason_slab_claim").on(t.masonId, t.schemeSlabId), 
+]);
+
+// ---------- MANY to MANY relations for User/Dealer/Masons/technicalSites -------- 
+// ONE USER can have -> MANY Dealers/Masons/technicalSites
+// REST of the three can have MANY to MANY with each other
+
+// 1. Dealer <-> TechnicalSite
+export const siteAssociatedDealers = pgTable("_SiteAssociatedDealers", {
+  A: varchar("A", { length: 255 }).notNull().references(() => dealers.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => technicalSites.id, { onDelete: "cascade", onUpdate: "cascade" }),
+}, (t) => [
+  uniqueIndex("_SiteAssociatedDealers_AB_unique").on(t.A, t.B),
+  index("_SiteAssociatedDealers_B_index").on(t.B),
+]);
+
+// 2. Dealer <-> Mason
+export const dealerAssociatedMasons = pgTable("_DealerAssociatedMasons", {
+  A: varchar("A", { length: 255 }).notNull().references(() => dealers.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => masonPcSide.id, { onDelete: "cascade", onUpdate: "cascade" }),
+}, (t) => [
+  uniqueIndex("_DealerAssociatedMasons_AB_unique").on(t.A, t.B),
+  index("_DealerAssociatedMasons_B_index").on(t.B),
+]);
+
+// 3. Mason <-> TechnicalSite
+export const siteAssociatedMasons = pgTable("_SiteAssociatedMasons", {
+  A: uuid("A").notNull().references(() => masonPcSide.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => technicalSites.id, { onDelete: "cascade", onUpdate: "cascade" }),
+}, (t) => [
+  uniqueIndex("_SiteAssociatedMasons_AB_unique").on(t.A, t.B),
+  index("_SiteAssociatedMasons_B_index").on(t.B),
+]);
+
+// 4. TechnicalSite <-> User
+export const siteAssociatedUsers = pgTable("_SiteAssociatedUsers", {
+  A: uuid("A").notNull().references(() => technicalSites.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: integer("B").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+}, (t) => [
+  uniqueIndex("_SiteAssociatedUsers_AB_unique").on(t.A, t.B),
+  index("_SiteAssociatedUsers_B_index").on(t.B),
 ]);
 
 /* ========================= drizzle-zod insert schemas ========================= */
