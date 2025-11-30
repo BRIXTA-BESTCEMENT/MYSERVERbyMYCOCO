@@ -1,14 +1,15 @@
 // server/src/routes/updateRoutes/technicalSites.ts
-
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-// 🟢 NEW: Import table and schemas
-import { technicalSites, insertTechnicalSiteSchema } from '../../db/schema';
+import { 
+  technicalSites, 
+  siteAssociatedMasons, 
+  siteAssociatedDealers 
+} from '../../db/schema';
 import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
-// --- Helper Functions (Copied from dealers.ts for data type handling) ---
-
+// --- Helper Functions ---
 const strOrNull = z.preprocess((val) => {
   if (val === '' || val === undefined) return null;
   if (val === null) return null;
@@ -25,28 +26,21 @@ const dateOrNull = z.preprocess((val) => {
   return isNaN(d.getTime()) ? null : d;
 }, z.date().nullable().optional());
 
-const numOrNull = z.preprocess((val) => {
-  if (val === '' || val === null || val === undefined) return null;
-  const n = Number(val);
-  return isNaN(n) ? null : n;
-}, z.number().nullable().optional());
-
 const boolOrNull = z.preprocess((val) => {
     if (val === 'true' || val === true) return true;
     if (val === 'false' || val === false) return false;
     if (val === '' || val === null || val === undefined) return null;
-    return undefined; // Let Zod handle if type is wrong
+    return undefined; 
 }, z.boolean().nullable().optional());
 
-// --- Core Schema for Site Update (used by both PUT/PATCH) ---
-// Note: This mirrors the structure of the InsertSchema but ensures date/numeric handling.
+// --- Core Schema for Site Update ---
 const technicalSiteBaseSchema = z.object({
   siteName: z.string().min(1).max(255).optional(),
   concernedPerson: z.string().min(1).max(255).optional(),
   phoneNo: z.string().min(1).max(20).optional(),
   address: strOrNull,
-  latitude: numOrNull,
-  longitude: numOrNull,
+  latitude: z.coerce.string().optional(),
+  longitude: z.coerce.string().optional(),
   siteType: strOrNull,
   area: strOrNull,
   region: strOrNull,
@@ -55,7 +49,7 @@ const technicalSiteBaseSchema = z.object({
   keyPersonPhoneNum: strOrNull,
   stageOfConstruction: strOrNull,
   
-  // Dates are coerced to Date objects here, then converted back to string/Date in the handler
+  // Date Handling
   constructionStartDate: dateOrNull,
   constructionEndDate: dateOrNull,
   firstVistDate: dateOrNull,
@@ -64,89 +58,114 @@ const technicalSiteBaseSchema = z.object({
   convertedSite: boolOrNull,
   needFollowUp: boolOrNull,
   imageUrl: strOrNull,
-
-  // Foreign Keys (must be UUID string or null)
-  relatedDealerID: strOrNull, // z.string().uuid().nullable().optional() equivalent
-  relatedMasonpcID: strOrNull,
+  // associatedMasonIds & associatedDealerIds are the only way to link now
+  associatedMasonIds: z.array(z.string()).optional(), 
+  associatedDealerIds: z.array(z.string()).optional(),
 });
 
-// --- Schema for PATCH (Partial Update) ---
-const technicalSitePatchSchema = technicalSiteBaseSchema.partial().strict();
+// Partial Schema for PATCH
+const technicalSitePatchSchema = technicalSiteBaseSchema.partial();
 
-// --- Schema for PUT (Full Replacement) ---
-const technicalSitePutSchema = technicalSiteBaseSchema.extend({
-    // Make required fields mandatory for PUT operations
-    siteName: z.string().min(1).max(255),
-    concernedPerson: z.string().min(1).max(255),
-    phoneNo: z.string().min(1).max(20),
-});
-
-// --- Date Conversion Helper (for Drizzle's `date` or `timestamp` columns) ---
-const toDrizzleDateValue = (d: Date | null | undefined): Date | null => {
+// Date conversion helper for Drizzle
+const toDrizzleDateValue = (d: Date | null | undefined): string | null => {
   if (!d) return null;
-  // Drizzle expects a Date object for timestamp columns, or string for date columns.
-  // For safety with Drizzle's `date` type, returning a Date object is standard for update operations.
-  return d;
+  return d.toISOString();
 };
-
 
 export default function setupTechnicalSitesUpdateRoutes(app: Express) {
   
-  // ========================================
-  // PATCH /api/technical-sites/:id (Partial Update)
-  // ========================================
   app.patch('/api/technical-sites/:id', async (req: Request, res: Response) => {
     try {
       const { id } = req.params;
       
-      // 1. Validate incoming data against the PATCH schema (partial)
-      const input = technicalSitePatchSchema.parse(req.body);
-
-      if (Object.keys(input).length === 0) {
-        return res.status(400).json({ success: false, error: 'No fields to update' });
+      const parsed = technicalSitePatchSchema.safeParse(req.body);
+      if (!parsed.success) {
+        return res.status(400).json({ success: false, error: 'Validation failed', details: parsed.error.issues });
       }
 
-      // 2. Check if the site exists
+      const input = parsed.data;
+
+      // Check if site exists
       const [existingSite] = await db.select().from(technicalSites).where(eq(technicalSites.id, id)).limit(1);
       if (!existingSite) {
         return res.status(404).json({ success: false, error: `Technical Site with ID '${id}' not found.` });
       }
 
-      // 3. Build patch object, converting Date fields explicitly
+      // --- 1. Prepare Main Table Patch ---
       const patch: Record<string, any> = {};
 
       Object.keys(input).forEach(key => {
+        // Skip array fields
+        if (key === 'associatedMasonIds' || key === 'associatedDealerIds') return;
+
         const value = input[key as keyof typeof input];
         
-        // Handle date/timestamp fields (which come as Date objects from dateOrNull preprocessing)
         if (key.includes('Date')) {
             patch[key] = toDrizzleDateValue(value as Date | null | undefined);
         } else if (value !== undefined) {
-            // Apply other fields (strings, numbers, booleans, FKs)
             patch[key] = value;
         }
       });
       
-      // 4. Perform the update
-      (patch as any).updatedAt = new Date();
+      patch.updatedAt = new Date();
 
-      const [updatedSite] = await db
-        .update(technicalSites)
-        .set(patch)
-        .where(eq(technicalSites.id, id))
-        .returning();
+      // --- 2. TRANSACTION ---
+      const result = await db.transaction(async (tx) => {
+        
+        // A. Update Main Table
+        let updatedSite = existingSite;
+        // Only run update if there are fields other than updatedAt
+        if (Object.keys(patch).length > 1) { 
+           [updatedSite] = await tx
+            .update(technicalSites)
+            .set(patch)
+            .where(eq(technicalSites.id, id))
+            .returning();
+        }
+
+        // B. Update Masons (Full Replace)
+        if (input.associatedMasonIds !== undefined) {
+          await tx.delete(siteAssociatedMasons).where(eq(siteAssociatedMasons.B, id));
+          
+          const masons = input.associatedMasonIds;
+          if (masons.length > 0) {
+            const unique = [...new Set(masons)];
+            await tx.insert(siteAssociatedMasons).values(
+              unique.map(mid => ({ A: mid, B: id }))
+            );
+          }
+        }
+
+        // C. Update Dealers (Full Replace)
+        if (input.associatedDealerIds !== undefined) {
+          await tx.delete(siteAssociatedDealers).where(eq(siteAssociatedDealers.B, id));
+          
+          const dealers = input.associatedDealerIds;
+          if (dealers.length > 0) {
+            const unique = [...new Set(dealers)];
+            await tx.insert(siteAssociatedDealers).values(
+              unique.map(did => ({ A: did, B: id }))
+            );
+          }
+        }
+
+        return updatedSite;
+      });
 
       return res.json({
         success: true,
         message: 'Technical Site updated successfully',
-        data: updatedSite,
+        data: result,
       });
 
     } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ success: false, error: 'Validation failed', details: error.issues });
-      }
       console.error('Update Technical Site error:', error);
+      const msg = String((error as any)?.message ?? '').toLowerCase();
+      
+      if (msg.includes('violates foreign key constraint')) {
+         return res.status(400).json({ success: false, error: 'Invalid ID provided for Mason or Dealer' });
+      }
+
       return res.status(500).json({
         success: false,
         error: 'Failed to update technical site',
@@ -155,63 +174,5 @@ export default function setupTechnicalSitesUpdateRoutes(app: Express) {
     }
   });
 
-
-  // ========================================
-  // PUT /api/technical-sites/:id (Full Replacement)
-  // ========================================
-  app.put('/api/technical-sites/:id', async (req: Request, res: Response) => {
-    try {
-      const { id } = req.params;
-      
-      // 1. Validate incoming data against the PUT schema (mandatory required fields)
-      const input = technicalSitePutSchema.parse(req.body);
-
-      // 2. Check if the site exists
-      const [existingSite] = await db.select().from(technicalSites).where(eq(technicalSites.id, id)).limit(1);
-      if (!existingSite) {
-        return res.status(404).json({ success: false, error: `Technical Site with ID '${id}' not found.` });
-      }
-
-      // 3. Prepare full replacement object
-      const updateData: Record<string, any> = {};
-
-      Object.entries(input).forEach(([key, value]) => {
-          // Convert date/timestamp fields explicitly
-          if (key.includes('Date')) {
-              updateData[key] = toDrizzleDateValue(value as Date | null | undefined);
-          } else {
-              updateData[key] = value;
-          }
-      });
-      
-      // 4. Perform the update
-      updateData.updatedAt = new Date();
-      updateData.id = id; // Ensure ID is preserved
-
-      const [updatedSite] = await db
-        .update(technicalSites)
-        .set(updateData)
-        .where(eq(technicalSites.id, id))
-        .returning();
-
-      return res.json({
-        success: true,
-        message: 'Technical Site replaced successfully',
-        data: updatedSite,
-      });
-
-    } catch (error) {
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ success: false, error: 'Validation failed for full replacement', details: error.issues });
-      }
-      console.error('PUT Technical Site error:', error);
-      return res.status(500).json({
-        success: false,
-        error: 'Failed to replace technical site',
-        details: (error as Error)?.message ?? 'Unknown error',
-      });
-    }
-  });
-
-  console.log('✅ Technical Sites PATCH and PUT endpoints setup complete');
+  console.log('✅ Technical Sites PATCH endpoint ready (M-N Support Only)');
 }

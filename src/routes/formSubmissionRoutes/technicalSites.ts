@@ -1,95 +1,124 @@
 // server/src/routes/postRoutes/technicalSites.ts
-
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { technicalSites, insertTechnicalSiteSchema } from '../../db/schema'; 
+import {
+  technicalSites,
+  insertTechnicalSiteSchema,
+  siteAssociatedMasons,
+  siteAssociatedDealers
+} from '../../db/schema';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 import { InferInsertModel } from 'drizzle-orm';
 
-// Define the required insert type for better safety
 type TechnicalSiteInsert = InferInsertModel<typeof technicalSites>;
 
-// --- Helper for simplified Auto CRUD POST operations ---
-function createAutoCRUD(app: Express, config: {
-  endpoint: string,
-  table: typeof technicalSites,
-  schema: z.ZodSchema<any>,
-  tableName: string,
-}) {
-  const { endpoint, table, schema, tableName } = config;
+export default function setupTechnicalSitesPostRoutes(app: Express) {
 
-  // CREATE NEW RECORD
-  app.post(`/api/${endpoint}`, async (req: Request, res: Response) => {
+  // 1. HYBRID SCHEMA: Supports both Old (Single) and New (Array) inputs
+  const extendedSchema = insertTechnicalSiteSchema.extend({
+    // Coerce numbers from Flutter to strings/decimals
+    latitude: z.coerce.string().optional(),
+    longitude: z.coerce.string().optional(),
+
+    // Coerce dates safely (Flutter sends ISO strings)
+    constructionStartDate: z.coerce.date().optional(),
+    constructionEndDate: z.coerce.date().optional(),
+    firstVistDate: z.coerce.date().optional(),
+    lastVisitDate: z.coerce.date().optional(),
+
+    // NEW: Optional arrays for Many-to-Many
+    associatedMasonIds: z.array(z.string()).optional(),
+    associatedDealerIds: z.array(z.string()).optional(),
+  });
+
+  app.post('/api/technical-sites', async (req: Request, res: Response) => {
     try {
-      // 1. Validate the payload against the schema
-      const parsed = schema.safeParse(req.body);
+      const parsed = extendedSchema.safeParse(req.body);
 
       if (!parsed.success) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Validation failed for Technical Site submission.', 
-          details: parsed.error.errors 
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
+          details: parsed.error.errors
         });
       }
 
-      const validatedData = parsed.data;
+      const {
+        associatedMasonIds = [], // Default to empty array
+        associatedDealerIds = [],
+        ...siteData
+      } = parsed.data;
 
-      // 2. Generate a UUID for the primary key
-      const generatedId = randomUUID();
-      
-      // 3. Prepare data for insertion
+      const newSiteId = randomUUID();
+
+      // Explicit date handling for Drizzle
       const insertData: TechnicalSiteInsert = {
-        ...validatedData,
-        id: generatedId,
-        constructionStartDate: validatedData.constructionStartDate ? new Date(validatedData.constructionStartDate) : null,
-        constructionEndDate: validatedData.constructionEndDate ? new Date(validatedData.constructionEndDate) : null,
-        firstVistDate: validatedData.firstVistDate ? new Date(validatedData.firstVistDate) : null,
-        lastVisitDate: validatedData.lastVisitDate ? new Date(validatedData.lastVisitDate) : null,
-        imageUrl: validatedData.imageUrl ?? null,
+        ...siteData,
+        id: newSiteId,
+        constructionStartDate: siteData.constructionStartDate ? siteData.constructionStartDate.toISOString() : null,
+        constructionEndDate: siteData.constructionEndDate ? siteData.constructionEndDate.toISOString() : null,
+        firstVistDate: siteData.firstVistDate ? siteData.firstVistDate.toISOString() : null,
+        lastVisitDate: siteData.lastVisitDate ? siteData.lastVisitDate.toISOString() : null,
+        imageUrl: siteData.imageUrl ?? null,
       };
 
-      // 4. Insert the record
-      const [newRecord] = await db.insert(table).values(insertData as any).returning();
+      // 2. TRANSACTION
+      const result = await db.transaction(async (tx) => {
+        // Step A: Insert Site (With Single IDs if provided)
+        const [insertedSite] = await tx
+          .insert(technicalSites)
+          .values(insertData as any)
+          .returning();
+
+        // Step B: Insert Masons (New + Old merged)
+        if (associatedMasonIds.length > 0) {
+          // Deduplicate just in case
+          const uniqueMasons = [...new Set(associatedMasonIds)];
+          const masonMaps = uniqueMasons.map((masonId) => ({
+            A: masonId,
+            B: insertedSite.id,
+          }));
+          await tx.insert(siteAssociatedMasons).values(masonMaps);
+        }
+
+        // Step C: Insert Dealers (New + Old merged)
+        if (associatedDealerIds.length > 0) {
+          const uniqueDealers = [...new Set(associatedDealerIds)];
+          const dealerMaps = uniqueDealers.map((dealerId) => ({
+            A: dealerId,
+            B: insertedSite.id,
+          }));
+          await tx.insert(siteAssociatedDealers).values(dealerMaps);
+        }
+
+        return insertedSite;
+      });
 
       res.status(201).json({
         success: true,
-        message: `${tableName} created successfully with ID ${newRecord.id}`,
-        data: newRecord
+        message: 'Technical Site created successfully',
+        data: result,
       });
+
     } catch (error: any) {
-      console.error(`Create ${tableName} error:`, error);
-      
-      if (error instanceof z.ZodError) {
-        return res.status(400).json({ success: false, error: 'Validation failed', details: error.errors });
-      }
-      
+      console.error('Create Technical Site Error:', error);
+
       const msg = String(error?.message ?? '').toLowerCase();
       if (error?.code === '23503' || msg.includes('violates foreign key constraint')) {
-        return res.status(400).json({ success: false, error: 'Foreign Key violation: Related Dealer/Mason/PC ID does not exist.' });
+        return res.status(400).json({
+          success: false,
+          error: 'One of the provided IDs (Dealer/Mason) does not exist.'
+        });
       }
 
-      res.status(500).json({ success: false, error: `Failed to create ${tableName}`, details: error instanceof Error ? error.message : 'Unknown error' });
+      res.status(500).json({
+        success: false,
+        error: 'Failed to create Technical Site',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   });
-}
 
-export default function setupTechnicalSitesPostRoutes(app: Express) {
-  
-  // 🔥 THE FIX IS HERE 🔥
-  // We create a "patched" schema that overrides strict string checks.
-  // z.coerce.string() will take the Number from Flutter and turn it into a String automatically.
-  const patchedSchema = insertTechnicalSiteSchema.extend({
-    latitude: z.coerce.string(), 
-    longitude: z.coerce.string(),
-  });
-
-  createAutoCRUD(app, {
-    endpoint: 'technical-sites',
-    table: technicalSites,
-    schema: patchedSchema, // <--- Use the patched schema here
-    tableName: 'Technical Site',
-  });
-  
-  console.log('✅ Technical Sites POST endpoint setup complete');
+  console.log('✅ Technical Sites POST endpoint ready (Hybrid Old+New Support)');
 }

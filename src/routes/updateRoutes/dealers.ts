@@ -153,12 +153,17 @@ type DealerUpdateInput = z.infer<typeof dealerUpdateSchema>;
 // --- Radar Upsert Helper ---
 // Node 18+ global fetch expected.
 async function upsertRadarGeofence(
-  dealer: typeof dealers.$inferSelect & { latitude?: number | null; longitude?: number | null },
+  dealer: Omit<typeof dealers.$inferSelect, 'latitude' | 'longitude'> & {
+    latitude: number | null;
+    longitude: number | null;
+  },
   radius?: number
 ) {
   if (!process.env.RADAR_SECRET_KEY) {
     throw new Error('RADAR_SECRET_KEY is not configured');
   }
+
+  // Now TS knows these are numbers
   const lat = dealer.latitude;
   const lng = dealer.longitude;
 
@@ -186,10 +191,9 @@ async function upsertRadarGeofence(
     ...(dealer.area ? { area: dealer.area } : {}),
     ...(dealer.phoneNo ? { phoneNo: dealer.phoneNo } : {}),
     ...(dealer.verificationStatus ? { verificationStatus: dealer.verificationStatus } : {}),
-    // --- ✅ NEW FIELDS ADDED ---
-    ...(dealer.nameOfFirm ? { nameOfFirm: dealer.nameOfFirm } : {}),
-    ...(dealer.underSalesPromoterName ? { promoterName: dealer.underSalesPromoterName } : {}),
-    // --- END NEW FIELDS ---
+    // Safe property access since we are spreading the dealer object
+    ...((dealer as any).nameOfFirm ? { nameOfFirm: (dealer as any).nameOfFirm } : {}),
+    ...((dealer as any).underSalesPromoterName ? { promoterName: (dealer as any).underSalesPromoterName } : {}),
   };
 
   if (Object.keys(metadata).length) {
@@ -245,15 +249,15 @@ export default function setupDealersPatchRoutes(app: Express) {
       if (input.pinCode !== undefined) patch.pinCode = input.pinCode;
 
       // coords (number | null)
-      if (input.latitude !== undefined)  patch.latitude  = input.latitude === null ? null : input.latitude;
+      if (input.latitude !== undefined) patch.latitude = input.latitude === null ? null : input.latitude;
       if (input.longitude !== undefined) patch.longitude = input.longitude === null ? null : input.longitude;
 
-      if (input.dateOfBirth !== undefined)      patch.dateOfBirth      = toDateOnlyString(input.dateOfBirth);
-      if (input.anniversaryDate !== undefined)  patch.anniversaryDate  = toDateOnlyString(input.anniversaryDate);
+      if (input.dateOfBirth !== undefined) patch.dateOfBirth = toDateOnlyString(input.dateOfBirth);
+      if (input.anniversaryDate !== undefined) patch.anniversaryDate = toDateOnlyString(input.anniversaryDate);
 
       // numeric potentials (number)
       if (input.totalPotential !== undefined) patch.totalPotential = input.totalPotential;
-      if (input.bestPotential  !== undefined) patch.bestPotential  = input.bestPotential;
+      if (input.bestPotential !== undefined) patch.bestPotential = input.bestPotential;
 
       if (input.brandSelling !== undefined) patch.brandSelling = input.brandSelling;
       if (input.feedbacks !== undefined) patch.feedbacks = input.feedbacks;

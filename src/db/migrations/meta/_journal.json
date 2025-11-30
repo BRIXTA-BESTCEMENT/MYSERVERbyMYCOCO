@@ -71,6 +71,13 @@
       "when": 1764403436285,
       "tag": "0009_rapid_tag",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1764515561696,
+      "tag": "0010_neat_blizzard",
+      "breakpoints": true
     }
   ]
 }

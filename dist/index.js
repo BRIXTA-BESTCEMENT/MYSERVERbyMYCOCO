@@ -25,6 +25,7 @@ __export(schema_exports, {
   competitionReports: () => competitionReports,
   dailyTasks: () => dailyTasks,
   dailyVisitReports: () => dailyVisitReports,
+  dealerAssociatedMasons: () => dealerAssociatedMasons,
   dealerBrandMapping: () => dealerBrandMapping,
   dealerReportsAndScores: () => dealerReportsAndScores,
   dealers: () => dealers,
@@ -44,6 +45,7 @@ __export(schema_exports, {
   insertKycSubmissionSchema: () => insertKycSubmissionSchema,
   insertMasonOnSchemeSchema: () => insertMasonOnSchemeSchema,
   insertMasonPcSideSchema: () => insertMasonPcSideSchema,
+  insertMasonSlabAchievementSchema: () => insertMasonSlabAchievementSchema,
   insertMasonsOnMeetingsSchema: () => insertMasonsOnMeetingsSchema,
   insertOtpVerificationSchema: () => insertOtpVerificationSchema,
   insertPermanentJourneyPlanSchema: () => insertPermanentJourneyPlanSchema,
@@ -55,6 +57,7 @@ __export(schema_exports, {
   insertSalesOrderSchema: () => insertSalesOrderSchema,
   insertSalesmanAttendanceSchema: () => insertSalesmanAttendanceSchema,
   insertSalesmanLeaveApplicationSchema: () => insertSalesmanLeaveApplicationSchema,
+  insertSchemeSlabsSchema: () => insertSchemeSlabsSchema,
   insertSchemesOffersSchema: () => insertSchemesOffersSchema,
   insertTallyRawTableSchema: () => insertTallyRawTableSchema,
   insertTechnicalSiteSchema: () => insertTechnicalSiteSchema,
@@ -66,6 +69,7 @@ __export(schema_exports, {
   kycSubmissions: () => kycSubmissions,
   masonOnScheme: () => masonOnScheme,
   masonPcSide: () => masonPcSide,
+  masonSlabAchievements: () => masonSlabAchievements,
   masonsOnMeetings: () => masonsOnMeetings,
   otpVerifications: () => otpVerifications,
   permanentJourneyPlans: () => permanentJourneyPlans,
@@ -77,7 +81,11 @@ __export(schema_exports, {
   salesOrders: () => salesOrders,
   salesmanAttendance: () => salesmanAttendance,
   salesmanLeaveApplications: () => salesmanLeaveApplications,
+  schemeSlabs: () => schemeSlabs,
   schemesOffers: () => schemesOffers,
+  siteAssociatedDealers: () => siteAssociatedDealers,
+  siteAssociatedMasons: () => siteAssociatedMasons,
+  siteAssociatedUsers: () => siteAssociatedUsers,
   tallyRaw: () => tallyRaw,
   technicalSites: () => technicalSites,
   technicalVisitReports: () => technicalVisitReports,
@@ -152,13 +160,11 @@ var users = pgTable("users", {
   // Drizzle needs this slightly loose typing for self-ref
   reportsToId: integer("reports_to_id").references(() => users.id, { onDelete: "set null" }),
   // --- ADDED FOR PRISMA PARITY ---
-  noOfPJP: integer("no_of_pjp"),
-  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" })
+  noOfPJP: integer("no_of_pjp")
 }, (t) => [
   uniqueIndex("users_companyid_email_unique").on(t.companyId, t.email),
   index("idx_user_company_id").on(t.companyId),
-  index("idx_workos_user_id").on(t.workosUserId),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_workos_user_id").on(t.workosUserId)
 ]);
 var tsoMeetings = pgTable("tso_meetings", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -174,7 +180,7 @@ var tsoMeetings = pgTable("tso_meetings", {
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow()
 }, (t) => [
   index("idx_tso_meetings_created_by_user_id").on(t.createdByUserId),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_tso_meetings_site_id").on(t.siteId)
 ]);
 var permanentJourneyPlans = pgTable("permanent_journey_plans", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
@@ -200,7 +206,7 @@ var permanentJourneyPlans = pgTable("permanent_journey_plans", {
   index("idx_pjp_bulk_op_id").on(t.bulkOpId),
   uniqueIndex("uniq_pjp_user_dealer_plan_date").on(t.userId, t.dealerId, t.planDate),
   uniqueIndex("uniq_pjp_idempotency_key_not_null").on(t.idempotencyKey).where(sql`${t.idempotencyKey} IS NOT NULL`),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_pjp_site_id").on(t.siteId)
 ]);
 var dailyVisitReports = pgTable("daily_visit_reports", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
@@ -247,34 +253,55 @@ var technicalVisitReports = pgTable("technical_visit_reports", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   reportDate: date("report_date").notNull(),
-  visitType: varchar("visit_type", { length: 50 }).notNull(),
+  region: varchar("region", { length: 100 }),
+  area: varchar("area", { length: 100 }),
+  marketName: varchar("market_name", { length: 100 }),
+  siteAddress: varchar("site_address", { length: 500 }),
   siteNameConcernedPerson: varchar("site_name_concerned_person", { length: 255 }).notNull(),
   phoneNo: varchar("phone_no", { length: 20 }).notNull(),
+  whatsappNo: varchar("whatsapp_no", { length: 20 }),
   emailId: varchar("email_id", { length: 255 }),
-  clientsRemarks: varchar("clients_remarks", { length: 500 }).notNull(),
-  salespersonRemarks: varchar("salesperson_remarks", { length: 500 }).notNull(),
-  checkInTime: timestamp("check_in_time", { withTimezone: true, precision: 6 }).notNull(),
-  checkOutTime: timestamp("check_out_time", { withTimezone: true, precision: 6 }),
-  inTimeImageUrl: varchar("in_time_image_url", { length: 500 }),
-  outTimeImageUrl: varchar("out_time_image_url", { length: 500 }),
-  siteVisitBrandInUse: text("site_visit_brand_in_use").array().notNull(),
+  latitude: numeric("latitude", { precision: 9, scale: 6 }),
+  longitude: numeric("longitude", { precision: 9, scale: 6 }),
+  visitType: varchar("visit_type", { length: 50 }).notNull(),
+  visitCategory: varchar("visit_category", { length: 50 }),
+  customerType: varchar("customer_type", { length: 50 }),
+  purposeOfVisit: varchar("purpose_of_visit", { length: 500 }),
   siteVisitStage: text("site_visit_stage"),
+  constAreaSqFt: integer("const_area_sq_ft"),
+  siteVisitBrandInUse: text("site_visit_brand_in_use").array().notNull(),
+  currentBrandPrice: numeric("current_brand_price", { precision: 10, scale: 2 }),
+  siteStock: numeric("site_stock", { precision: 10, scale: 2 }),
+  estRequirement: numeric("est_requirement", { precision: 10, scale: 2 }),
+  supplyingDealerName: varchar("supplying_dealer_name", { length: 255 }),
+  nearbyDealerName: varchar("nearby_dealer_name", { length: 255 }),
+  associatedPartyName: text("associated_party_name"),
+  channelPartnerVisit: text("channel_partner_visit"),
+  isConverted: boolean("is_converted"),
+  conversionType: varchar("conversion_type", { length: 50 }),
   conversionFromBrand: text("conversion_from_brand"),
   conversionQuantityValue: numeric("conversion_quantity_value", { precision: 10, scale: 2 }),
   conversionQuantityUnit: varchar("conversion_quantity_unit", { length: 20 }),
-  associatedPartyName: text("associated_party_name"),
-  influencerType: text("influencer_type").array().notNull(),
+  isTechService: boolean("is_tech_service"),
+  serviceDesc: varchar("service_desc", { length: 500 }),
   serviceType: text("service_type"),
-  qualityComplaint: text("quality_complaint"),
-  promotionalActivity: text("promotional_activity"),
-  channelPartnerVisit: text("channel_partner_visit"),
-  siteVisitType: varchar("site_visit_type", { length: 50 }),
   dhalaiVerificationCode: varchar("dhalai_verification_code", { length: 50 }),
   isVerificationStatus: varchar("is_verification_status", { length: 50 }),
-  meetingId: varchar("meeting_id", { length: 255 }).references(() => tsoMeetings.id),
-  pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
+  qualityComplaint: text("quality_complaint"),
+  influencerName: varchar("influencer_name", { length: 255 }),
+  influencerPhone: varchar("influencer_phone", { length: 20 }),
+  isSchemeEnrolled: boolean("is_scheme_enrolled"),
+  influencerProductivity: varchar("influencer_productivity", { length: 100 }),
+  influencerType: text("influencer_type").array().notNull(),
+  clientsRemarks: varchar("clients_remarks", { length: 500 }).notNull(),
+  salespersonRemarks: varchar("salesperson_remarks", { length: 500 }).notNull(),
+  promotionalActivity: text("promotional_activity"),
+  siteVisitType: varchar("site_visit_type", { length: 50 }),
+  checkInTime: timestamp("check_in_time", { withTimezone: true, precision: 6 }).notNull(),
+  checkOutTime: timestamp("check_out_time", { withTimezone: true, precision: 6 }),
   timeSpentinLoc: varchar("time_spent_in_loc", { length: 255 }),
-  purposeOfVisit: varchar("purpose_of_visit", { length: 500 }),
+  inTimeImageUrl: varchar("in_time_image_url", { length: 500 }),
+  outTimeImageUrl: varchar("out_time_image_url", { length: 500 }),
   sitePhotoUrl: varchar("site_photo_url", { length: 500 }),
   firstVisitTime: timestamp("first_visit_time", { withTimezone: true, precision: 6 }),
   lastVisitTime: timestamp("last_visit_time", { withTimezone: true, precision: 6 }),
@@ -283,11 +310,8 @@ var technicalVisitReports = pgTable("technical_visit_reports", {
   siteVisitsCount: integer("site_visits_count"),
   otherVisitsCount: integer("other_visits_count"),
   totalVisitsCount: integer("total_visits_count"),
-  region: varchar("region", { length: 100 }),
-  area: varchar("area", { length: 100 }),
-  latitude: numeric("latitude", { precision: 9, scale: 6 }),
-  longitude: numeric("longitude", { precision: 9, scale: 6 }),
-  // Use (): any for forward reference to masonPcSide
+  meetingId: varchar("meeting_id", { length: 255 }).references(() => tsoMeetings.id),
+  pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
   masonId: uuid("mason_id").references(() => masonPcSide.id, { onDelete: "set null" }),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
@@ -297,7 +321,7 @@ var technicalVisitReports = pgTable("technical_visit_reports", {
   index("idx_technical_visit_reports_meeting_id").on(t.meetingId),
   index("idx_technical_visit_reports_pjp_id").on(t.pjpId),
   index("idx_tvr_mason_id").on(t.masonId),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_tvr_site_id").on(t.siteId)
 ]);
 var dealers = pgTable("dealers", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -377,13 +401,11 @@ var dealers = pgTable("dealers", {
   dealerPicUrl: varchar("dealer_pic_url", { length: 500 }),
   blankChequePicUrl: varchar("blank_cheque_pic_url", { length: 500 }),
   partnershipDeedPicUrl: varchar("partnership_deed_pic_url", { length: 500 }),
-  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull()
 }, (t) => [
   index("idx_dealers_user_id").on(t.userId),
-  index("idx_dealers_parent_dealer_id").on(t.parentDealerId),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_dealers_parent_dealer_id").on(t.parentDealerId)
 ]);
 var salesmanAttendance = pgTable("salesman_attendance", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -478,7 +500,7 @@ var geoTracking = pgTable("geo_tracking", {
   index("idx_geo_active").on(t.isActive),
   index("idx_geo_tracking_user_id").on(t.userId),
   index("idx_geo_tracking_recorded_at").on(t.recordedAt),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_geo_tracking_site_id").on(t.siteId)
 ]);
 var dailyTasks = pgTable("daily_tasks", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
@@ -502,7 +524,7 @@ var dailyTasks = pgTable("daily_tasks", {
   index("idx_daily_tasks_related_dealer_id").on(t.relatedDealerId),
   index("idx_daily_tasks_date_user").on(t.taskDate, t.userId),
   index("idx_daily_tasks_status").on(t.status),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_daily_tasks_site_id").on(t.siteId)
 ]);
 var dealerReportsAndScores = pgTable("dealer_reports_and_scores", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`substr(replace(cast(gen_random_uuid() as text),'-',''),1,25)`),
@@ -657,13 +679,11 @@ var masonPcSide = pgTable("mason_pc_side", {
   referredByUser: text("referred_by_user"),
   referredToUser: text("referred_to_user"),
   dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null", onUpdate: "cascade" }),
-  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
   userId: integer("user_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" })
   // TSO/Salesperson ID
 }, (t) => [
   index("idx_mason_pc_side_dealer_id").on(t.dealerId),
-  index("idx_mason_pc_side_user_id").on(t.userId),
-  index("idx_user_site_id").on(t.siteId)
+  index("idx_mason_pc_side_user_id").on(t.userId)
 ]);
 var otpVerifications = pgTable("otp_verifications", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -688,7 +708,7 @@ var masonOnScheme = pgTable("mason_on_scheme", {
   status: varchar("status", { length: 255 })
 }, (t) => ({
   pk: primaryKey({ columns: [t.masonId, t.schemeId] }),
-  siteIndex: index("idx_user_site_id").on(t.siteId)
+  siteIndex: index("idx_mason_on_scheme_site_id").on(t.siteId)
 }));
 var masonsOnMeetings = pgTable("masons_on_meetings", {
   masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }),
@@ -739,13 +759,20 @@ var bagLifts = pgTable("bag_lifts", {
   pointsCredited: integer("points_credited").notNull(),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   imageUrl: text("image_url"),
+  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
+  siteKeyPersonName: varchar("site_key_person_name", { length: 255 }),
+  siteKeyPersonPhone: varchar("site_key_person_phone", { length: 20 }),
+  verificationSiteImageUrl: text("verification_site_image_url"),
+  verificationProofImageUrl: text("verification_proof_image_url"),
   approvedBy: integer("approved_by").references(() => users.id, { onDelete: "set null" }),
   approvedAt: timestamp("approved_at", { withTimezone: true, precision: 6 }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull()
 }, (t) => [
   index("idx_bag_lifts_mason_id").on(t.masonId),
   index("idx_bag_lifts_dealer_id").on(t.dealerId),
-  index("idx_bag_lifts_status").on(t.status)
+  index("idx_bag_lifts_status").on(t.status),
+  // New index for faster queries on site_id
+  index("idx_bag_lifts_site_id").on(t.siteId)
 ]);
 var pointsLedger = pgTable("points_ledger", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -807,14 +834,60 @@ var technicalSites = pgTable("technical_sites", {
   firstVistDate: date("first_visit_date"),
   lastVisitDate: date("last_visit_date"),
   needFollowUp: boolean("need_follow_up").default(false),
-  // PRIMARY RELATIONS (Foreign Keys)
-  relatedDealerID: varchar("related_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-  relatedMasonpcID: uuid("related_mason_pc_id").references(() => masonPcSide.id, { onDelete: "set null" }),
+  imageUrl: text("image_url"),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull()
+});
+var schemeSlabs = pgTable("scheme_slabs", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  minBagsBest: integer("min_bags_best"),
+  minBagsOthers: integer("min_bags_others"),
+  pointsEarned: integer("points_earned").notNull(),
+  slabDescription: varchar("slab_description", { length: 255 }),
+  rewardId: integer("reward_id").references(() => rewards.id, { onDelete: "set null" }),
+  schemeId: uuid("scheme_id").notNull().references(() => schemesOffers.id, { onDelete: "cascade" }),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow()
 }, (t) => [
-  index("idx_technical_sites_dealer_id").on(t.relatedDealerID),
-  index("idx_technical_sites_mason_id").on(t.relatedMasonpcID)
+  index("idx_scheme_slabs_scheme_id").on(t.schemeId)
+]);
+var masonSlabAchievements = pgTable("mason_slab_achievements", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }),
+  schemeSlabId: uuid("scheme_slab_id").notNull().references(() => schemeSlabs.id, { onDelete: "cascade" }),
+  achievedAt: timestamp("achieved_at", { withTimezone: true }).defaultNow().notNull(),
+  pointsAwarded: integer("points_awarded").notNull()
+}, (t) => [
+  index("idx_msa_mason_id").on(t.masonId),
+  uniqueIndex("unique_mason_slab_claim").on(t.masonId, t.schemeSlabId)
+]);
+var siteAssociatedDealers = pgTable("_SiteAssociatedDealers", {
+  A: varchar("A", { length: 255 }).notNull().references(() => dealers.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => technicalSites.id, { onDelete: "cascade", onUpdate: "cascade" })
+}, (t) => [
+  uniqueIndex("_SiteAssociatedDealers_AB_unique").on(t.A, t.B),
+  index("_SiteAssociatedDealers_B_index").on(t.B)
+]);
+var dealerAssociatedMasons = pgTable("_DealerAssociatedMasons", {
+  A: varchar("A", { length: 255 }).notNull().references(() => dealers.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => masonPcSide.id, { onDelete: "cascade", onUpdate: "cascade" })
+}, (t) => [
+  uniqueIndex("_DealerAssociatedMasons_AB_unique").on(t.A, t.B),
+  index("_DealerAssociatedMasons_B_index").on(t.B)
+]);
+var siteAssociatedMasons = pgTable("_SiteAssociatedMasons", {
+  A: uuid("A").notNull().references(() => masonPcSide.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => technicalSites.id, { onDelete: "cascade", onUpdate: "cascade" })
+}, (t) => [
+  uniqueIndex("_SiteAssociatedMasons_AB_unique").on(t.A, t.B),
+  index("_SiteAssociatedMasons_B_index").on(t.B)
+]);
+var siteAssociatedUsers = pgTable("_SiteAssociatedUsers", {
+  A: uuid("A").notNull().references(() => technicalSites.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: integer("B").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" })
+}, (t) => [
+  uniqueIndex("_SiteAssociatedUsers_AB_unique").on(t.A, t.B),
+  index("_SiteAssociatedUsers_B_index").on(t.B)
 ]);
 var insertCompanySchema = createInsertSchema(companies);
 var insertUserSchema = createInsertSchema(users);
@@ -849,6 +922,8 @@ var insertBagLiftSchema = createInsertSchema(bagLifts);
 var insertPointsLedgerSchema = createInsertSchema(pointsLedger);
 var insertRewardRedemptionSchema = createInsertSchema(rewardRedemptions);
 var insertTechnicalSiteSchema = createInsertSchema(technicalSites);
+var insertSchemeSlabsSchema = createInsertSchema(schemeSlabs);
+var insertMasonSlabAchievementSchema = createInsertSchema(masonSlabAchievements);
 
 // src/db/db.ts
 neonConfig.webSocketConstructor = ws;
@@ -1888,10 +1963,8 @@ function createAutoCRUD5(app2, config) {
           OR ${ilike2(table4.phoneNo, s)} 
           OR ${ilike2(table4.address, s)} 
           OR ${ilike2(table4.emailId, s)}
-          // --- ✅ NEW SEARCH FIELDS ADDED ---
           OR ${ilike2(table4.nameOfFirm, s)}
           OR ${ilike2(table4.underSalesPromoterName, s)}
-          // --- END NEW SEARCH FIELDS ---
           )`
       );
     }
@@ -1941,7 +2014,18 @@ function createAutoCRUD5(app2, config) {
       const offset = (pg - 1) * lmt;
       const extra = buildWhere3(filters);
       const whereCondition = baseWhere ? extra ? and6(baseWhere, extra) : baseWhere : extra;
-      const orderExpr = buildSort3(String(sortBy), String(sortDir));
+      let orderExpr = buildSort3(String(sortBy), String(sortDir));
+      if (filters.search && !sortBy) {
+        const s = String(filters.search).trim();
+        orderExpr = sql2`
+          CASE 
+            WHEN ${table4.name} ILIKE ${s} THEN 0 
+            WHEN ${table4.name} ILIKE ${s + "%"} THEN 1 
+            ELSE 2 
+          END, 
+          ${table4.name} ASC
+        `;
+      }
       let q = db.select().from(table4).$dynamic();
       if (whereCondition) {
         q = q.where(whereCondition);
@@ -3087,23 +3171,28 @@ function buildWhere(q) {
       lte10(table[dateField], String(endDate))
     ));
   }
-  if (q.visitType) {
-    conds.push(eq15(table.visitType, String(q.visitType)));
+  if (q.visitType) conds.push(eq15(table.visitType, String(q.visitType)));
+  if (q.serviceType) conds.push(eq15(table.serviceType, String(q.serviceType)));
+  if (q.pjpId) conds.push(eq15(table.pjpId, String(q.pjpId)));
+  if (q.meetingId) conds.push(eq15(table.meetingId, String(q.meetingId)));
+  if (q.isVerificationStatus) conds.push(eq15(table.isVerificationStatus, String(q.isVerificationStatus)));
+  if (q.siteVisitType) conds.push(eq15(table.siteVisitType, String(q.siteVisitType)));
+  if (q.region) conds.push(eq15(table.region, String(q.region)));
+  if (q.area) conds.push(eq15(table.area, String(q.area)));
+  if (q.marketName) conds.push(eq15(table.marketName, String(q.marketName)));
+  if (q.visitCategory) conds.push(eq15(table.visitCategory, String(q.visitCategory)));
+  if (q.customerType) conds.push(eq15(table.customerType, String(q.customerType)));
+  if (q.supplyingDealerName) conds.push(eq15(table.supplyingDealerName, String(q.supplyingDealerName)));
+  if (q.masonId) conds.push(eq15(table.masonId, String(q.masonId)));
+  if (q.siteId) conds.push(eq15(table.siteId, String(q.siteId)));
+  if (q.isConverted !== void 0 && q.isConverted !== "") {
+    conds.push(eq15(table.isConverted, String(q.isConverted) === "true"));
   }
-  if (q.serviceType) {
-    conds.push(eq15(table.serviceType, String(q.serviceType)));
+  if (q.isTechService !== void 0 && q.isTechService !== "") {
+    conds.push(eq15(table.isTechService, String(q.isTechService) === "true"));
   }
-  if (q.pjpId) {
-    conds.push(eq15(table.pjpId, String(q.pjpId)));
-  }
-  if (q.meetingId) {
-    conds.push(eq15(table.meetingId, String(q.meetingId)));
-  }
-  if (q.isVerificationStatus) {
-    conds.push(eq15(table.isVerificationStatus, String(q.isVerificationStatus)));
-  }
-  if (q.siteVisitType) {
-    conds.push(eq15(table.siteVisitType, String(q.siteVisitType)));
+  if (q.isSchemeEnrolled !== void 0 && q.isSchemeEnrolled !== "") {
+    conds.push(eq15(table.isSchemeEnrolled, String(q.isSchemeEnrolled) === "true"));
   }
   const uid = numberish5(q.userId);
   if (uid !== void 0) {
@@ -3552,7 +3641,18 @@ function createAutoCRUD12(app2, config) {
       const offset = (pg - 1) * lmt;
       const extra = buildWhere3(filters);
       const whereCondition = baseWhere ? extra ? and18(baseWhere, extra) : baseWhere : extra;
-      const orderExpr = buildSort3(String(sortBy), String(sortDir));
+      let orderExpr = buildSort3(String(sortBy), String(sortDir));
+      if (filters.search && !sortBy) {
+        const s = String(filters.search).trim();
+        orderExpr = sql6`
+          CASE 
+            WHEN ${table4.name} ILIKE ${s} THEN 0       -- Exact Match
+            WHEN ${table4.name} ILIKE ${s + "%"} THEN 1 -- Starts With
+            ELSE 2 
+          END, 
+          ${table4.name} ASC
+        `;
+      }
       let q = db.select({
         // Select all columns from masonPcSide
         ...getTableColumns(table4),
@@ -3760,6 +3860,10 @@ function setupBagLiftsGetRoutes(app2) {
     if (q.masonId) {
       conds.push(eq21(bagLifts.masonId, String(q.masonId)));
     }
+    const userId = numberish9(q.userId);
+    if (userId !== void 0) {
+      conds.push(eq21(masonPcSide.userId, userId));
+    }
     if (q.dealerId) {
       conds.push(eq21(bagLifts.dealerId, String(q.dealerId)));
     }
@@ -3819,6 +3923,7 @@ function setupBagLiftsGetRoutes(app2) {
         ...getTableColumns3(bagLifts),
         // Add joined data
         masonName: masonPcSide.name,
+        masonTsoId: masonPcSide.userId,
         dealerName: dealers.name,
         approverName: sql8`${users.firstName} || ' ' || ${users.lastName}`
       }).from(bagLifts).leftJoin(masonPcSide, eq21(bagLifts.masonId, masonPcSide.id)).leftJoin(dealers, eq21(bagLifts.dealerId, dealers.id)).leftJoin(users, eq21(bagLifts.approvedBy, users.id)).$dynamic();
@@ -3843,6 +3948,7 @@ function setupBagLiftsGetRoutes(app2) {
       const [record] = await db.select({
         ...getTableColumns3(bagLifts),
         masonName: masonPcSide.name,
+        masonTsoId: masonPcSide.userId,
         dealerName: dealers.name,
         approverName: sql8`${users.firstName} || ' ' || ${users.lastName}`
       }).from(bagLifts).leftJoin(masonPcSide, eq21(bagLifts.masonId, masonPcSide.id)).leftJoin(dealers, eq21(bagLifts.dealerId, dealers.id)).leftJoin(users, eq21(bagLifts.approvedBy, users.id)).where(eq21(bagLifts.id, id)).limit(1);
@@ -4190,6 +4296,10 @@ function setupRewardsRedemptionGetRoutes(app2) {
     if (q.masonId) {
       conds.push(eq26(table4.masonId, String(q.masonId)));
     }
+    const userId = numberish9(q.userId);
+    if (userId !== void 0) {
+      conds.push(eq26(masonPcSide.userId, userId));
+    }
     const rewardId = numberish9(q.rewardId);
     if (rewardId !== void 0) {
       conds.push(eq26(table4.rewardId, rewardId));
@@ -4231,7 +4341,10 @@ function setupRewardsRedemptionGetRoutes(app2) {
       let query = db.select({
         ...getTableColumns6(table4),
         masonName: masonPcSide.name,
-        rewardName: rewards.itemName
+        masonTsoId: masonPcSide.userId,
+        // Added for debugging
+        rewardName: rewards.itemName,
+        rewardMeta: rewards.meta
       }).from(table4).leftJoin(masonPcSide, eq26(table4.masonId, masonPcSide.id)).leftJoin(rewards, eq26(table4.rewardId, rewards.id)).$dynamic();
       if (whereCondition) {
         query = query.where(whereCondition);
@@ -4269,41 +4382,46 @@ function setupRewardsRedemptionGetRoutes(app2) {
     const base = eq26(table4.masonId, masonId);
     return listHandler(req, res, base);
   });
-  console.log("\u2705 Reward Redemptions GET endpoints (Order History) setup complete");
+  console.log("\u2705 Reward Redemptions GET endpoints (Order History & TSO Filter) setup complete");
 }
 
 // src/routes/dataFetchingRoutes/kycSubmissions.ts
-import { eq as eq27, and as and25, desc as desc25 } from "drizzle-orm";
+import { eq as eq27, and as and25, desc as desc25, getTableColumns as getTableColumns7 } from "drizzle-orm";
 function toJsonSafe4(obj) {
   return JSON.parse(JSON.stringify(
     obj,
     (_, value) => typeof value === "bigint" ? Number(value) : value
   ));
 }
-function createAutoCRUD13(app2, config) {
-  const { endpoint, table: table4, tableName: tableName4 } = config;
+function setupKycSubmissionsRoutes(app2) {
+  const tableName4 = "KYC Submission";
+  const endpoint = "kyc-submissions";
+  const numberish9 = (v) => {
+    if (v === null || v === void 0 || v === "") return void 0;
+    const n = Number(v);
+    return Number.isFinite(n) ? n : void 0;
+  };
   app2.get(`/api/${endpoint}`, async (req, res) => {
     try {
-      const { limit = "50", status, masonId, ...filters } = req.query;
-      let whereCondition = void 0;
+      const { limit = "50", status, masonId, userId } = req.query;
+      const conditions = [];
       if (status) {
-        const condition = eq27(table4.status, status);
-        whereCondition = whereCondition ? and25(whereCondition, condition) : condition;
+        conditions.push(eq27(kycSubmissions.status, status));
       }
       if (masonId) {
-        const condition = eq27(table4.masonId, masonId);
-        whereCondition = whereCondition ? and25(whereCondition, condition) : condition;
+        conditions.push(eq27(kycSubmissions.masonId, masonId));
       }
-      Object.entries(filters).forEach(([key, value]) => {
-        const column = table4[key];
-        if (value && column && typeof column !== "function") {
-          const drizzleColumn = column;
-          const condition = eq27(drizzleColumn, value);
-          whereCondition = whereCondition ? and25(whereCondition, condition) : condition;
-        }
-      });
-      let query = db.select().from(table4);
-      const records = await query.where(whereCondition).orderBy(desc25(table4.createdAt)).limit(parseInt(limit));
+      const tsoId = numberish9(userId);
+      if (tsoId !== void 0) {
+        conditions.push(eq27(masonPcSide.userId, tsoId));
+      }
+      const whereCondition = conditions.length > 0 ? and25(...conditions) : void 0;
+      const records = await db.select({
+        ...getTableColumns7(kycSubmissions),
+        masonName: masonPcSide.name,
+        masonPhone: masonPcSide.phoneNumber,
+        masonTsoId: masonPcSide.userId
+      }).from(kycSubmissions).leftJoin(masonPcSide, eq27(kycSubmissions.masonId, masonPcSide.id)).where(whereCondition).orderBy(desc25(kycSubmissions.createdAt)).limit(parseInt(limit));
       res.json({ success: true, data: toJsonSafe4(records) });
     } catch (error) {
       console.error(`Get ${tableName4}s error:`, error);
@@ -4317,7 +4435,10 @@ function createAutoCRUD13(app2, config) {
   app2.get(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [record] = await db.select().from(table4).where(eq27(table4.id, id)).limit(1);
+      const [record] = await db.select({
+        ...getTableColumns7(kycSubmissions),
+        masonName: masonPcSide.name
+      }).from(kycSubmissions).leftJoin(masonPcSide, eq27(kycSubmissions.masonId, masonPcSide.id)).where(eq27(kycSubmissions.id, id)).limit(1);
       if (!record) {
         return res.status(404).json({
           success: false,
@@ -4334,72 +4455,17 @@ function createAutoCRUD13(app2, config) {
       });
     }
   });
-  app2.get(`/api/${endpoint}/mason/:masonId`, async (req, res) => {
-    try {
-      const { masonId } = req.params;
-      const { limit = "50", status } = req.query;
-      const conditions = [
-        eq27(table4.masonId, masonId)
-        // Mandatory filter
-      ];
-      if (status) {
-        conditions.push(eq27(table4.status, status));
-      }
-      const whereCondition = and25(...conditions.filter((c) => c !== void 0 && c !== null));
-      const records = await db.select().from(table4).where(whereCondition).orderBy(desc25(table4.createdAt)).limit(parseInt(limit));
-      res.json({ success: true, data: toJsonSafe4(records) });
-    } catch (error) {
-      console.error(`Get ${tableName4}s by Mason ID error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to fetch ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.get(`/api/${endpoint}/status/:status`, async (req, res) => {
-    try {
-      const { status } = req.params;
-      const { limit = "50", masonId } = req.query;
-      const conditions = [
-        eq27(table4.status, status)
-        // Mandatory filter
-      ];
-      if (masonId) {
-        conditions.push(eq27(table4.masonId, masonId));
-      }
-      const whereCondition = and25(...conditions.filter((c) => c !== void 0 && c !== null));
-      const records = await db.select().from(table4).where(whereCondition).orderBy(desc25(table4.createdAt)).limit(parseInt(limit));
-      res.json({ success: true, data: toJsonSafe4(records) });
-    } catch (error) {
-      console.error(`Get ${tableName4}s by Status error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to fetch ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-}
-function setupKycSubmissionsRoutes(app2) {
-  createAutoCRUD13(app2, {
-    endpoint: "kyc-submissions",
-    table: kycSubmissions,
-    schema: insertKycSubmissionSchema,
-    // Placeholder, assuming it exists
-    tableName: "KYC Submission"
-  });
   console.log("\u2705 KYC Submissions GET endpoints setup complete");
 }
 
 // src/routes/dataFetchingRoutes/technicalSites.ts
-import { eq as eq28, and as and26, desc as desc26, asc as asc16, ilike as ilike10, sql as sql10, gte as gte15, lte as lte15 } from "drizzle-orm";
+import { eq as eq28, and as and26, desc as desc26, asc as asc16, ilike as ilike10, sql as sql10, gte as gte15, lte as lte15, isNotNull, not } from "drizzle-orm";
 var boolish6 = (v) => {
   if (v === "true" || v === true) return true;
   if (v === "false" || v === false) return false;
   return void 0;
 };
-function createAutoCRUD14(app2, config) {
+function createAutoCRUD13(app2, config) {
   const { endpoint, table: table4, tableName: tableName4 } = config;
   const buildWhere3 = (q) => {
     const conds = [];
@@ -4411,6 +4477,12 @@ function createAutoCRUD14(app2, config) {
     if (convertedSite !== void 0) conds.push(eq28(table4.convertedSite, convertedSite));
     const needFollowUp = boolish6(q.needFollowUp);
     if (needFollowUp !== void 0) conds.push(eq28(table4.needFollowUp, needFollowUp));
+    const hasPhoto = boolish6(q.hasPhoto);
+    if (hasPhoto === true) {
+      conds.push(and26(isNotNull(table4.imageUrl), not(eq28(table4.imageUrl, ""))));
+    } else if (hasPhoto === false) {
+      conds.push(sql10`(${table4.imageUrl} IS NULL OR ${table4.imageUrl} = '')`);
+    }
     if (q.relatedDealerID) conds.push(eq28(table4.relatedDealerID, String(q.relatedDealerID)));
     if (q.relatedMasonpcID) conds.push(eq28(table4.relatedMasonpcID, String(q.relatedMasonpcID)));
     const dateField2 = table4.firstVistDate;
@@ -4448,6 +4520,8 @@ function createAutoCRUD14(app2, config) {
         return direction === "asc" ? asc16(table4.firstVistDate) : desc26(table4.firstVistDate);
       case "convertedSite":
         return direction === "asc" ? asc16(table4.convertedSite) : desc26(table4.convertedSite);
+      case "imageUrl":
+        return direction === "asc" ? asc16(table4.imageUrl) : desc26(table4.imageUrl);
       case "createdAt":
         return direction === "asc" ? asc16(table4.createdAt) : desc26(table4.createdAt);
       default:
@@ -4462,7 +4536,18 @@ function createAutoCRUD14(app2, config) {
       const offset = (pg - 1) * lmt;
       const extra = buildWhere3(filters);
       const whereCondition = baseWhere ? extra ? and26(baseWhere, extra) : baseWhere : extra;
-      const orderExpr = buildSort3(String(sortBy), String(sortDir));
+      let orderExpr = buildSort3(String(sortBy), String(sortDir));
+      if (filters.search && !sortBy) {
+        const s = String(filters.search).trim();
+        orderExpr = sql10`
+          CASE 
+            WHEN ${table4.siteName} ILIKE ${s} THEN 0       -- Exact Match
+            WHEN ${table4.siteName} ILIKE ${s + "%"} THEN 1 -- Starts With
+            ELSE 2 
+          END, 
+          ${table4.siteName} ASC
+        `;
+      }
       let q = db.select().from(table4).$dynamic();
       if (whereCondition) {
         q = q.where(whereCondition);
@@ -4519,7 +4604,7 @@ function createAutoCRUD14(app2, config) {
   });
 }
 function setupTechnicalSitesRoutes(app2) {
-  createAutoCRUD14(app2, {
+  createAutoCRUD13(app2, {
     endpoint: "technical-sites",
     table: technicalSites,
     schema: insertTechnicalSiteSchema,
@@ -4528,13 +4613,132 @@ function setupTechnicalSitesRoutes(app2) {
   console.log("\u2705 Technical Sites GET endpoints setup complete");
 }
 
+// src/routes/dataFetchingRoutes/schemeSlabs.ts
+import { eq as eq29, asc as asc17, getTableColumns as getTableColumns8 } from "drizzle-orm";
+function setupSchemeSlabsGetRoutes(app2) {
+  const endpoint = "scheme-slabs";
+  const tableName4 = "Scheme Slab";
+  app2.get(`/api/${endpoint}/scheme/:schemeId`, async (req, res) => {
+    try {
+      const { schemeId } = req.params;
+      if (!schemeId) return res.status(400).json({ success: false, error: "Scheme ID required" });
+      const records = await db.select({
+        ...getTableColumns8(schemeSlabs),
+        rewardName: rewards.itemName,
+        // Include the linked reward name if it exists
+        rewardImage: rewards.meta
+        // And image
+      }).from(schemeSlabs).leftJoin(rewards, eq29(schemeSlabs.rewardId, rewards.id)).where(eq29(schemeSlabs.schemeId, schemeId)).orderBy(asc17(schemeSlabs.minBagsBest), asc17(schemeSlabs.pointsEarned));
+      res.json({ success: true, count: records.length, data: records });
+    } catch (error) {
+      console.error(`Get ${tableName4}s by Scheme ID error:`, error);
+      res.status(500).json({ success: false, error: `Failed to fetch ${tableName4}s` });
+    }
+  });
+  app2.get(`/api/${endpoint}`, async (req, res) => {
+    try {
+      const { limit = "100", schemeId } = req.query;
+      let whereCondition;
+      if (schemeId) {
+        whereCondition = eq29(schemeSlabs.schemeId, String(schemeId));
+      }
+      const records = await db.select({
+        ...getTableColumns8(schemeSlabs),
+        schemeName: schemesOffers.name
+      }).from(schemeSlabs).leftJoin(schemesOffers, eq29(schemeSlabs.schemeId, schemesOffers.id)).where(whereCondition).limit(parseInt(String(limit)));
+      res.json({ success: true, data: records });
+    } catch (error) {
+      console.error(`Get ${tableName4}s error:`, error);
+      res.status(500).json({ success: false, error: `Failed to fetch ${tableName4}s` });
+    }
+  });
+  app2.get(`/api/${endpoint}/:id`, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [record] = await db.select().from(schemeSlabs).where(eq29(schemeSlabs.id, id)).limit(1);
+      if (!record) return res.status(404).json({ success: false, error: "Slab not found" });
+      res.json({ success: true, data: record });
+    } catch (error) {
+      console.error(`Get ${tableName4} by ID error:`, error);
+      res.status(500).json({ success: false, error: `Failed to fetch ${tableName4}` });
+    }
+  });
+  console.log(`\u2705 ${tableName4} GET endpoints setup complete`);
+}
+
+// src/routes/dataFetchingRoutes/masonSlabAchievements.ts
+import { eq as eq30, and as and28, desc as desc28, asc as asc18, getTableColumns as getTableColumns9 } from "drizzle-orm";
+function setupMasonSlabAchievementsGetRoutes(app2) {
+  const endpoint = "mason-slab-achievements";
+  const tableName4 = "Mason Slab Achievement";
+  const buildSort3 = (sortByRaw, sortDirRaw) => {
+    const direction = (sortDirRaw || "").toLowerCase() === "asc" ? "asc" : "desc";
+    switch (sortByRaw) {
+      case "pointsAwarded":
+        return direction === "asc" ? asc18(masonSlabAchievements.pointsAwarded) : desc28(masonSlabAchievements.pointsAwarded);
+      case "achievedAt":
+      default:
+        return direction === "asc" ? asc18(masonSlabAchievements.achievedAt) : desc28(masonSlabAchievements.achievedAt);
+    }
+  };
+  app2.get(`/api/${endpoint}`, async (req, res) => {
+    try {
+      const { masonId, schemeId, limit = "50", page = "1", sortBy, sortDir } = req.query;
+      const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 50));
+      const pg = Math.max(1, parseInt(String(page), 10) || 1);
+      const offset = (pg - 1) * lmt;
+      const conditions = [];
+      if (masonId) {
+        conditions.push(eq30(masonSlabAchievements.masonId, String(masonId)));
+      }
+      if (schemeId) {
+        conditions.push(eq30(schemeSlabs.schemeId, String(schemeId)));
+      }
+      const whereCondition = conditions.length > 0 ? and28(...conditions) : void 0;
+      const orderExpr = buildSort3(String(sortBy), String(sortDir));
+      let query = db.select({
+        ...getTableColumns9(masonSlabAchievements),
+        masonName: masonPcSide.name,
+        slabDescription: schemeSlabs.slabDescription,
+        pointsConfigured: schemeSlabs.pointsEarned,
+        schemeName: schemesOffers.name
+        // Very useful for UI
+      }).from(masonSlabAchievements).leftJoin(masonPcSide, eq30(masonSlabAchievements.masonId, masonPcSide.id)).leftJoin(schemeSlabs, eq30(masonSlabAchievements.schemeSlabId, schemeSlabs.id)).leftJoin(schemesOffers, eq30(schemeSlabs.schemeId, schemesOffers.id)).$dynamic();
+      if (whereCondition) {
+        query = query.where(whereCondition);
+      }
+      const data = await query.orderBy(orderExpr).limit(lmt).offset(offset);
+      res.json({ success: true, page: pg, limit: lmt, count: data.length, data });
+    } catch (error) {
+      console.error(`Get ${tableName4}s error:`, error);
+      res.status(500).json({ success: false, error: `Failed to fetch ${tableName4}s` });
+    }
+  });
+  app2.get(`/api/${endpoint}/mason/:masonId`, async (req, res) => {
+    try {
+      const { masonId } = req.params;
+      if (!masonId) return res.status(400).json({ success: false, error: "Mason ID required" });
+      const records = await db.select({
+        ...getTableColumns9(masonSlabAchievements),
+        slabDescription: schemeSlabs.slabDescription,
+        schemeName: schemesOffers.name
+      }).from(masonSlabAchievements).leftJoin(schemeSlabs, eq30(masonSlabAchievements.schemeSlabId, schemeSlabs.id)).leftJoin(schemesOffers, eq30(schemeSlabs.schemeId, schemesOffers.id)).where(eq30(masonSlabAchievements.masonId, masonId)).orderBy(desc28(masonSlabAchievements.achievedAt));
+      res.json({ success: true, count: records.length, data: records });
+    } catch (error) {
+      console.error(`Get ${tableName4} by Mason ID error:`, error);
+      res.status(500).json({ success: false, error: `Failed to fetch ${tableName4} for mason` });
+    }
+  });
+  console.log(`\u2705 ${tableName4} GET endpoints setup complete`);
+}
+
 // src/routes/dataSync/dealer.ts
 import { z as z2 } from "zod";
 import { sql as sql11 } from "drizzle-orm";
 
 // src/routes/formSubmissionRoutes/addDealer.ts
 import { z } from "zod";
-import { eq as eq29 } from "drizzle-orm";
+import { eq as eq31 } from "drizzle-orm";
 import { randomUUID } from "crypto";
 var toStringArray = (v) => {
   if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
@@ -4664,7 +4868,7 @@ var dealerInputSchema = z.object({
   // Geofence (not part of DB, just for Radar)
   radius: z.preprocess((v) => v === "" ? void 0 : v, z.coerce.number().min(10).max(1e4).optional())
 }).strict();
-function createAutoCRUD15(app2, config) {
+function createAutoCRUD14(app2, config) {
   const { endpoint, table: table4, tableName: tableName4 } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -4788,7 +4992,7 @@ function createAutoCRUD15(app2, config) {
       });
       const upJson = await upRes.json().catch(() => ({}));
       if (!upRes.ok || upJson?.meta?.code !== 200 || !upJson?.geofence) {
-        await db.delete(table4).where(eq29(table4.id, dealer.id));
+        await db.delete(table4).where(eq31(table4.id, dealer.id));
         return res.status(502).json({
           // 502 Bad Gateway
           success: false,
@@ -4829,7 +5033,7 @@ function createAutoCRUD15(app2, config) {
   });
 }
 function setupDealersPostRoutes(app2) {
-  createAutoCRUD15(app2, {
+  createAutoCRUD14(app2, {
     endpoint: "dealers",
     table: dealers,
     tableName: "Dealer"
@@ -4988,7 +5192,7 @@ function setupDealerSyncRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/dealers.ts
-import { eq as eq30, and as and27, gte as gte16, lte as lte16, inArray } from "drizzle-orm";
+import { eq as eq32, and as and29, gte as gte16, lte as lte16, inArray } from "drizzle-orm";
 var RADAR_TAG = "dealer";
 async function deleteRadarGeofence(externalId) {
   if (!process.env.RADAR_SECRET_KEY) {
@@ -5033,12 +5237,12 @@ async function bulkDeleteDealers(rows, tableName4) {
     radarErrors
   };
 }
-function createAutoCRUD16(app2, config) {
+function createAutoCRUD15(app2, config) {
   const { endpoint, table: table4, tableName: tableName4, dateField: dateField2 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existing] = await db.select().from(table4).where(eq30(table4.id, id)).limit(1);
+      const [existing] = await db.select().from(table4).where(eq32(table4.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({ success: false, error: `${tableName4} not found` });
       }
@@ -5050,7 +5254,7 @@ function createAutoCRUD16(app2, config) {
           details: radar.message
         });
       }
-      await db.delete(table4).where(eq30(table4.id, id));
+      await db.delete(table4).where(eq32(table4.id, id));
       return res.json({
         success: true,
         message: `${tableName4} deleted`,
@@ -5073,7 +5277,7 @@ function createAutoCRUD16(app2, config) {
       if (req.query.confirm !== "true") {
         return res.status(400).json({ success: false, error: "Add ?confirm=true to proceed." });
       }
-      const rows = await db.select().from(table4).where(eq30(table4.userId, Number(userId)));
+      const rows = await db.select().from(table4).where(eq32(table4.userId, Number(userId)));
       if (!rows.length) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found for user ${userId}` });
       }
@@ -5100,7 +5304,7 @@ function createAutoCRUD16(app2, config) {
       if (req.query.confirm !== "true") {
         return res.status(400).json({ success: false, error: "Add ?confirm=true to proceed." });
       }
-      const rows = await db.select().from(table4).where(eq30(table4.parentDealerId, parentDealerId));
+      const rows = await db.select().from(table4).where(eq32(table4.parentDealerId, parentDealerId));
       if (!rows.length) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found for parent ${parentDealerId}` });
       }
@@ -5127,7 +5331,7 @@ function createAutoCRUD16(app2, config) {
       if (req.query.confirm !== "true") {
         return res.status(400).json({ success: false, error: "Add ?confirm=true to proceed." });
       }
-      const rows = await db.select().from(table4).where(eq30(table4.nameOfFirm, nameOfFirm));
+      const rows = await db.select().from(table4).where(eq32(table4.nameOfFirm, nameOfFirm));
       if (!rows.length) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found with firm name ${nameOfFirm}` });
       }
@@ -5154,7 +5358,7 @@ function createAutoCRUD16(app2, config) {
       if (req.query.confirm !== "true") {
         return res.status(400).json({ success: false, error: "Add ?confirm=true to proceed." });
       }
-      const rows = await db.select().from(table4).where(eq30(table4.underSalesPromoterName, promoterName));
+      const rows = await db.select().from(table4).where(eq32(table4.underSalesPromoterName, promoterName));
       if (!rows.length) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found under promoter ${promoterName}` });
       }
@@ -5187,7 +5391,7 @@ function createAutoCRUD16(app2, config) {
       if (!dateField2) {
         return res.status(400).json({ success: false, error: `Date field not available for ${tableName4}` });
       }
-      const whereCondition = and27(
+      const whereCondition = and29(
         gte16(table4[dateField2], new Date(startDate)),
         lte16(table4[dateField2], new Date(endDate))
       );
@@ -5214,7 +5418,7 @@ function createAutoCRUD16(app2, config) {
   });
 }
 function setupDealersDeleteRoutes(app2) {
-  createAutoCRUD16(app2, {
+  createAutoCRUD15(app2, {
     endpoint: "dealers",
     table: dealers,
     tableName: "Dealer",
@@ -5224,7 +5428,7 @@ function setupDealersDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/pjp.ts
-import { eq as eq31, and as and28, gte as gte17, lte as lte17, inArray as inArray2, sql as sql12 } from "drizzle-orm";
+import { eq as eq33, and as and30, gte as gte17, lte as lte17, inArray as inArray2, sql as sql12 } from "drizzle-orm";
 async function mctExists(tx) {
   const result = await tx.execute(sql12`
     SELECT 1 
@@ -5235,7 +5439,7 @@ async function mctExists(tx) {
   const rows = Array.isArray(result) ? result : result?.rows || [];
   return rows.length > 0;
 }
-function createAutoCRUD17(app2, config) {
+function createAutoCRUD16(app2, config) {
   const { endpoint, table: table4, tableName: tableName4, dateField: dateField2 } = config;
   const deleteByIds = async (ids) => {
     if (ids.length === 0) return { deleted: 0, mctDeleted: 0, mctSkipped: false };
@@ -5258,7 +5462,7 @@ function createAutoCRUD17(app2, config) {
         return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
       }
       const { id } = req.params;
-      const [exists] = await db.select({ id: table4.id }).from(table4).where(eq31(table4.id, id)).limit(1);
+      const [exists] = await db.select({ id: table4.id }).from(table4).where(eq33(table4.id, id)).limit(1);
       if (!exists) {
         return res.status(404).json({ success: false, error: `${tableName4} not found` });
       }
@@ -5286,7 +5490,7 @@ function createAutoCRUD17(app2, config) {
         return res.status(400).json({ success: false, error: "This action requires confirmation. Add ?confirm=true" });
       }
       const userId = Number(req.params.userId);
-      const rows = await db.select({ id: table4.id }).from(table4).where(eq31(table4.userId, userId));
+      const rows = await db.select({ id: table4.id }).from(table4).where(eq33(table4.userId, userId));
       if (rows.length === 0) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found for user ${userId}` });
       }
@@ -5315,7 +5519,7 @@ function createAutoCRUD17(app2, config) {
         return res.status(400).json({ success: false, error: "This action requires confirmation. Add ?confirm=true" });
       }
       const createdById = Number(req.params.createdById);
-      const rows = await db.select({ id: table4.id }).from(table4).where(eq31(table4.createdById, createdById));
+      const rows = await db.select({ id: table4.id }).from(table4).where(eq33(table4.createdById, createdById));
       if (rows.length === 0) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found created by user ${createdById}` });
       }
@@ -5344,7 +5548,7 @@ function createAutoCRUD17(app2, config) {
         return res.status(400).json({ success: false, error: "This action requires confirmation. Add ?confirm=true" });
       }
       const { status } = req.params;
-      const rows = await db.select({ id: table4.id }).from(table4).where(eq31(table4.status, status));
+      const rows = await db.select({ id: table4.id }).from(table4).where(eq33(table4.status, status));
       if (rows.length === 0) {
         return res.status(404).json({ success: false, error: `No ${tableName4}s found with status ${status}` });
       }
@@ -5376,7 +5580,7 @@ function createAutoCRUD17(app2, config) {
         return res.status(400).json({ success: false, error: "This action requires confirmation. Add ?confirm=true" });
       if (!dateField2)
         return res.status(400).json({ success: false, error: `Date field not available for ${tableName4}` });
-      const rows = await db.select({ id: table4.id }).from(table4).where(and28(
+      const rows = await db.select({ id: table4.id }).from(table4).where(and30(
         gte17(table4[dateField2], String(startDate)),
         lte17(table4[dateField2], String(endDate))
       ));
@@ -5403,7 +5607,7 @@ function createAutoCRUD17(app2, config) {
   });
 }
 function setupPermanentJourneyPlansDeleteRoutes(app2) {
-  createAutoCRUD17(app2, {
+  createAutoCRUD16(app2, {
     endpoint: "pjp",
     table: permanentJourneyPlans,
     schema: insertPermanentJourneyPlanSchema,
@@ -5414,317 +5618,8 @@ function setupPermanentJourneyPlansDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/tvr.ts
-import { eq as eq32, and as and29, gte as gte18, lte as lte18 } from "drizzle-orm";
-function createAutoCRUD18(app2, config) {
-  const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
-  app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const [existingRecord] = await db.select().from(table4).where(eq32(table4.id, id)).limit(1);
-      if (!existingRecord) {
-        return res.status(404).json({
-          success: false,
-          error: `${tableName4} not found`
-        });
-      }
-      await db.delete(table4).where(eq32(table4.id, id));
-      res.json({
-        success: true,
-        message: `${tableName4} deleted successfully`,
-        deletedId: id
-      });
-    } catch (error) {
-      console.error(`Delete ${tableName4} error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.delete(`/api/${endpoint}/user/:userId`, async (req, res) => {
-    try {
-      const { userId } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq32(table4.userId, parseInt(userId)));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found for user ${userId}`
-        });
-      }
-      await db.delete(table4).where(eq32(table4.userId, parseInt(userId)));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for user ${userId}`,
-        deletedCount: recordsToDelete.length
-      });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by User error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.delete(`/api/${endpoint}/visit-type/:visitType`, async (req, res) => {
-    try {
-      const { visitType } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq32(table4.visitType, visitType));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found with visit type ${visitType}`
-        });
-      }
-      await db.delete(table4).where(eq32(table4.visitType, visitType));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with visit type ${visitType}`,
-        deletedCount: recordsToDelete.length
-      });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by Visit Type error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.delete(`/api/${endpoint}/bulk/date-range`, async (req, res) => {
-    try {
-      const { startDate, endDate, confirm } = req.query;
-      if (!startDate || !endDate) {
-        return res.status(400).json({
-          success: false,
-          error: "startDate and endDate parameters are required"
-        });
-      }
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      if (!dateField2 || !table4[dateField2]) {
-        return res.status(400).json({
-          success: false,
-          error: `Date field not available for ${tableName4}`
-        });
-      }
-      const whereCondition = and29(
-        gte18(table4[dateField2], startDate),
-        lte18(table4[dateField2], endDate)
-      );
-      const recordsToDelete = await db.select().from(table4).where(whereCondition);
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found in the specified date range`
-        });
-      }
-      await db.delete(table4).where(whereCondition);
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully from date range ${startDate} to ${endDate}`,
-        deletedCount: recordsToDelete.length
-      });
-    } catch (error) {
-      console.error(`Bulk delete ${tableName4}s error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to bulk delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-}
-function setupTechnicalVisitReportsDeleteRoutes(app2) {
-  createAutoCRUD18(app2, {
-    endpoint: "technical-visit-reports",
-    table: technicalVisitReports,
-    schema: insertTechnicalVisitReportSchema,
-    tableName: "Technical Visit Report",
-    dateField: "reportDate",
-    autoFields: {
-      createdAt: () => (/* @__PURE__ */ new Date()).toISOString(),
-      updatedAt: () => (/* @__PURE__ */ new Date()).toISOString()
-    }
-  });
-  console.log("\u2705 Technical Visit Reports DELETE endpoints setup complete");
-}
-
-// src/routes/deleteRoutes/dvr.ts
-import { and as and30, eq as eq33, gte as gte19, lte as lte19, sql as sql13 } from "drizzle-orm";
-var mustConfirm = (q) => q.confirm === "true" || q.confirm === true;
-var numberish8 = (v) => {
-  if (v === null || v === void 0 || v === "") return void 0;
-  const n = Number(v);
-  return Number.isFinite(n) ? n : void 0;
-};
-var boolish7 = (v) => {
-  if (v === "true" || v === true) return true;
-  if (v === "false" || v === false) return false;
-  return void 0;
-};
-function extractBrands3(q) {
-  const raw = q.brand ?? q.brands ?? q.brandSelling ?? void 0;
-  if (!raw) return [];
-  const arr = Array.isArray(raw) ? raw : String(raw).includes(",") ? String(raw).split(",").map((s) => s.trim()).filter(Boolean) : [String(raw).trim()].filter(Boolean);
-  return arr;
-}
-function toPgArrayLiteral3(values) {
-  return `{${values.map((v) => v.replace(/\\/g, "\\\\").replace(/{/g, "\\{").replace(/}/g, "\\}").trim()).join(",")}}`;
-}
-function createAutoCRUD19(app2, config) {
-  const { endpoint, table: table4, tableName: tableName4, dateField: dateField2 = "reportDate" } = config;
-  app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
-    try {
-      const { id } = req.params;
-      const [existing] = await db.select().from(table4).where(eq33(table4.id, id)).limit(1);
-      if (!existing) return res.status(404).json({ success: false, error: `${tableName4} not found` });
-      await db.delete(table4).where(eq33(table4.id, id));
-      res.json({ success: true, message: `${tableName4} deleted`, deletedId: id });
-    } catch (error) {
-      console.error(`Delete ${tableName4} error:`, error);
-      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}` });
-    }
-  });
-  app2.delete(`/api/${endpoint}/user/:userId`, async (req, res) => {
-    try {
-      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
-      const { userId } = req.params;
-      const uid = parseInt(userId, 10);
-      if (isNaN(uid)) return res.status(400).json({ success: false, error: "Invalid user ID" });
-      const ids = await db.select({ id: table4.id }).from(table4).where(eq33(table4.userId, uid));
-      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s for user ${userId}` });
-      await db.delete(table4).where(eq33(table4.userId, uid));
-      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted for user ${userId}`, deletedCount: ids.length });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by User error:`, error);
-      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
-    }
-  });
-  app2.delete(`/api/${endpoint}/dealer-type/:dealerType`, async (req, res) => {
-    try {
-      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
-      const { dealerType } = req.params;
-      const ids = await db.select({ id: table4.id }).from(table4).where(eq33(table4.dealerType, dealerType));
-      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s with dealer type ${dealerType}` });
-      await db.delete(table4).where(eq33(table4.dealerType, dealerType));
-      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted with dealer type ${dealerType}`, deletedCount: ids.length });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by Dealer Type error:`, error);
-      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
-    }
-  });
-  app2.delete(`/api/${endpoint}/visit-type/:visitType`, async (req, res) => {
-    try {
-      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
-      const { visitType } = req.params;
-      const ids = await db.select({ id: table4.id }).from(table4).where(eq33(table4.visitType, visitType));
-      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s with visit type ${visitType}` });
-      await db.delete(table4).where(eq33(table4.visitType, visitType));
-      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted with visit type ${visitType}`, deletedCount: ids.length });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by Visit Type error:`, error);
-      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
-    }
-  });
-  app2.delete(`/api/${endpoint}/pjp/:pjpId`, async (req, res) => {
-    try {
-      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
-      const { pjpId } = req.params;
-      const uid = numberish8(req.query.userId);
-      const wherePjp = uid !== void 0 ? and30(eq33(table4.pjpId, pjpId), eq33(table4.userId, uid)) : eq33(table4.pjpId, pjpId);
-      const ids = await db.select({ id: table4.id }).from(table4).where(wherePjp);
-      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s found for pjpId ${pjpId}` });
-      await db.delete(table4).where(wherePjp);
-      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted for pjp ${pjpId}`, deletedCount: ids.length });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by PJP error:`, error);
-      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
-    }
-  });
-  app2.delete(`/api/${endpoint}/bulk/brands`, async (req, res) => {
-    try {
-      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
-      const brands2 = extractBrands3(req.query);
-      if (brands2.length === 0) return res.status(400).json({ success: false, error: "Provide ?brands=... for deletion" });
-      const arrLiteral = toPgArrayLiteral3(brands2);
-      const anyBrand = boolish7(req.query.anyBrand);
-      const brandCond = anyBrand ? sql13`${table4.brandSelling} && ${arrLiteral}::text[]` : sql13`${table4.brandSelling} @> ${arrLiteral}::text[]`;
-      const uid = numberish8(req.query.userId);
-      const startDate = req.query.startDate;
-      const endDate = req.query.endDate;
-      const whereConds = [brandCond];
-      if (uid !== void 0) whereConds.push(eq33(table4.userId, uid));
-      if (startDate && endDate) {
-        const col = table4[dateField2];
-        if (dateField2 === "createdAt" || dateField2 === "updatedAt") {
-          whereConds.push(gte19(col, new Date(startDate)), lte19(col, new Date(endDate)));
-        } else {
-          whereConds.push(gte19(col, startDate), lte19(col, endDate));
-        }
-      }
-      const finalWhere = and30(...whereConds.filter(Boolean));
-      if (!finalWhere) {
-        return res.status(400).json({ success: false, error: "Invalid brand filter conditions" });
-      }
-      const ids = await db.select({ id: table4.id }).from(table4).where(finalWhere);
-      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s match filters` });
-      await db.delete(table4).where(finalWhere);
-      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted`, deletedCount: ids.length });
-    } catch (error) {
-      console.error(`Bulk delete ${tableName4}s by brands error:`, error);
-      res.status(500).json({ success: false, error: `Failed to bulk delete ${tableName4}s` });
-    }
-  });
-  app2.delete(`/api/${endpoint}/bulk/date-range`, async (req, res) => {
-    try {
-      const { startDate, endDate } = req.query;
-      if (!startDate || !endDate) return res.status(400).json({ success: false, error: "startDate and endDate are required" });
-      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
-      const col = table4[dateField2];
-      const whereCondition = dateField2 === "createdAt" || dateField2 === "updatedAt" ? and30(gte19(col, new Date(String(startDate))), lte19(col, new Date(String(endDate)))) : and30(gte19(col, String(startDate)), lte19(col, String(endDate)));
-      const ids = await db.select({ id: table4.id }).from(table4).where(whereCondition);
-      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s in date range` });
-      await db.delete(table4).where(whereCondition);
-      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted`, deletedCount: ids.length });
-    } catch (error) {
-      console.error(`Bulk delete ${tableName4}s error:`, error);
-      res.status(500).json({ success: false, error: `Failed to bulk delete ${tableName4}s` });
-    }
-  });
-}
-function setupDailyVisitReportsDeleteRoutes(app2) {
-  createAutoCRUD19(app2, {
-    endpoint: "daily-visit-reports",
-    table: dailyVisitReports,
-    tableName: "Daily Visit Report",
-    dateField: "reportDate"
-  });
-  console.log("\u2705 DVR DELETE endpoints (using dealerId) ready");
-}
-
-// src/routes/deleteRoutes/dailytask.ts
-import { eq as eq34, and as and31, gte as gte20, lte as lte20 } from "drizzle-orm";
-function createAutoCRUD20(app2, config) {
+import { eq as eq34, and as and31, gte as gte18, lte as lte18 } from "drizzle-orm";
+function createAutoCRUD17(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
@@ -5783,9 +5678,9 @@ function createAutoCRUD20(app2, config) {
       });
     }
   });
-  app2.delete(`/api/${endpoint}/assigned-by/:assignedByUserId`, async (req, res) => {
+  app2.delete(`/api/${endpoint}/visit-type/:visitType`, async (req, res) => {
     try {
-      const { assignedByUserId } = req.params;
+      const { visitType } = req.params;
       const { confirm } = req.query;
       if (confirm !== "true") {
         return res.status(400).json({
@@ -5793,85 +5688,21 @@ function createAutoCRUD20(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const recordsToDelete = await db.select().from(table4).where(eq34(table4.assignedByUserId, parseInt(assignedByUserId)));
+      const recordsToDelete = await db.select().from(table4).where(eq34(table4.visitType, visitType));
       if (recordsToDelete.length === 0) {
         return res.status(404).json({
           success: false,
-          error: `No ${tableName4}s found assigned by user ${assignedByUserId}`
+          error: `No ${tableName4}s found with visit type ${visitType}`
         });
       }
-      await db.delete(table4).where(eq34(table4.assignedByUserId, parseInt(assignedByUserId)));
+      await db.delete(table4).where(eq34(table4.visitType, visitType));
       res.json({
         success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully assigned by user ${assignedByUserId}`,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with visit type ${visitType}`,
         deletedCount: recordsToDelete.length
       });
     } catch (error) {
-      console.error(`Delete ${tableName4}s by Assigned By User error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.delete(`/api/${endpoint}/status/:status`, async (req, res) => {
-    try {
-      const { status } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq34(table4.status, status));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found with status ${status}`
-        });
-      }
-      await db.delete(table4).where(eq34(table4.status, status));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with status ${status}`,
-        deletedCount: recordsToDelete.length
-      });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by Status error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
-    }
-  });
-  app2.delete(`/api/${endpoint}/dealer/:relatedDealerId`, async (req, res) => {
-    try {
-      const { relatedDealerId } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq34(table4.relatedDealerId, relatedDealerId));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found for dealer ${relatedDealerId}`
-        });
-      }
-      await db.delete(table4).where(eq34(table4.relatedDealerId, relatedDealerId));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for dealer ${relatedDealerId}`,
-        deletedCount: recordsToDelete.length
-      });
-    } catch (error) {
-      console.error(`Delete ${tableName4}s by Dealer error:`, error);
+      console.error(`Delete ${tableName4}s by Visit Type error:`, error);
       res.status(500).json({
         success: false,
         error: `Failed to delete ${tableName4}s`,
@@ -5901,8 +5732,8 @@ function createAutoCRUD20(app2, config) {
         });
       }
       const whereCondition = and31(
-        gte20(table4[dateField2], startDate),
-        lte20(table4[dateField2], endDate)
+        gte18(table4[dateField2], startDate),
+        lte18(table4[dateField2], endDate)
       );
       const recordsToDelete = await db.select().from(table4).where(whereCondition);
       if (recordsToDelete.length === 0) {
@@ -5927,212 +5758,177 @@ function createAutoCRUD20(app2, config) {
     }
   });
 }
-function setupDailyTasksDeleteRoutes(app2) {
-  createAutoCRUD20(app2, {
-    endpoint: "daily-tasks",
-    table: dailyTasks,
-    schema: insertDailyTaskSchema,
-    tableName: "Daily Task",
-    dateField: "taskDate",
+function setupTechnicalVisitReportsDeleteRoutes(app2) {
+  createAutoCRUD17(app2, {
+    endpoint: "technical-visit-reports",
+    table: technicalVisitReports,
+    schema: insertTechnicalVisitReportSchema,
+    tableName: "Technical Visit Report",
+    dateField: "reportDate",
     autoFields: {
       createdAt: () => (/* @__PURE__ */ new Date()).toISOString(),
       updatedAt: () => (/* @__PURE__ */ new Date()).toISOString()
     }
   });
-  console.log("\u2705 Daily Tasks DELETE endpoints setup complete");
+  console.log("\u2705 Technical Visit Reports DELETE endpoints setup complete");
 }
 
-// src/routes/deleteRoutes/salesmanleave.ts
-import { eq as eq35, and as and32, gte as gte21, lte as lte21 } from "drizzle-orm";
-function createAutoCRUD21(app2, config) {
-  const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
+// src/routes/deleteRoutes/dvr.ts
+import { and as and32, eq as eq35, gte as gte19, lte as lte19, sql as sql13 } from "drizzle-orm";
+var mustConfirm = (q) => q.confirm === "true" || q.confirm === true;
+var numberish8 = (v) => {
+  if (v === null || v === void 0 || v === "") return void 0;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : void 0;
+};
+var boolish7 = (v) => {
+  if (v === "true" || v === true) return true;
+  if (v === "false" || v === false) return false;
+  return void 0;
+};
+function extractBrands3(q) {
+  const raw = q.brand ?? q.brands ?? q.brandSelling ?? void 0;
+  if (!raw) return [];
+  const arr = Array.isArray(raw) ? raw : String(raw).includes(",") ? String(raw).split(",").map((s) => s.trim()).filter(Boolean) : [String(raw).trim()].filter(Boolean);
+  return arr;
+}
+function toPgArrayLiteral3(values) {
+  return `{${values.map((v) => v.replace(/\\/g, "\\\\").replace(/{/g, "\\{").replace(/}/g, "\\}").trim()).join(",")}}`;
+}
+function createAutoCRUD18(app2, config) {
+  const { endpoint, table: table4, tableName: tableName4, dateField: dateField2 = "reportDate" } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existingRecord] = await db.select().from(table4).where(eq35(table4.id, id)).limit(1);
-      if (!existingRecord) {
-        return res.status(404).json({
-          success: false,
-          error: `${tableName4} not found`
-        });
-      }
+      const [existing] = await db.select().from(table4).where(eq35(table4.id, id)).limit(1);
+      if (!existing) return res.status(404).json({ success: false, error: `${tableName4} not found` });
       await db.delete(table4).where(eq35(table4.id, id));
-      res.json({
-        success: true,
-        message: `${tableName4} deleted successfully`,
-        deletedId: id
-      });
+      res.json({ success: true, message: `${tableName4} deleted`, deletedId: id });
     } catch (error) {
       console.error(`Delete ${tableName4} error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}` });
     }
   });
   app2.delete(`/api/${endpoint}/user/:userId`, async (req, res) => {
     try {
+      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
       const { userId } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq35(table4.userId, parseInt(userId)));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found for user ${userId}`
-        });
-      }
-      await db.delete(table4).where(eq35(table4.userId, parseInt(userId)));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for user ${userId}`,
-        deletedCount: recordsToDelete.length
-      });
+      const uid = parseInt(userId, 10);
+      if (isNaN(uid)) return res.status(400).json({ success: false, error: "Invalid user ID" });
+      const ids = await db.select({ id: table4.id }).from(table4).where(eq35(table4.userId, uid));
+      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s for user ${userId}` });
+      await db.delete(table4).where(eq35(table4.userId, uid));
+      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted for user ${userId}`, deletedCount: ids.length });
     } catch (error) {
       console.error(`Delete ${tableName4}s by User error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
     }
   });
-  app2.delete(`/api/${endpoint}/status/:status`, async (req, res) => {
+  app2.delete(`/api/${endpoint}/dealer-type/:dealerType`, async (req, res) => {
     try {
-      const { status } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq35(table4.status, status));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found with status ${status}`
-        });
-      }
-      await db.delete(table4).where(eq35(table4.status, status));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with status ${status}`,
-        deletedCount: recordsToDelete.length
-      });
+      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
+      const { dealerType } = req.params;
+      const ids = await db.select({ id: table4.id }).from(table4).where(eq35(table4.dealerType, dealerType));
+      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s with dealer type ${dealerType}` });
+      await db.delete(table4).where(eq35(table4.dealerType, dealerType));
+      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted with dealer type ${dealerType}`, deletedCount: ids.length });
     } catch (error) {
-      console.error(`Delete ${tableName4}s by Status error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      console.error(`Delete ${tableName4}s by Dealer Type error:`, error);
+      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
     }
   });
-  app2.delete(`/api/${endpoint}/leave-type/:leaveType`, async (req, res) => {
+  app2.delete(`/api/${endpoint}/visit-type/:visitType`, async (req, res) => {
     try {
-      const { leaveType } = req.params;
-      const { confirm } = req.query;
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      const recordsToDelete = await db.select().from(table4).where(eq35(table4.leaveType, leaveType));
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found with leave type ${leaveType}`
-        });
-      }
-      await db.delete(table4).where(eq35(table4.leaveType, leaveType));
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with leave type ${leaveType}`,
-        deletedCount: recordsToDelete.length
-      });
+      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
+      const { visitType } = req.params;
+      const ids = await db.select({ id: table4.id }).from(table4).where(eq35(table4.visitType, visitType));
+      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s with visit type ${visitType}` });
+      await db.delete(table4).where(eq35(table4.visitType, visitType));
+      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted with visit type ${visitType}`, deletedCount: ids.length });
     } catch (error) {
-      console.error(`Delete ${tableName4}s by Leave Type error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      console.error(`Delete ${tableName4}s by Visit Type error:`, error);
+      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
+    }
+  });
+  app2.delete(`/api/${endpoint}/pjp/:pjpId`, async (req, res) => {
+    try {
+      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
+      const { pjpId } = req.params;
+      const uid = numberish8(req.query.userId);
+      const wherePjp = uid !== void 0 ? and32(eq35(table4.pjpId, pjpId), eq35(table4.userId, uid)) : eq35(table4.pjpId, pjpId);
+      const ids = await db.select({ id: table4.id }).from(table4).where(wherePjp);
+      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s found for pjpId ${pjpId}` });
+      await db.delete(table4).where(wherePjp);
+      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted for pjp ${pjpId}`, deletedCount: ids.length });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by PJP error:`, error);
+      res.status(500).json({ success: false, error: `Failed to delete ${tableName4}s` });
+    }
+  });
+  app2.delete(`/api/${endpoint}/bulk/brands`, async (req, res) => {
+    try {
+      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
+      const brands2 = extractBrands3(req.query);
+      if (brands2.length === 0) return res.status(400).json({ success: false, error: "Provide ?brands=... for deletion" });
+      const arrLiteral = toPgArrayLiteral3(brands2);
+      const anyBrand = boolish7(req.query.anyBrand);
+      const brandCond = anyBrand ? sql13`${table4.brandSelling} && ${arrLiteral}::text[]` : sql13`${table4.brandSelling} @> ${arrLiteral}::text[]`;
+      const uid = numberish8(req.query.userId);
+      const startDate = req.query.startDate;
+      const endDate = req.query.endDate;
+      const whereConds = [brandCond];
+      if (uid !== void 0) whereConds.push(eq35(table4.userId, uid));
+      if (startDate && endDate) {
+        const col = table4[dateField2];
+        if (dateField2 === "createdAt" || dateField2 === "updatedAt") {
+          whereConds.push(gte19(col, new Date(startDate)), lte19(col, new Date(endDate)));
+        } else {
+          whereConds.push(gte19(col, startDate), lte19(col, endDate));
+        }
+      }
+      const finalWhere = and32(...whereConds.filter(Boolean));
+      if (!finalWhere) {
+        return res.status(400).json({ success: false, error: "Invalid brand filter conditions" });
+      }
+      const ids = await db.select({ id: table4.id }).from(table4).where(finalWhere);
+      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s match filters` });
+      await db.delete(table4).where(finalWhere);
+      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted`, deletedCount: ids.length });
+    } catch (error) {
+      console.error(`Bulk delete ${tableName4}s by brands error:`, error);
+      res.status(500).json({ success: false, error: `Failed to bulk delete ${tableName4}s` });
     }
   });
   app2.delete(`/api/${endpoint}/bulk/date-range`, async (req, res) => {
     try {
-      const { startDate, endDate, confirm } = req.query;
-      if (!startDate || !endDate) {
-        return res.status(400).json({
-          success: false,
-          error: "startDate and endDate parameters are required"
-        });
-      }
-      if (confirm !== "true") {
-        return res.status(400).json({
-          success: false,
-          error: "This action requires confirmation. Add ?confirm=true to proceed."
-        });
-      }
-      if (!dateField2 || !table4[dateField2]) {
-        return res.status(400).json({
-          success: false,
-          error: `Date field not available for ${tableName4}`
-        });
-      }
-      const whereCondition = and32(
-        gte21(table4[dateField2], startDate),
-        lte21(table4[dateField2], endDate)
-      );
-      const recordsToDelete = await db.select().from(table4).where(whereCondition);
-      if (recordsToDelete.length === 0) {
-        return res.status(404).json({
-          success: false,
-          error: `No ${tableName4}s found in the specified date range`
-        });
-      }
+      const { startDate, endDate } = req.query;
+      if (!startDate || !endDate) return res.status(400).json({ success: false, error: "startDate and endDate are required" });
+      if (!mustConfirm(req.query)) return res.status(400).json({ success: false, error: "Confirmation required. Add ?confirm=true" });
+      const col = table4[dateField2];
+      const whereCondition = dateField2 === "createdAt" || dateField2 === "updatedAt" ? and32(gte19(col, new Date(String(startDate))), lte19(col, new Date(String(endDate)))) : and32(gte19(col, String(startDate)), lte19(col, String(endDate)));
+      const ids = await db.select({ id: table4.id }).from(table4).where(whereCondition);
+      if (ids.length === 0) return res.status(404).json({ success: false, error: `No ${tableName4}s in date range` });
       await db.delete(table4).where(whereCondition);
-      res.json({
-        success: true,
-        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully from date range ${startDate} to ${endDate}`,
-        deletedCount: recordsToDelete.length
-      });
+      res.json({ success: true, message: `${ids.length} ${tableName4}(s) deleted`, deletedCount: ids.length });
     } catch (error) {
       console.error(`Bulk delete ${tableName4}s error:`, error);
-      res.status(500).json({
-        success: false,
-        error: `Failed to bulk delete ${tableName4}s`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      res.status(500).json({ success: false, error: `Failed to bulk delete ${tableName4}s` });
     }
   });
 }
-function setupSalesmanLeaveApplicationsDeleteRoutes(app2) {
-  createAutoCRUD21(app2, {
-    endpoint: "leave-applications",
-    table: salesmanLeaveApplications,
-    schema: insertSalesmanLeaveApplicationSchema,
-    tableName: "Salesman Leave Application",
-    dateField: "startDate",
-    autoFields: {
-      createdAt: () => (/* @__PURE__ */ new Date()).toISOString(),
-      updatedAt: () => (/* @__PURE__ */ new Date()).toISOString()
-    }
+function setupDailyVisitReportsDeleteRoutes(app2) {
+  createAutoCRUD18(app2, {
+    endpoint: "daily-visit-reports",
+    table: dailyVisitReports,
+    tableName: "Daily Visit Report",
+    dateField: "reportDate"
   });
-  console.log("\u2705 Salesman Leave Applications DELETE endpoints setup complete");
+  console.log("\u2705 DVR DELETE endpoints (using dealerId) ready");
 }
 
-// src/routes/deleteRoutes/competetionreports.ts
-import { eq as eq36, and as and33, gte as gte22, lte as lte22 } from "drizzle-orm";
-function createAutoCRUD22(app2, config) {
+// src/routes/deleteRoutes/dailytask.ts
+import { eq as eq36, and as and33, gte as gte20, lte as lte20 } from "drizzle-orm";
+function createAutoCRUD19(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
@@ -6191,6 +5987,414 @@ function createAutoCRUD22(app2, config) {
       });
     }
   });
+  app2.delete(`/api/${endpoint}/assigned-by/:assignedByUserId`, async (req, res) => {
+    try {
+      const { assignedByUserId } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq36(table4.assignedByUserId, parseInt(assignedByUserId)));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found assigned by user ${assignedByUserId}`
+        });
+      }
+      await db.delete(table4).where(eq36(table4.assignedByUserId, parseInt(assignedByUserId)));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully assigned by user ${assignedByUserId}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by Assigned By User error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/status/:status`, async (req, res) => {
+    try {
+      const { status } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq36(table4.status, status));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found with status ${status}`
+        });
+      }
+      await db.delete(table4).where(eq36(table4.status, status));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with status ${status}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by Status error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/dealer/:relatedDealerId`, async (req, res) => {
+    try {
+      const { relatedDealerId } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq36(table4.relatedDealerId, relatedDealerId));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found for dealer ${relatedDealerId}`
+        });
+      }
+      await db.delete(table4).where(eq36(table4.relatedDealerId, relatedDealerId));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for dealer ${relatedDealerId}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by Dealer error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/bulk/date-range`, async (req, res) => {
+    try {
+      const { startDate, endDate, confirm } = req.query;
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          error: "startDate and endDate parameters are required"
+        });
+      }
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      if (!dateField2 || !table4[dateField2]) {
+        return res.status(400).json({
+          success: false,
+          error: `Date field not available for ${tableName4}`
+        });
+      }
+      const whereCondition = and33(
+        gte20(table4[dateField2], startDate),
+        lte20(table4[dateField2], endDate)
+      );
+      const recordsToDelete = await db.select().from(table4).where(whereCondition);
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found in the specified date range`
+        });
+      }
+      await db.delete(table4).where(whereCondition);
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully from date range ${startDate} to ${endDate}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Bulk delete ${tableName4}s error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to bulk delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+}
+function setupDailyTasksDeleteRoutes(app2) {
+  createAutoCRUD19(app2, {
+    endpoint: "daily-tasks",
+    table: dailyTasks,
+    schema: insertDailyTaskSchema,
+    tableName: "Daily Task",
+    dateField: "taskDate",
+    autoFields: {
+      createdAt: () => (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: () => (/* @__PURE__ */ new Date()).toISOString()
+    }
+  });
+  console.log("\u2705 Daily Tasks DELETE endpoints setup complete");
+}
+
+// src/routes/deleteRoutes/salesmanleave.ts
+import { eq as eq37, and as and34, gte as gte21, lte as lte21 } from "drizzle-orm";
+function createAutoCRUD20(app2, config) {
+  const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
+  app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [existingRecord] = await db.select().from(table4).where(eq37(table4.id, id)).limit(1);
+      if (!existingRecord) {
+        return res.status(404).json({
+          success: false,
+          error: `${tableName4} not found`
+        });
+      }
+      await db.delete(table4).where(eq37(table4.id, id));
+      res.json({
+        success: true,
+        message: `${tableName4} deleted successfully`,
+        deletedId: id
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4} error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/user/:userId`, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq37(table4.userId, parseInt(userId)));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found for user ${userId}`
+        });
+      }
+      await db.delete(table4).where(eq37(table4.userId, parseInt(userId)));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for user ${userId}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by User error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/status/:status`, async (req, res) => {
+    try {
+      const { status } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq37(table4.status, status));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found with status ${status}`
+        });
+      }
+      await db.delete(table4).where(eq37(table4.status, status));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with status ${status}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by Status error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/leave-type/:leaveType`, async (req, res) => {
+    try {
+      const { leaveType } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq37(table4.leaveType, leaveType));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found with leave type ${leaveType}`
+        });
+      }
+      await db.delete(table4).where(eq37(table4.leaveType, leaveType));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with leave type ${leaveType}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by Leave Type error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/bulk/date-range`, async (req, res) => {
+    try {
+      const { startDate, endDate, confirm } = req.query;
+      if (!startDate || !endDate) {
+        return res.status(400).json({
+          success: false,
+          error: "startDate and endDate parameters are required"
+        });
+      }
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      if (!dateField2 || !table4[dateField2]) {
+        return res.status(400).json({
+          success: false,
+          error: `Date field not available for ${tableName4}`
+        });
+      }
+      const whereCondition = and34(
+        gte21(table4[dateField2], startDate),
+        lte21(table4[dateField2], endDate)
+      );
+      const recordsToDelete = await db.select().from(table4).where(whereCondition);
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found in the specified date range`
+        });
+      }
+      await db.delete(table4).where(whereCondition);
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully from date range ${startDate} to ${endDate}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Bulk delete ${tableName4}s error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to bulk delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+}
+function setupSalesmanLeaveApplicationsDeleteRoutes(app2) {
+  createAutoCRUD20(app2, {
+    endpoint: "leave-applications",
+    table: salesmanLeaveApplications,
+    schema: insertSalesmanLeaveApplicationSchema,
+    tableName: "Salesman Leave Application",
+    dateField: "startDate",
+    autoFields: {
+      createdAt: () => (/* @__PURE__ */ new Date()).toISOString(),
+      updatedAt: () => (/* @__PURE__ */ new Date()).toISOString()
+    }
+  });
+  console.log("\u2705 Salesman Leave Applications DELETE endpoints setup complete");
+}
+
+// src/routes/deleteRoutes/competetionreports.ts
+import { eq as eq38, and as and35, gte as gte22, lte as lte22 } from "drizzle-orm";
+function createAutoCRUD21(app2, config) {
+  const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
+  app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
+    try {
+      const { id } = req.params;
+      const [existingRecord] = await db.select().from(table4).where(eq38(table4.id, id)).limit(1);
+      if (!existingRecord) {
+        return res.status(404).json({
+          success: false,
+          error: `${tableName4} not found`
+        });
+      }
+      await db.delete(table4).where(eq38(table4.id, id));
+      res.json({
+        success: true,
+        message: `${tableName4} deleted successfully`,
+        deletedId: id
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4} error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
+  app2.delete(`/api/${endpoint}/user/:userId`, async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const { confirm } = req.query;
+      if (confirm !== "true") {
+        return res.status(400).json({
+          success: false,
+          error: "This action requires confirmation. Add ?confirm=true to proceed."
+        });
+      }
+      const recordsToDelete = await db.select().from(table4).where(eq38(table4.userId, parseInt(userId)));
+      if (recordsToDelete.length === 0) {
+        return res.status(404).json({
+          success: false,
+          error: `No ${tableName4}s found for user ${userId}`
+        });
+      }
+      await db.delete(table4).where(eq38(table4.userId, parseInt(userId)));
+      res.json({
+        success: true,
+        message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for user ${userId}`,
+        deletedCount: recordsToDelete.length
+      });
+    } catch (error) {
+      console.error(`Delete ${tableName4}s by User error:`, error);
+      res.status(500).json({
+        success: false,
+        error: `Failed to delete ${tableName4}s`,
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
+    }
+  });
   app2.delete(`/api/${endpoint}/brand/:brandName`, async (req, res) => {
     try {
       const { brandName } = req.params;
@@ -6201,14 +6405,14 @@ function createAutoCRUD22(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const recordsToDelete = await db.select().from(table4).where(eq36(table4.brandName, brandName));
+      const recordsToDelete = await db.select().from(table4).where(eq38(table4.brandName, brandName));
       if (recordsToDelete.length === 0) {
         return res.status(404).json({
           success: false,
           error: `No ${tableName4}s found for brand ${brandName}`
         });
       }
-      await db.delete(table4).where(eq36(table4.brandName, brandName));
+      await db.delete(table4).where(eq38(table4.brandName, brandName));
       res.json({
         success: true,
         message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for brand ${brandName}`,
@@ -6244,7 +6448,7 @@ function createAutoCRUD22(app2, config) {
           error: `Date field not available for ${tableName4}`
         });
       }
-      const whereCondition = and33(
+      const whereCondition = and35(
         gte22(table4[dateField2], startDate),
         lte22(table4[dateField2], endDate)
       );
@@ -6272,7 +6476,7 @@ function createAutoCRUD22(app2, config) {
   });
 }
 function setupCompetitionReportsDeleteRoutes(app2) {
-  createAutoCRUD22(app2, {
+  createAutoCRUD21(app2, {
     endpoint: "competition-reports",
     table: competitionReports,
     schema: insertCompetitionReportSchema,
@@ -6287,20 +6491,20 @@ function setupCompetitionReportsDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/brands.ts
-import { eq as eq37 } from "drizzle-orm";
-function createAutoCRUD23(app2, config) {
+import { eq as eq39 } from "drizzle-orm";
+function createAutoCRUD22(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existingRecord] = await db.select().from(table4).where(eq37(table4.id, parseInt(id))).limit(1);
+      const [existingRecord] = await db.select().from(table4).where(eq39(table4.id, parseInt(id))).limit(1);
       if (!existingRecord) {
         return res.status(404).json({
           success: false,
           error: `${tableName4} not found`
         });
       }
-      await db.delete(table4).where(eq37(table4.id, parseInt(id)));
+      await db.delete(table4).where(eq39(table4.id, parseInt(id)));
       res.json({
         success: true,
         message: `${tableName4} deleted successfully`,
@@ -6325,14 +6529,14 @@ function createAutoCRUD23(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const [existingRecord] = await db.select().from(table4).where(eq37(table4.name, name)).limit(1);
+      const [existingRecord] = await db.select().from(table4).where(eq39(table4.name, name)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({
           success: false,
           error: `${tableName4} with name '${name}' not found`
         });
       }
-      await db.delete(table4).where(eq37(table4.name, name));
+      await db.delete(table4).where(eq39(table4.name, name));
       res.json({
         success: true,
         message: `${tableName4} '${name}' deleted successfully`,
@@ -6380,7 +6584,7 @@ function createAutoCRUD23(app2, config) {
   });
 }
 function setupBrandsDeleteRoutes(app2) {
-  createAutoCRUD23(app2, {
+  createAutoCRUD22(app2, {
     endpoint: "brands",
     table: brands,
     schema: insertBrandSchema,
@@ -6391,20 +6595,20 @@ function setupBrandsDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/ratings.ts
-import { eq as eq38 } from "drizzle-orm";
-function createAutoCRUD24(app2, config) {
+import { eq as eq40 } from "drizzle-orm";
+function createAutoCRUD23(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existingRecord] = await db.select().from(table4).where(eq38(table4.id, parseInt(id))).limit(1);
+      const [existingRecord] = await db.select().from(table4).where(eq40(table4.id, parseInt(id))).limit(1);
       if (!existingRecord) {
         return res.status(404).json({
           success: false,
           error: `${tableName4} not found`
         });
       }
-      await db.delete(table4).where(eq38(table4.id, parseInt(id)));
+      await db.delete(table4).where(eq40(table4.id, parseInt(id)));
       res.json({
         success: true,
         message: `${tableName4} deleted successfully`,
@@ -6429,14 +6633,14 @@ function createAutoCRUD24(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const recordsToDelete = await db.select().from(table4).where(eq38(table4.userId, parseInt(userId)));
+      const recordsToDelete = await db.select().from(table4).where(eq40(table4.userId, parseInt(userId)));
       if (recordsToDelete.length === 0) {
         return res.status(404).json({
           success: false,
           error: `No ${tableName4}s found for user ${userId}`
         });
       }
-      await db.delete(table4).where(eq38(table4.userId, parseInt(userId)));
+      await db.delete(table4).where(eq40(table4.userId, parseInt(userId)));
       res.json({
         success: true,
         message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for user ${userId}`,
@@ -6461,14 +6665,14 @@ function createAutoCRUD24(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const recordsToDelete = await db.select().from(table4).where(eq38(table4.area, area));
+      const recordsToDelete = await db.select().from(table4).where(eq40(table4.area, area));
       if (recordsToDelete.length === 0) {
         return res.status(404).json({
           success: false,
           error: `No ${tableName4}s found for area ${area}`
         });
       }
-      await db.delete(table4).where(eq38(table4.area, area));
+      await db.delete(table4).where(eq40(table4.area, area));
       res.json({
         success: true,
         message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for area ${area}`,
@@ -6493,14 +6697,14 @@ function createAutoCRUD24(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const recordsToDelete = await db.select().from(table4).where(eq38(table4.region, region));
+      const recordsToDelete = await db.select().from(table4).where(eq40(table4.region, region));
       if (recordsToDelete.length === 0) {
         return res.status(404).json({
           success: false,
           error: `No ${tableName4}s found for region ${region}`
         });
       }
-      await db.delete(table4).where(eq38(table4.region, region));
+      await db.delete(table4).where(eq40(table4.region, region));
       res.json({
         success: true,
         message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully for region ${region}`,
@@ -6525,14 +6729,14 @@ function createAutoCRUD24(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const recordsToDelete = await db.select().from(table4).where(eq38(table4.rating, parseInt(rating)));
+      const recordsToDelete = await db.select().from(table4).where(eq40(table4.rating, parseInt(rating)));
       if (recordsToDelete.length === 0) {
         return res.status(404).json({
           success: false,
           error: `No ${tableName4}s found with rating ${rating}`
         });
       }
-      await db.delete(table4).where(eq38(table4.rating, parseInt(rating)));
+      await db.delete(table4).where(eq40(table4.rating, parseInt(rating)));
       res.json({
         success: true,
         message: `${recordsToDelete.length} ${tableName4}(s) deleted successfully with rating ${rating}`,
@@ -6549,7 +6753,7 @@ function createAutoCRUD24(app2, config) {
   });
 }
 function setupRatingsDeleteRoutes(app2) {
-  createAutoCRUD24(app2, {
+  createAutoCRUD23(app2, {
     endpoint: "ratings",
     table: ratings,
     schema: insertRatingSchema,
@@ -6560,7 +6764,7 @@ function setupRatingsDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/salesOrder.ts
-import { eq as eq39, and as and36, gte as gte25, lte as lte25 } from "drizzle-orm";
+import { eq as eq41, and as and38, gte as gte25, lte as lte25 } from "drizzle-orm";
 function pickDateColumn2(key) {
   switch ((key || "").toLowerCase()) {
     case "deliverydate":
@@ -6573,14 +6777,14 @@ function pickDateColumn2(key) {
       return salesOrders.orderDate;
   }
 }
-function createAutoCRUD25(app2, config) {
+function createAutoCRUD24(app2, config) {
   const { endpoint, table: table4, tableName: tableName4 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existing] = await db.select().from(table4).where(eq39(table4.id, id)).limit(1);
+      const [existing] = await db.select().from(table4).where(eq41(table4.id, id)).limit(1);
       if (!existing) return res.status(404).json({ success: false, error: `${tableName4} not found` });
-      await db.delete(table4).where(eq39(table4.id, id));
+      await db.delete(table4).where(eq41(table4.id, id));
       res.json({ success: true, message: `${tableName4} deleted`, deletedId: id });
     } catch (error) {
       console.error(`Delete ${tableName4} error:`, error);
@@ -6592,9 +6796,9 @@ function createAutoCRUD25(app2, config) {
       const { userId } = req.params;
       const { confirm } = req.query;
       if (confirm !== "true") return res.status(400).json({ success: false, error: "Add ?confirm=true" });
-      const rows = await db.select().from(table4).where(eq39(table4.userId, parseInt(userId, 10)));
+      const rows = await db.select().from(table4).where(eq41(table4.userId, parseInt(userId, 10)));
       if (!rows.length) return res.status(404).json({ success: false, error: `No ${tableName4}s for user ${userId}` });
-      await db.delete(table4).where(eq39(table4.userId, parseInt(userId, 10)));
+      await db.delete(table4).where(eq41(table4.userId, parseInt(userId, 10)));
       res.json({ success: true, message: `${rows.length} ${tableName4}(s) deleted`, deletedCount: rows.length });
     } catch (error) {
       console.error(`Delete ${tableName4}s by User error:`, error);
@@ -6606,9 +6810,9 @@ function createAutoCRUD25(app2, config) {
       const { dealerId } = req.params;
       const { confirm } = req.query;
       if (confirm !== "true") return res.status(400).json({ success: false, error: "Add ?confirm=true" });
-      const rows = await db.select().from(table4).where(eq39(table4.dealerId, dealerId));
+      const rows = await db.select().from(table4).where(eq41(table4.dealerId, dealerId));
       if (!rows.length) return res.status(404).json({ success: false, error: `No ${tableName4}s for dealer ${dealerId}` });
-      await db.delete(table4).where(eq39(table4.dealerId, dealerId));
+      await db.delete(table4).where(eq41(table4.dealerId, dealerId));
       res.json({ success: true, message: `${rows.length} ${tableName4}(s) deleted`, deletedCount: rows.length });
     } catch (error) {
       console.error(`Delete ${tableName4}s by Dealer error:`, error);
@@ -6620,9 +6824,9 @@ function createAutoCRUD25(app2, config) {
       const { dvrId } = req.params;
       const { confirm } = req.query;
       if (confirm !== "true") return res.status(400).json({ success: false, error: "Add ?confirm=true" });
-      const rows = await db.select().from(table4).where(eq39(table4.dvrId, dvrId));
+      const rows = await db.select().from(table4).where(eq41(table4.dvrId, dvrId));
       if (!rows.length) return res.status(404).json({ success: false, error: `No ${tableName4}s for DVR ${dvrId}` });
-      await db.delete(table4).where(eq39(table4.dvrId, dvrId));
+      await db.delete(table4).where(eq41(table4.dvrId, dvrId));
       res.json({ success: true, message: `${rows.length} ${tableName4}(s) deleted`, deletedCount: rows.length });
     } catch (error) {
       console.error(`Delete ${tableName4}s by DVR error:`, error);
@@ -6634,9 +6838,9 @@ function createAutoCRUD25(app2, config) {
       const { pjpId } = req.params;
       const { confirm } = req.query;
       if (confirm !== "true") return res.status(400).json({ success: false, error: "Add ?confirm=true" });
-      const rows = await db.select().from(table4).where(eq39(table4.pjpId, pjpId));
+      const rows = await db.select().from(table4).where(eq41(table4.pjpId, pjpId));
       if (!rows.length) return res.status(404).json({ success: false, error: `No ${tableName4}s for PJP ${pjpId}` });
-      await db.delete(table4).where(eq39(table4.pjpId, pjpId));
+      await db.delete(table4).where(eq41(table4.pjpId, pjpId));
       res.json({ success: true, message: `${rows.length} ${tableName4}(s) deleted`, deletedCount: rows.length });
     } catch (error) {
       console.error(`Delete ${tableName4}s by PJP error:`, error);
@@ -6648,9 +6852,9 @@ function createAutoCRUD25(app2, config) {
       const { status } = req.params;
       const { confirm } = req.query;
       if (confirm !== "true") return res.status(400).json({ success: false, error: "Add ?confirm=true" });
-      const rows = await db.select().from(table4).where(eq39(table4.status, status));
+      const rows = await db.select().from(table4).where(eq41(table4.status, status));
       if (!rows.length) return res.status(404).json({ success: false, error: `No ${tableName4}s with status ${status}` });
-      await db.delete(table4).where(eq39(table4.status, status));
+      await db.delete(table4).where(eq41(table4.status, status));
       res.json({ success: true, message: `${rows.length} ${tableName4}(s) deleted`, deletedCount: rows.length });
     } catch (error) {
       console.error(`Delete ${tableName4}s by Status error:`, error);
@@ -6663,7 +6867,7 @@ function createAutoCRUD25(app2, config) {
       if (!dateFrom || !dateTo) return res.status(400).json({ success: false, error: "dateFrom/dateTo required" });
       if (confirm !== "true") return res.status(400).json({ success: false, error: "Add ?confirm=true" });
       const col = pickDateColumn2(String(dateField2));
-      const whereCond = and36(
+      const whereCond = and38(
         gte25(col, new Date(String(dateFrom))),
         lte25(col, new Date(String(dateTo)))
       );
@@ -6678,7 +6882,7 @@ function createAutoCRUD25(app2, config) {
   });
 }
 function setupSalesOrdersDeleteRoutes(app2) {
-  createAutoCRUD25(app2, {
+  createAutoCRUD24(app2, {
     endpoint: "sales-orders",
     table: salesOrders,
     schema: insertSalesOrderSchema,
@@ -6688,20 +6892,20 @@ function setupSalesOrdersDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/dealerReportsAndScores.ts
-import { eq as eq40, and as and37, gte as gte26, lte as lte26 } from "drizzle-orm";
-function createAutoCRUD26(app2, config) {
+import { eq as eq42, and as and39, gte as gte26, lte as lte26 } from "drizzle-orm";
+function createAutoCRUD25(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {}, dateField: dateField2 } = config;
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existingRecord] = await db.select().from(table4).where(eq40(table4.id, id)).limit(1);
+      const [existingRecord] = await db.select().from(table4).where(eq42(table4.id, id)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({
           success: false,
           error: `${tableName4} not found`
         });
       }
-      await db.delete(table4).where(eq40(table4.id, id));
+      await db.delete(table4).where(eq42(table4.id, id));
       res.json({
         success: true,
         message: `${tableName4} deleted successfully`,
@@ -6726,14 +6930,14 @@ function createAutoCRUD26(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const [existingRecord] = await db.select().from(table4).where(eq40(table4.dealerId, dealerId)).limit(1);
+      const [existingRecord] = await db.select().from(table4).where(eq42(table4.dealerId, dealerId)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({
           success: false,
           error: `No ${tableName4} found for dealer ${dealerId}`
         });
       }
-      await db.delete(table4).where(eq40(table4.dealerId, dealerId));
+      await db.delete(table4).where(eq42(table4.dealerId, dealerId));
       res.json({
         success: true,
         message: `${tableName4} deleted successfully for dealer ${dealerId}`,
@@ -6763,7 +6967,7 @@ function createAutoCRUD26(app2, config) {
           error: "This action requires confirmation. Add ?confirm=true to proceed."
         });
       }
-      const whereCondition = and37(
+      const whereCondition = and39(
         gte26(table4[scoreType], parseFloat(minScore)),
         lte26(table4[scoreType], parseFloat(maxScore))
       );
@@ -6810,7 +7014,7 @@ function createAutoCRUD26(app2, config) {
           error: `Date field not available for ${tableName4}`
         });
       }
-      const whereCondition = and37(
+      const whereCondition = and39(
         gte26(table4[dateField2], startDate),
         lte26(table4[dateField2], endDate)
       );
@@ -6838,7 +7042,7 @@ function createAutoCRUD26(app2, config) {
   });
 }
 function setupDealerReportsAndScoresDeleteRoutes(app2) {
-  createAutoCRUD26(app2, {
+  createAutoCRUD25(app2, {
     endpoint: "dealer-reports-scores",
     table: dealerReportsAndScores,
     schema: insertDealerReportsAndScoresSchema,
@@ -6854,7 +7058,7 @@ function setupDealerReportsAndScoresDeleteRoutes(app2) {
 }
 
 // src/routes/deleteRoutes/tsoMeetings.ts
-import { eq as eq41 } from "drizzle-orm";
+import { eq as eq43 } from "drizzle-orm";
 var table3 = tsoMeetings;
 var tableName3 = "TSO Meeting";
 function setupTsoMeetingsDeleteRoutes(app2) {
@@ -6862,11 +7066,11 @@ function setupTsoMeetingsDeleteRoutes(app2) {
   app2.delete(`/api/${endpoint}/:id`, async (req, res) => {
     try {
       const { id } = req.params;
-      const [existing] = await db.select({ id: table3.id }).from(table3).where(eq41(table3.id, id)).limit(1);
+      const [existing] = await db.select({ id: table3.id }).from(table3).where(eq43(table3.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({ success: false, error: `${tableName3} not found` });
       }
-      await db.delete(table3).where(eq41(table3.id, id));
+      await db.delete(table3).where(eq43(table3.id, id));
       res.json({ success: true, message: `${tableName3} deleted`, deletedId: id });
     } catch (error) {
       if (error.code === "23503") {
@@ -6889,12 +7093,12 @@ function setupTsoMeetingsDeleteRoutes(app2) {
       if (isNaN(userId)) {
         return res.status(400).json({ success: false, error: "Invalid User ID" });
       }
-      const rows = await db.select({ id: table3.id }).from(table3).where(eq41(table3.createdByUserId, userId));
+      const rows = await db.select({ id: table3.id }).from(table3).where(eq43(table3.createdByUserId, userId));
       if (rows.length === 0) {
         return res.status(404).json({ success: false, error: `No ${tableName3}s found for user ${userId}` });
       }
       const ids = rows.map((r) => r.id);
-      await db.delete(table3).where(eq41(table3.createdByUserId, userId));
+      await db.delete(table3).where(eq43(table3.createdByUserId, userId));
       res.json({
         success: true,
         message: `${rows.length} ${tableName3}(s) deleted for user ${userId}`,
@@ -6937,7 +7141,7 @@ if (!admin.apps.length) {
 import jwt from "jsonwebtoken";
 import { getAuth } from "firebase-admin/auth";
 import crypto2 from "crypto";
-import { eq as eq42 } from "drizzle-orm";
+import { eq as eq44 } from "drizzle-orm";
 var JWT_TTL_SECONDS = 60 * 60 * 24 * 7;
 var SESSION_TTL_SECONDS = 60 * 60 * 24 * 60;
 var verifyJwt = (token) => {
@@ -6960,9 +7164,9 @@ function setupAuthFirebaseRoutes(app2) {
       if (!phone) {
         return res.status(400).json({ success: false, error: "Phone missing in Firebase token" });
       }
-      let mason = (await db.select().from(masonPcSide).where(eq42(masonPcSide.firebaseUid, firebaseUid)).limit(1))[0];
+      let mason = (await db.select().from(masonPcSide).where(eq44(masonPcSide.firebaseUid, firebaseUid)).limit(1))[0];
       if (!mason) {
-        mason = (await db.select().from(masonPcSide).where(eq42(masonPcSide.phoneNumber, phone)).limit(1))[0];
+        mason = (await db.select().from(masonPcSide).where(eq44(masonPcSide.phoneNumber, phone)).limit(1))[0];
         if (!mason) {
           const created = await db.insert(masonPcSide).values({
             id: crypto2.randomUUID(),
@@ -6979,7 +7183,7 @@ function setupAuthFirebaseRoutes(app2) {
           if (name && mason.name === "New Contractor") {
             updates.name = name;
           }
-          await db.update(masonPcSide).set(updates).where(eq42(masonPcSide.id, mason.id));
+          await db.update(masonPcSide).set(updates).where(eq44(masonPcSide.id, mason.id));
           mason = { ...mason, ...updates };
         }
       }
@@ -7029,7 +7233,7 @@ function setupAuthFirebaseRoutes(app2) {
     }
     try {
       const masonId = decoded.sub;
-      const [mason] = await db.select().from(masonPcSide).where(eq42(masonPcSide.id, masonId)).limit(1);
+      const [mason] = await db.select().from(masonPcSide).where(eq44(masonPcSide.id, masonId)).limit(1);
       if (!mason) {
         return res.status(404).json({ success: false, error: "Mason not found" });
       }
@@ -7053,14 +7257,14 @@ function setupAuthFirebaseRoutes(app2) {
     try {
       const token = req.header("x-session-token");
       if (!token) return res.status(400).json({ success: false, error: "x-session-token required" });
-      const [session] = await db.select().from(authSessions).where(eq42(authSessions.sessionToken, token)).limit(1);
+      const [session] = await db.select().from(authSessions).where(eq44(authSessions.sessionToken, token)).limit(1);
       if (!session || !session.expiresAt || session.expiresAt < /* @__PURE__ */ new Date()) {
         if (session) {
-          await db.delete(authSessions).where(eq42(authSessions.sessionId, session.sessionId));
+          await db.delete(authSessions).where(eq44(authSessions.sessionId, session.sessionId));
         }
         return res.status(401).json({ success: false, error: "Session expired or invalid" });
       }
-      const [mason] = await db.select().from(masonPcSide).where(eq42(masonPcSide.id, session.masonId)).limit(1);
+      const [mason] = await db.select().from(masonPcSide).where(eq44(masonPcSide.id, session.masonId)).limit(1);
       if (!mason) return res.status(401).json({ success: false, error: "Unknown user" });
       const jwtToken = jwt.sign(
         { sub: mason.id, role: "mason", phone: mason.phoneNumber, kyc: mason.kycStatus },
@@ -7070,7 +7274,7 @@ function setupAuthFirebaseRoutes(app2) {
       );
       const newSessionToken = crypto2.randomBytes(32).toString("hex");
       const newSessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1e3);
-      await db.update(authSessions).set({ sessionToken: newSessionToken, expiresAt: newSessionExpiresAt, createdAt: /* @__PURE__ */ new Date() }).where(eq42(authSessions.sessionId, session.sessionId));
+      await db.update(authSessions).set({ sessionToken: newSessionToken, expiresAt: newSessionExpiresAt, createdAt: /* @__PURE__ */ new Date() }).where(eq44(authSessions.sessionId, session.sessionId));
       return res.status(200).json({
         success: true,
         jwt: jwtToken,
@@ -7094,7 +7298,7 @@ function setupAuthFirebaseRoutes(app2) {
     try {
       const token = req.header("x-session-token");
       if (!token) return res.status(400).json({ success: false, error: "x-session-token required" });
-      await db.delete(authSessions).where(eq42(authSessions.sessionToken, token));
+      await db.delete(authSessions).where(eq44(authSessions.sessionToken, token));
       return res.status(200).json({ success: true, message: "Logged out" });
     } catch (e) {
       return res.status(500).json({ success: false, error: "Logout failed" });
@@ -7107,7 +7311,7 @@ function setupAuthFirebaseRoutes(app2) {
     try {
       const { phone, name } = req.body;
       if (!phone) return res.status(400).json({ success: false, error: "Phone required" });
-      let mason = (await db.select().from(masonPcSide).where(eq42(masonPcSide.phoneNumber, phone)).limit(1))[0];
+      let mason = (await db.select().from(masonPcSide).where(eq44(masonPcSide.phoneNumber, phone)).limit(1))[0];
       if (!mason) {
         const created = await db.insert(masonPcSide).values({
           id: crypto2.randomUUID(),
@@ -7281,41 +7485,61 @@ var toStringArray3 = (v) => {
   return [];
 };
 var nullableString = z4.string().transform((s) => s.trim() === "" ? null : s).optional().nullable();
+var nullableBoolean = z4.boolean().optional().nullable();
 var tvrInputSchema = z4.object({
+  // --- Core & Contact ---
   userId: z4.coerce.number().int().positive(),
   reportDate: z4.coerce.date(),
   visitType: z4.string().max(50),
   siteNameConcernedPerson: z4.string().max(255),
   phoneNo: z4.string().max(20),
+  whatsappNo: nullableString,
   emailId: nullableString,
-  clientsRemarks: z4.string().max(500),
-  salespersonRemarks: z4.string().max(500),
-  checkInTime: z4.coerce.date(),
-  checkOutTime: z4.coerce.date().nullable().optional(),
-  inTimeImageUrl: nullableString,
-  outTimeImageUrl: nullableString,
-  // Array fields
-  siteVisitBrandInUse: z4.preprocess(toStringArray3, z4.array(z4.string()).min(1, "siteVisitBrandInUse requires at least one brand")),
-  influencerType: z4.preprocess(toStringArray3, z4.array(z4.string()).min(1, "influencerType requires at least one type")),
-  // Nullable text fields
+  siteAddress: nullableString,
+  marketName: nullableString,
+  visitCategory: nullableString,
+  customerType: nullableString,
+  purposeOfVisit: nullableString,
   siteVisitStage: nullableString,
-  conversionFromBrand: nullableString,
-  conversionQuantityUnit: nullableString,
+  constAreaSqFt: z4.coerce.number().int().nullable().optional(),
+  siteVisitBrandInUse: z4.preprocess(toStringArray3, z4.array(z4.string()).min(1, "siteVisitBrandInUse requires at least one brand")),
+  currentBrandPrice: z4.coerce.number().nullable().optional(),
+  siteStock: z4.coerce.number().nullable().optional(),
+  estRequirement: z4.coerce.number().nullable().optional(),
+  supplyingDealerName: nullableString,
+  nearbyDealerName: nullableString,
   associatedPartyName: nullableString,
-  serviceType: nullableString,
-  qualityComplaint: nullableString,
-  promotionalActivity: nullableString,
   channelPartnerVisit: nullableString,
-  // Nullable numeric
+  isConverted: nullableBoolean,
+  conversionType: nullableString,
+  conversionFromBrand: nullableString,
   conversionQuantityValue: z4.coerce.number().nullable().optional(),
-  siteVisitType: nullableString,
+  conversionQuantityUnit: nullableString,
+  isTechService: nullableBoolean,
+  serviceDesc: nullableString,
+  serviceType: nullableString,
   dhalaiVerificationCode: nullableString,
   isVerificationStatus: nullableString,
+  qualityComplaint: nullableString,
+  influencerName: nullableString,
+  influencerPhone: nullableString,
+  isSchemeEnrolled: nullableBoolean,
+  influencerProductivity: nullableString,
+  influencerType: z4.preprocess(toStringArray3, z4.array(z4.string()).min(1, "influencerType requires at least one type")),
+  clientsRemarks: z4.string().max(500),
+  salespersonRemarks: z4.string().max(500),
+  promotionalActivity: nullableString,
+  checkInTime: z4.coerce.date(),
+  checkOutTime: z4.coerce.date().nullable().optional(),
+  timeSpentinLoc: nullableString,
+  inTimeImageUrl: nullableString,
+  outTimeImageUrl: nullableString,
+  sitePhotoUrl: nullableString,
+  siteVisitType: nullableString,
   meetingId: nullableString,
   pjpId: nullableString,
-  timeSpentinLoc: nullableString,
-  purposeOfVisit: nullableString,
-  sitePhotoUrl: nullableString,
+  masonId: nullableString,
+  siteId: nullableString,
   firstVisitTime: z4.coerce.date().nullable().optional(),
   lastVisitTime: z4.coerce.date().nullable().optional(),
   firstVisitDay: nullableString,
@@ -7326,10 +7550,9 @@ var tvrInputSchema = z4.object({
   region: nullableString,
   area: nullableString,
   latitude: z4.coerce.number().nullable().optional(),
-  longitude: z4.coerce.number().nullable().optional(),
-  masonId: nullableString
+  longitude: z4.coerce.number().nullable().optional()
 }).strict();
-function createAutoCRUD27(app2, config) {
+function createAutoCRUD26(app2, config) {
   const { endpoint, table: table4, tableName: tableName4 } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7340,52 +7563,79 @@ function createAutoCRUD27(app2, config) {
         userId: input.userId,
         reportDate: toDateOnly2(input.reportDate),
         // Normalize to YYYY-MM-DD
-        visitType: input.visitType,
+        // --- Core Contact ---
         siteNameConcernedPerson: input.siteNameConcernedPerson,
         phoneNo: input.phoneNo,
+        whatsappNo: input.whatsappNo ?? null,
         emailId: input.emailId ?? null,
+        siteAddress: input.siteAddress ?? null,
+        marketName: input.marketName ?? null,
+        region: input.region ?? null,
+        area: input.area ?? null,
+        latitude: input.latitude != null ? String(input.latitude) : null,
+        longitude: input.longitude != null ? String(input.longitude) : null,
+        // --- Visit Info ---
+        visitType: input.visitType,
+        visitCategory: input.visitCategory ?? null,
+        customerType: input.customerType ?? null,
+        purposeOfVisit: input.purposeOfVisit ?? null,
+        // --- Construction & Stock ---
+        siteVisitStage: input.siteVisitStage ?? null,
+        constAreaSqFt: input.constAreaSqFt ?? null,
+        siteVisitBrandInUse: input.siteVisitBrandInUse,
+        currentBrandPrice: input.currentBrandPrice != null ? String(input.currentBrandPrice) : null,
+        siteStock: input.siteStock != null ? String(input.siteStock) : null,
+        estRequirement: input.estRequirement != null ? String(input.estRequirement) : null,
+        // --- Dealers ---
+        supplyingDealerName: input.supplyingDealerName ?? null,
+        nearbyDealerName: input.nearbyDealerName ?? null,
+        associatedPartyName: input.associatedPartyName ?? null,
+        channelPartnerVisit: input.channelPartnerVisit ?? null,
+        // --- Conversion ---
+        isConverted: input.isConverted ?? null,
+        conversionType: input.conversionType ?? null,
+        conversionFromBrand: input.conversionFromBrand ?? null,
+        conversionQuantityValue: input.conversionQuantityValue != null ? String(input.conversionQuantityValue) : null,
+        conversionQuantityUnit: input.conversionQuantityUnit ?? null,
+        // --- Technical Services ---
+        isTechService: input.isTechService ?? null,
+        serviceDesc: input.serviceDesc ?? null,
+        serviceType: input.serviceType ?? null,
+        dhalaiVerificationCode: input.dhalaiVerificationCode ?? null,
+        isVerificationStatus: input.isVerificationStatus ?? null,
+        qualityComplaint: input.qualityComplaint ?? null,
+        // --- Influencer / Mason ---
+        influencerName: input.influencerName ?? null,
+        influencerPhone: input.influencerPhone ?? null,
+        isSchemeEnrolled: input.isSchemeEnrolled ?? null,
+        influencerProductivity: input.influencerProductivity ?? null,
+        influencerType: input.influencerType,
+        // --- Remarks ---
         clientsRemarks: input.clientsRemarks,
         salespersonRemarks: input.salespersonRemarks,
+        promotionalActivity: input.promotionalActivity ?? null,
+        // --- Time & Images ---
         checkInTime: input.checkInTime,
         // Full timestamp
         checkOutTime: input.checkOutTime ?? null,
         inTimeImageUrl: input.inTimeImageUrl ?? null,
         outTimeImageUrl: input.outTimeImageUrl ?? null,
-        siteVisitBrandInUse: input.siteVisitBrandInUse,
-        influencerType: input.influencerType,
-        siteVisitStage: input.siteVisitStage ?? null,
-        conversionFromBrand: input.conversionFromBrand ?? null,
-        // --- ✅ TS FIX ---
-        // Convert number|null to string|null for Drizzle 'numeric' type
-        conversionQuantityValue: input.conversionQuantityValue !== null && input.conversionQuantityValue !== void 0 ? String(input.conversionQuantityValue) : null,
-        // --- END FIX ---
-        conversionQuantityUnit: input.conversionQuantityUnit ?? null,
-        associatedPartyName: input.associatedPartyName ?? null,
-        serviceType: input.serviceType ?? null,
-        qualityComplaint: input.qualityComplaint ?? null,
-        promotionalActivity: input.promotionalActivity ?? null,
-        channelPartnerVisit: input.channelPartnerVisit ?? null,
+        timeSpentinLoc: input.timeSpentinLoc ?? null,
+        sitePhotoUrl: input.sitePhotoUrl ?? null,
+        // --- Meta / Legacy / Foreign Keys ---
         siteVisitType: input.siteVisitType ?? null,
-        dhalaiVerificationCode: input.dhalaiVerificationCode ?? null,
-        isVerificationStatus: input.isVerificationStatus ?? null,
         meetingId: input.meetingId ?? null,
         pjpId: input.pjpId ?? null,
-        timeSpentinLoc: input.timeSpentinLoc ?? null,
-        purposeOfVisit: input.purposeOfVisit ?? null,
-        sitePhotoUrl: input.sitePhotoUrl ?? null,
+        masonId: input.masonId ?? null,
+        siteId: input.siteId ?? null,
+        // --- Counters ---
         firstVisitTime: input.firstVisitTime ?? null,
         lastVisitTime: input.lastVisitTime ?? null,
         firstVisitDay: input.firstVisitDay ?? null,
         lastVisitDay: input.lastVisitDay ?? null,
         siteVisitsCount: input.siteVisitsCount ?? null,
         otherVisitsCount: input.otherVisitsCount ?? null,
-        totalVisitsCount: input.totalVisitsCount ?? null,
-        region: input.region ?? null,
-        area: input.area ?? null,
-        // Convert number|null to string|null for Drizzle 'numeric' type
-        latitude: input.latitude !== null && input.latitude !== void 0 ? String(input.latitude) : null,
-        longitude: input.longitude !== null && input.longitude !== void 0 ? String(input.longitude) : null,
-        masonId: input.masonId ?? null
+        totalVisitsCount: input.totalVisitsCount ?? null
       };
       const [record] = await db.insert(table4).values(insertData).returning();
       return res.status(201).json({
@@ -7415,7 +7665,7 @@ function createAutoCRUD27(app2, config) {
   });
 }
 function setupTechnicalVisitReportsPostRoutes(app2) {
-  createAutoCRUD27(app2, {
+  createAutoCRUD26(app2, {
     endpoint: "technical-visit-reports",
     table: technicalVisitReports,
     tableName: "Technical Visit Report"
@@ -7436,7 +7686,7 @@ var pjpInputSchema = z5.object({
   userId: z5.coerce.number().int().positive(),
   createdById: z5.coerce.number().int().positive(),
   dealerId: strOrNull3,
-  // nullable FK -> dealers.id
+  siteId: strOrNull3,
   planDate: z5.coerce.date(),
   areaToBeVisited: z5.string().max(500).min(1),
   description: strOrNull3,
@@ -7444,12 +7694,12 @@ var pjpInputSchema = z5.object({
   verificationStatus: strOrNull3,
   additionalVisitRemarks: strOrNull3,
   idempotencyKey: z5.string().max(120).optional()
-  // harmless to keep, not used in conflict now
 }).strict();
 var bulkSchema = z5.object({
   userId: z5.coerce.number().int().positive(),
   createdById: z5.coerce.number().int().positive(),
-  dealerIds: z5.array(z5.string().min(1)).min(1),
+  dealerIds: z5.array(z5.string().min(1)).optional(),
+  siteIds: z5.array(z5.string().min(1)).optional(),
   baseDate: z5.coerce.date(),
   batchSizePerDay: z5.coerce.number().int().min(1).max(500).default(8),
   areaToBeVisited: z5.string().max(500).min(1),
@@ -7457,7 +7707,9 @@ var bulkSchema = z5.object({
   status: z5.string().max(50).default("PENDING"),
   bulkOpId: z5.string().max(50).optional(),
   idempotencyKey: z5.string().max(120).optional()
-}).strict();
+}).strict().refine((data) => data.dealerIds?.length || data.siteIds?.length, {
+  message: "Either dealerIds or siteIds must be provided"
+});
 function setupPermanentJourneyPlansPostRoutes(app2) {
   app2.post("/api/pjp", async (req, res) => {
     try {
@@ -7467,15 +7719,17 @@ function setupPermanentJourneyPlansPostRoutes(app2) {
         userId: input.userId,
         createdById: input.createdById,
         dealerId: input.dealerId ?? null,
+        siteId: input.siteId ?? null,
         planDate: toDateOnly3(input.planDate),
         areaToBeVisited: input.areaToBeVisited,
         description: input.description ?? null,
         status: input.status,
-        verificationStatus: input.verificationStatus ?? null,
+        verificationStatus: input.verificationStatus ?? "PENDING",
         additionalVisitRemarks: input.additionalVisitRemarks ?? null,
         idempotencyKey: input.idempotencyKey
       }).onConflictDoNothing({
-        // use the composite unique that definitely exists
+        // Note: This target only protects USER + DEALER + DATE.
+        // It does NOT protect USER + SITE + DATE currently unless you add a unique index for that.
         target: [
           permanentJourneyPlans.userId,
           permanentJourneyPlans.dealerId,
@@ -7484,7 +7738,7 @@ function setupPermanentJourneyPlansPostRoutes(app2) {
       }).returning();
       return res.status(201).json({
         success: true,
-        message: record ? "Permanent Journey Plan created successfully" : "Skipped (already exists for user+dealer+date)",
+        message: record ? "Permanent Journey Plan created successfully" : "Skipped (already exists)",
         data: record ?? null
       });
     } catch (error) {
@@ -7502,29 +7756,30 @@ function setupPermanentJourneyPlansPostRoutes(app2) {
         userId,
         createdById,
         dealerIds,
+        siteIds,
         baseDate,
         batchSizePerDay,
         areaToBeVisited,
         description,
         status,
-        //verificationStatus,            // <<— grab it
         bulkOpId,
         idempotencyKey
       } = input;
-      const rows = dealerIds.map((dealerId, i) => {
+      const targetIds = dealerIds && dealerIds.length > 0 ? dealerIds : siteIds || [];
+      const isDealerBatch = dealerIds && dealerIds.length > 0;
+      const rows = targetIds.map((id, i) => {
         const dayOffset = Math.floor(i / batchSizePerDay);
         const planDate = toDateOnly3(addDays(baseDate, dayOffset));
         return {
           id: randomUUID4(),
           userId,
           createdById,
-          dealerId,
+          dealerId: isDealerBatch ? id : null,
+          siteId: !isDealerBatch ? id : null,
           planDate,
           areaToBeVisited,
           description: description ?? null,
-          // status comes from UI (PENDING)
           status,
-          // ✅ Hard-code verificationStatus to PENDING at insert time
           verificationStatus: "PENDING",
           bulkOpId,
           idempotencyKey
@@ -7545,9 +7800,9 @@ function setupPermanentJourneyPlansPostRoutes(app2) {
       return res.status(201).json({
         success: true,
         message: "Bulk PJP creation complete",
-        requestedDealers: dealerIds.length,
+        requestedCount: targetIds.length,
         totalRowsCreated: totalCreated,
-        totalRowsSkipped: dealerIds.length - totalCreated
+        totalRowsSkipped: targetIds.length - totalCreated
       });
     } catch (error) {
       if (error instanceof z5.ZodError) {
@@ -7557,13 +7812,13 @@ function setupPermanentJourneyPlansPostRoutes(app2) {
       return res.status(500).json({ success: false, error: "Failed to process bulk PJP" });
     }
   });
-  console.log("\u2705 PJP POST endpoints (using dealerId) setup complete");
+  console.log("\u2705 PJP POST endpoints (using dealerId & siteId) setup complete");
 }
 
 // src/routes/formSubmissionRoutes/salesManleave.ts
 import { z as z6 } from "zod";
 import { randomUUID as randomUUID5 } from "crypto";
-function createAutoCRUD28(app2, config) {
+function createAutoCRUD27(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {} } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7609,7 +7864,7 @@ function createAutoCRUD28(app2, config) {
   });
 }
 function setupSalesmanLeaveApplicationsPostRoutes(app2) {
-  createAutoCRUD28(app2, {
+  createAutoCRUD27(app2, {
     endpoint: "leave-applications",
     table: salesmanLeaveApplications,
     schema: insertSalesmanLeaveApplicationSchema,
@@ -7625,7 +7880,7 @@ function setupSalesmanLeaveApplicationsPostRoutes(app2) {
 // src/routes/formSubmissionRoutes/competitionReport.ts
 import { z as z7 } from "zod";
 import { randomUUID as randomUUID6 } from "crypto";
-function createAutoCRUD29(app2, config) {
+function createAutoCRUD28(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {} } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7665,7 +7920,7 @@ function createAutoCRUD29(app2, config) {
   });
 }
 function setupCompetitionReportsPostRoutes(app2) {
-  createAutoCRUD29(app2, {
+  createAutoCRUD28(app2, {
     endpoint: "competition-reports",
     table: competitionReports,
     schema: insertCompetitionReportSchema,
@@ -7681,7 +7936,7 @@ function setupCompetitionReportsPostRoutes(app2) {
 // src/routes/formSubmissionRoutes/dailytasks.ts
 import { z as z8 } from "zod";
 import { randomUUID as randomUUID7 } from "crypto";
-function createAutoCRUD30(app2, config) {
+function createAutoCRUD29(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {} } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7725,7 +7980,7 @@ function createAutoCRUD30(app2, config) {
   });
 }
 function setupDailyTasksPostRoutes(app2) {
-  createAutoCRUD30(app2, {
+  createAutoCRUD29(app2, {
     endpoint: "daily-tasks",
     table: dailyTasks,
     schema: insertDailyTaskSchema,
@@ -7741,7 +7996,7 @@ function setupDailyTasksPostRoutes(app2) {
 // src/routes/formSubmissionRoutes/dealerReportsAndScores.ts
 import { z as z9 } from "zod";
 import { randomUUID as randomUUID8 } from "crypto";
-function createAutoCRUD31(app2, config) {
+function createAutoCRUD30(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {} } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7786,7 +8041,7 @@ function createAutoCRUD31(app2, config) {
   });
 }
 function setupDealerReportsAndScoresPostRoutes(app2) {
-  createAutoCRUD31(app2, {
+  createAutoCRUD30(app2, {
     endpoint: "dealer-reports-scores",
     table: dealerReportsAndScores,
     schema: insertDealerReportsAndScoresSchema,
@@ -7801,7 +8056,7 @@ function setupDealerReportsAndScoresPostRoutes(app2) {
 
 // src/routes/formSubmissionRoutes/ratings.ts
 import { z as z10 } from "zod";
-function createAutoCRUD32(app2, config) {
+function createAutoCRUD31(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {} } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7843,7 +8098,7 @@ function createAutoCRUD32(app2, config) {
   });
 }
 function setupRatingsPostRoutes(app2) {
-  createAutoCRUD32(app2, {
+  createAutoCRUD31(app2, {
     endpoint: "ratings",
     table: ratings,
     schema: insertRatingSchema,
@@ -7854,7 +8109,7 @@ function setupRatingsPostRoutes(app2) {
 
 // src/routes/formSubmissionRoutes/brand.ts
 import { z as z11 } from "zod";
-function createAutoCRUD33(app2, config) {
+function createAutoCRUD32(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4, autoFields = {} } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -7889,7 +8144,7 @@ function createAutoCRUD33(app2, config) {
   });
 }
 function setupBrandsPostRoutes(app2) {
-  createAutoCRUD33(app2, {
+  createAutoCRUD32(app2, {
     endpoint: "brands",
     table: brands,
     schema: insertBrandSchema,
@@ -7957,7 +8212,7 @@ var salesOrderInputSchema = z12.object({
   // Added status
   // --- END FIX ---
 });
-function createAutoCRUD34(app2, config) {
+function createAutoCRUD33(app2, config) {
   const { endpoint, table: table4, tableName: tableName4 } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -8057,7 +8312,7 @@ function createAutoCRUD34(app2, config) {
   });
 }
 function setupSalesOrdersPostRoutes(app2) {
-  createAutoCRUD34(app2, {
+  createAutoCRUD33(app2, {
     endpoint: "sales-orders",
     table: salesOrders,
     tableName: "Sales Order"
@@ -8067,7 +8322,7 @@ function setupSalesOrdersPostRoutes(app2) {
 
 // src/routes/formSubmissionRoutes/brandMapping.ts
 import { z as z13 } from "zod";
-function createAutoCRUD35(app2, config) {
+function createAutoCRUD34(app2, config) {
   const { endpoint, table: table4, schema, tableName: tableName4 } = config;
   app2.post(`/api/${endpoint}`, async (req, res) => {
     try {
@@ -8110,7 +8365,7 @@ function createAutoCRUD35(app2, config) {
   });
 }
 function setupDealerBrandMappingPostRoutes(app2) {
-  createAutoCRUD35(app2, {
+  createAutoCRUD34(app2, {
     endpoint: "dealer-brand-mapping",
     table: dealerBrandMapping,
     schema: insertDealerBrandMappingSchema,
@@ -8120,7 +8375,7 @@ function setupDealerBrandMappingPostRoutes(app2) {
 }
 
 // src/routes/formSubmissionRoutes/attendanceIn.ts
-import { eq as eq43, and as and38 } from "drizzle-orm";
+import { eq as eq45, and as and40 } from "drizzle-orm";
 import { z as z14 } from "zod";
 var attendanceInSchema = z14.object({
   userId: z14.number(),
@@ -8155,9 +8410,9 @@ function setupAttendanceInPostRoutes(app2) {
       } = parsed2;
       const dateObj = new Date(attendanceDate);
       const [existingAttendance] = await db.select().from(salesmanAttendance).where(
-        and38(
-          eq43(salesmanAttendance.userId, userId),
-          eq43(salesmanAttendance.attendanceDate, dateObj)
+        and40(
+          eq45(salesmanAttendance.userId, userId),
+          eq45(salesmanAttendance.attendanceDate, dateObj)
         )
       ).limit(1);
       if (existingAttendance) {
@@ -8217,7 +8472,7 @@ function setupAttendanceInPostRoutes(app2) {
 }
 
 // src/routes/formSubmissionRoutes/attendanceOut.ts
-import { eq as eq44, and as and39, isNull as isNull2 } from "drizzle-orm";
+import { eq as eq46, and as and41, isNull as isNull2 } from "drizzle-orm";
 import { z as z15 } from "zod";
 var attendanceOutSchema = z15.object({
   userId: z15.number(),
@@ -8250,9 +8505,9 @@ function setupAttendanceOutPostRoutes(app2) {
       } = parsed2;
       const dateObj = new Date(attendanceDate);
       const [existingAttendance] = await db.select().from(salesmanAttendance).where(
-        and39(
-          eq44(salesmanAttendance.userId, userId),
-          eq44(salesmanAttendance.attendanceDate, dateObj),
+        and41(
+          eq46(salesmanAttendance.userId, userId),
+          eq46(salesmanAttendance.attendanceDate, dateObj),
           isNull2(salesmanAttendance.outTimeTimestamp)
         )
       ).limit(1);
@@ -8274,7 +8529,7 @@ function setupAttendanceOutPostRoutes(app2) {
         outTimeAltitude: outTimeAltitude || null,
         updatedAt: /* @__PURE__ */ new Date()
       };
-      const [updatedAttendance] = await db.update(salesmanAttendance).set(updateData).where(eq44(salesmanAttendance.id, existingAttendance.id)).returning();
+      const [updatedAttendance] = await db.update(salesmanAttendance).set(updateData).where(eq46(salesmanAttendance.id, existingAttendance.id)).returning();
       res.json({
         success: true,
         message: "Check-out successful",
@@ -8594,10 +8849,8 @@ function setupMasonPcSidePostRoutes(app2) {
           kycDocumentName: validated.kycDocumentName ?? null,
           kycDocumentIdNum: validated.kycDocumentIdNum ?? null,
           kycStatus: validated.kycStatus ?? "pending",
-          // Default to pending if not provided
           bagsLifted: validated.bagsLifted ?? 0,
           pointsBalance: joiningPoints,
-          // <<<--- SET INITIAL BALANCE
           isReferred: validated.isReferred ?? null,
           referredByUser: validated.referredByUser ?? null,
           referredToUser: validated.referredToUser ?? null,
@@ -8755,12 +9008,14 @@ var bagLiftSubmissionSchema = insertBagLiftSchema.omit({
   approvedAt: true,
   createdAt: true,
   pointsCredited: true,
-  imageUrl: true
+  imageUrl: true,
+  siteId: true,
+  siteKeyPersonName: true,
+  siteKeyPersonPhone: true,
+  verificationSiteImageUrl: true,
+  verificationProofImageUrl: true
 }).extend({
-  // Renamed to 'masonId' for consistency, assuming it maps to masonPcSide.id
   masonId: z21.string().uuid({ message: "A valid Mason ID (UUID) is required." }),
-  //dealerId: z.string().min(1, 'Dealer ID is required.'),
-  // We coerce to Date, but ensure it's still treated as a timestamp/date
   purchaseDate: z21.string().transform((str) => new Date(str)),
   bagCount: z21.number().int().positive("Bag count must be a positive integer."),
   memo: z21.string().max(500).optional(),
@@ -8830,27 +9085,24 @@ function setupBagLiftsPostRoute(app2) {
 // src/routes/formSubmissionRoutes/rewardsRedemption.ts
 import { z as z22 } from "zod";
 import { randomUUID as randomUUID13 } from "crypto";
-import { eq as eq45, sql as sql14 } from "drizzle-orm";
+import { eq as eq47, sql as sql14 } from "drizzle-orm";
 var redemptionSubmissionSchema = insertRewardRedemptionSchema.omit({
   id: true,
   status: true,
   createdAt: true,
   updatedAt: true
 }).extend({
-  // Explicitly define required fields and coercions
   masonId: z22.string().uuid({ message: "A valid Mason ID (UUID) is required." }),
-  // Brand ID is an integer in the schema
   rewardId: z22.preprocess(
     (v) => typeof v === "string" ? parseInt(v, 10) : v,
     z22.number().int().positive("A valid Reward ID is required.")
   ),
   quantity: z22.number().int().positive("Quantity must be a positive integer.").default(1),
-  pointsDebited: z22.number().int().positive("Points debited must be a positive integer."),
-  // Optional delivery details
+  // We accept pointsDebited but we will VERIFY it against the DB
+  pointsDebited: z22.number().int().positive().optional(),
   deliveryName: z22.string().max(160).optional(),
   deliveryPhone: z22.string().max(20).optional(),
   deliveryAddress: z22.string().optional(),
-  // Optional memo for the points ledger entry
   memo: z22.string().max(500).optional()
 });
 function setupRewardsRedemptionPostRoute(app2) {
@@ -8860,23 +9112,38 @@ function setupRewardsRedemptionPostRoute(app2) {
       if (!validationResult.success) {
         return res.status(400).json({
           success: false,
-          error: "Validation failed for Redemption submission.",
+          error: "Validation failed",
           details: validationResult.error.errors
         });
       }
       const validatedData = validationResult.data;
-      const { masonId, pointsDebited, quantity, memo, ...redemptionBody } = validatedData;
-      const totalPointsDebited = pointsDebited * quantity;
+      const { masonId, quantity, memo, rewardId, ...redemptionBody } = validatedData;
+      const [rewardItem] = await db.select({
+        pointCost: rewards.pointCost,
+        stock: rewards.stock,
+        isActive: rewards.isActive,
+        itemName: rewards.itemName
+      }).from(rewards).where(eq47(rewards.id, rewardId)).limit(1);
+      if (!rewardItem) {
+        return res.status(404).json({ success: false, error: "Reward item not found." });
+      }
+      if (!rewardItem.isActive) {
+        return res.status(400).json({ success: false, error: "This reward item is no longer active." });
+      }
+      if (rewardItem.stock < quantity) {
+        return res.status(400).json({ success: false, error: `Out of stock. Only ${rewardItem.stock} units available.` });
+      }
+      const totalPointsDebited = rewardItem.pointCost * quantity;
       const [masonRecord] = await db.select({
         pointsBalance: masonPcSide.pointsBalance
-      }).from(masonPcSide).where(eq45(masonPcSide.id, masonId)).limit(1);
+      }).from(masonPcSide).where(eq47(masonPcSide.id, masonId)).limit(1);
       if (!masonRecord) {
         return res.status(404).json({ success: false, error: "Mason not found." });
       }
       if (masonRecord.pointsBalance < totalPointsDebited) {
         return res.status(400).json({
           success: false,
-          error: `Insufficient points balance. Required: ${totalPointsDebited}, Available: ${masonRecord.pointsBalance}.`
+          error: `Insufficient points. Cost: ${totalPointsDebited}, Available: ${masonRecord.pointsBalance}.`
         });
       }
       const generatedRedemptionId = randomUUID13();
@@ -8884,69 +9151,48 @@ function setupRewardsRedemptionPostRoute(app2) {
         const [newRedemption] = await tx.insert(rewardRedemptions).values({
           ...redemptionBody,
           id: generatedRedemptionId,
-          // Use the manually generated ID
           masonId,
+          rewardId,
+          // Use the CALCULATED secure cost, ignoring client input
           pointsDebited: totalPointsDebited,
-          // Save the total points debited
           quantity,
           status: "placed"
           // Initial status
         }).returning();
-        if (!newRedemption) {
-          tx.rollback();
-          throw new Error("Failed to insert new reward redemption record.");
-        }
         const [newLedgerEntry] = await tx.insert(pointsLedger).values({
           masonId: newRedemption.masonId,
           sourceType: "redemption",
           sourceId: newRedemption.id,
-          // Link to the newly created redemption ID
-          // Points are NEGATIVE for a DEBIT
           points: -totalPointsDebited,
-          memo: memo || `Debit for ${newRedemption.quantity} x Reward ID ${newRedemption.rewardId}`
+          // NEGATIVE for Debit
+          memo: memo || `Redeemed ${quantity} x ${rewardItem.itemName}`
         }).returning();
-        if (!newLedgerEntry) {
-          tx.rollback();
-          throw new Error("Failed to insert corresponding points ledger entry (debit).");
-        }
         await tx.update(masonPcSide).set({
           pointsBalance: sql14`${masonPcSide.pointsBalance} - ${totalPointsDebited}`
-        }).where(eq45(masonPcSide.id, masonId));
+        }).where(eq47(masonPcSide.id, masonId));
         return { redemption: newRedemption, ledger: newLedgerEntry };
       });
       res.status(201).json({
         success: true,
-        message: "Reward redemption successfully placed and points debited.",
-        data: result.redemption,
-        ledgerEntry: result.ledger
+        message: "Order placed successfully!",
+        data: result.redemption
       });
     } catch (error) {
       console.error(`POST Reward Redemption error:`, error);
-      if (error instanceof z22.ZodError) {
-        return res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: error.errors.map((err) => ({
-            field: err.path.join("."),
-            message: err.message,
-            code: err.code
-          }))
-        });
-      }
       res.status(500).json({
         success: false,
-        error: `Failed to place reward redemption.`,
+        error: `Failed to place order.`,
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
-  console.log("\u2705 Rewards Redemption POST endpoint setup complete");
+  console.log("\u2705 Rewards Redemption POST endpoint setup complete (Secure Price & Stock Check)");
 }
 
 // src/routes/formSubmissionRoutes/kycSubmission.ts
 import { z as z23 } from "zod";
 import { randomUUID as randomUUID14 } from "crypto";
-import { eq as eq46 } from "drizzle-orm";
+import { eq as eq48 } from "drizzle-orm";
 var kycSubmissionSchema = z23.object({
   masonId: z23.string().uuid({ message: "A valid Mason ID (UUID) is required." }),
   aadhaarNumber: z23.string().max(20).optional().nullable(),
@@ -8967,7 +9213,7 @@ function setupKycSubmissionsPostRoute(app2) {
     try {
       const input = kycSubmissionSchema.parse(req.body);
       const { masonId, documents, ...rest } = input;
-      const [mason] = await db.select({ id: masonPcSide.id }).from(masonPcSide).where(eq46(masonPcSide.id, masonId)).limit(1);
+      const [mason] = await db.select({ id: masonPcSide.id }).from(masonPcSide).where(eq48(masonPcSide.id, masonId)).limit(1);
       if (!mason) {
         return res.status(404).json({ success: false, error: "Mason not found." });
       }
@@ -8981,7 +9227,7 @@ function setupKycSubmissionsPostRoute(app2) {
           status: "pending"
           // Default status on submission
         }).returning();
-        await tx.update(masonPcSide).set({ kycStatus: "pending" }).where(eq46(masonPcSide.id, masonId));
+        await tx.update(masonPcSide).set({ kycStatus: "pending" }).where(eq48(masonPcSide.id, masonId));
         return [submission];
       });
       return res.status(201).json({
@@ -9070,71 +9316,233 @@ function setupRewardsPostRoute(app2) {
 // src/routes/formSubmissionRoutes/technicalSites.ts
 import { z as z25 } from "zod";
 import { randomUUID as randomUUID15 } from "crypto";
-function createAutoCRUD36(app2, config) {
-  const { endpoint, table: table4, schema, tableName: tableName4 } = config;
-  app2.post(`/api/${endpoint}`, async (req, res) => {
+function setupTechnicalSitesPostRoutes(app2) {
+  const extendedSchema = insertTechnicalSiteSchema.extend({
+    // Coerce numbers from Flutter to strings/decimals
+    latitude: z25.coerce.string().optional(),
+    longitude: z25.coerce.string().optional(),
+    // Coerce dates safely (Flutter sends ISO strings)
+    constructionStartDate: z25.coerce.date().optional(),
+    constructionEndDate: z25.coerce.date().optional(),
+    firstVistDate: z25.coerce.date().optional(),
+    lastVisitDate: z25.coerce.date().optional(),
+    // NEW: Optional arrays for Many-to-Many
+    associatedMasonIds: z25.array(z25.string()).optional(),
+    associatedDealerIds: z25.array(z25.string()).optional()
+  });
+  app2.post("/api/technical-sites", async (req, res) => {
     try {
-      const parsed2 = schema.safeParse(req.body);
+      const parsed2 = extendedSchema.safeParse(req.body);
       if (!parsed2.success) {
         return res.status(400).json({
           success: false,
-          error: "Validation failed for Technical Site submission.",
+          error: "Validation failed",
           details: parsed2.error.errors
         });
       }
-      const validatedData = parsed2.data;
-      const generatedId = randomUUID15();
+      const {
+        associatedMasonIds = [],
+        // Default to empty array
+        associatedDealerIds = [],
+        ...siteData
+      } = parsed2.data;
+      const newSiteId = randomUUID15();
       const insertData = {
-        ...validatedData,
-        id: generatedId,
-        // Drizzle will handle the default timestamps (createdAt/updatedAt) if not provided,
-        // but it's often safer to explicitly cast/set Date fields from Zod strings.
-        constructionStartDate: validatedData.constructionStartDate ? new Date(validatedData.constructionStartDate) : null,
-        constructionEndDate: validatedData.constructionEndDate ? new Date(validatedData.constructionEndDate) : null,
-        firstVistDate: validatedData.firstVistDate ? new Date(validatedData.firstVistDate) : null,
-        lastVisitDate: validatedData.lastVisitDate ? new Date(validatedData.lastVisitDate) : null
+        ...siteData,
+        id: newSiteId,
+        constructionStartDate: siteData.constructionStartDate ? siteData.constructionStartDate.toISOString() : null,
+        constructionEndDate: siteData.constructionEndDate ? siteData.constructionEndDate.toISOString() : null,
+        firstVistDate: siteData.firstVistDate ? siteData.firstVistDate.toISOString() : null,
+        lastVisitDate: siteData.lastVisitDate ? siteData.lastVisitDate.toISOString() : null,
+        imageUrl: siteData.imageUrl ?? null
       };
-      const [newRecord] = await db.insert(table4).values(insertData).returning();
+      const result = await db.transaction(async (tx) => {
+        const [insertedSite] = await tx.insert(technicalSites).values(insertData).returning();
+        if (associatedMasonIds.length > 0) {
+          const uniqueMasons = [...new Set(associatedMasonIds)];
+          const masonMaps = uniqueMasons.map((masonId) => ({
+            A: masonId,
+            B: insertedSite.id
+          }));
+          await tx.insert(siteAssociatedMasons).values(masonMaps);
+        }
+        if (associatedDealerIds.length > 0) {
+          const uniqueDealers = [...new Set(associatedDealerIds)];
+          const dealerMaps = uniqueDealers.map((dealerId) => ({
+            A: dealerId,
+            B: insertedSite.id
+          }));
+          await tx.insert(siteAssociatedDealers).values(dealerMaps);
+        }
+        return insertedSite;
+      });
       res.status(201).json({
         success: true,
-        message: `${tableName4} created successfully with ID ${newRecord.id}`,
-        data: newRecord
+        message: "Technical Site created successfully",
+        data: result
       });
     } catch (error) {
-      console.error(`Create ${tableName4} error:`, error);
-      if (error instanceof z25.ZodError) {
-        return res.status(400).json({
-          success: false,
-          error: "Validation failed",
-          details: error.errors
-        });
-      }
+      console.error("Create Technical Site Error:", error);
       const msg = String(error?.message ?? "").toLowerCase();
       if (error?.code === "23503" || msg.includes("violates foreign key constraint")) {
-        return res.status(400).json({ success: false, error: "Foreign Key violation: Related Dealer/Mason/PC ID does not exist." });
+        return res.status(400).json({
+          success: false,
+          error: "One of the provided IDs (Dealer/Mason) does not exist."
+        });
       }
       res.status(500).json({
         success: false,
-        error: `Failed to create ${tableName4}`,
+        error: "Failed to create Technical Site",
         details: error instanceof Error ? error.message : "Unknown error"
       });
     }
   });
+  console.log("\u2705 Technical Sites POST endpoint ready (Hybrid Old+New Support)");
 }
-function setupTechnicalSitesPostRoutes(app2) {
-  createAutoCRUD36(app2, {
-    endpoint: "technical-sites",
-    table: technicalSites,
-    schema: insertTechnicalSiteSchema,
-    tableName: "Technical Site"
+
+// src/routes/formSubmissionRoutes/schemeSlabs.ts
+import { z as z26 } from "zod";
+import { randomUUID as randomUUID16 } from "crypto";
+var insertSchemeSlabSchema = z26.object({
+  schemeId: z26.string().uuid("Invalid Scheme ID."),
+  minBagsBest: z26.number().int().positive().optional().nullable(),
+  minBagsOthers: z26.number().int().positive().optional().nullable(),
+  pointsEarned: z26.number().int().nonnegative("Points cannot be negative."),
+  slabDescription: z26.string().max(255).optional().nullable(),
+  rewardId: z26.number().int().optional().nullable()
+  // Optional link to a specific reward item
+});
+function setupSchemeSlabsPostRoute(app2) {
+  app2.post("/api/scheme-slabs", async (req, res) => {
+    const tableName4 = "Scheme Slab";
+    try {
+      const validated = insertSchemeSlabSchema.parse(req.body);
+      const [newSlab] = await db.insert(schemeSlabs).values({
+        id: randomUUID16(),
+        schemeId: validated.schemeId,
+        minBagsBest: validated.minBagsBest ?? null,
+        minBagsOthers: validated.minBagsOthers ?? null,
+        pointsEarned: validated.pointsEarned,
+        slabDescription: validated.slabDescription ?? null,
+        rewardId: validated.rewardId ?? null
+      }).returning();
+      return res.status(201).json({
+        success: true,
+        message: `${tableName4} created successfully.`,
+        data: newSlab
+      });
+    } catch (err) {
+      console.error(`Create ${tableName4} error:`, err);
+      if (err instanceof z26.ZodError) {
+        return res.status(400).json({
+          success: false,
+          error: "Validation failed",
+          details: err.errors
+        });
+      }
+      const msg = String(err?.message ?? "").toLowerCase();
+      if (err?.code === "23503" || msg.includes("foreign key constraint")) {
+        let field = "scheme or reward";
+        if (msg.includes("scheme_id")) field = "Scheme ID";
+        if (msg.includes("reward_id")) field = "Reward ID";
+        return res.status(400).json({
+          success: false,
+          error: `Invalid ${field}. The referenced record does not exist.`
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        error: `Failed to create ${tableName4}.`,
+        details: err?.message
+      });
+    }
   });
-  console.log("\u2705 Technical Sites POST endpoint setup complete");
+  console.log("\u2705 Scheme Slabs POST endpoint setup complete");
+}
+
+// src/routes/formSubmissionRoutes/masonSlabAchievements.ts
+import { z as z27 } from "zod";
+import { randomUUID as randomUUID17 } from "crypto";
+import { eq as eq49, sql as sql15 } from "drizzle-orm";
+var insertAchievementSchema = z27.object({
+  masonId: z27.string().uuid("Invalid Mason ID."),
+  schemeSlabId: z27.string().uuid("Invalid Scheme Slab ID.")
+});
+function setupMasonSlabAchievementsPostRoute(app2) {
+  app2.post("/api/mason-slab-achievements", async (req, res) => {
+    const tableName4 = "Mason Slab Achievement";
+    try {
+      const { masonId, schemeSlabId } = insertAchievementSchema.parse(req.body);
+      const [slab] = await db.select().from(schemeSlabs).where(eq49(schemeSlabs.id, schemeSlabId)).limit(1);
+      if (!slab) {
+        return res.status(404).json({ success: false, error: "Scheme Slab not found." });
+      }
+      const result = await db.transaction(async (tx) => {
+        const [newAchievement] = await tx.insert(masonSlabAchievements).values({
+          id: randomUUID17(),
+          masonId,
+          schemeSlabId,
+          pointsAwarded: slab.pointsEarned
+          // Snapshot the points at time of achievement
+          // achievedAt is defaultNow()
+        }).returning();
+        const [updatedMason] = await tx.update(masonPcSide).set({
+          pointsBalance: sql15`${masonPcSide.pointsBalance} + ${slab.pointsEarned}`
+        }).where(eq49(masonPcSide.id, masonId)).returning({ newBalance: masonPcSide.pointsBalance });
+        if (!updatedMason) {
+          tx.rollback();
+          throw new Error("Mason not found during balance update.");
+        }
+        await tx.insert(pointsLedger).values({
+          id: randomUUID17(),
+          masonId,
+          sourceType: "achievement",
+          // Tagging this as an achievement reward
+          sourceId: newAchievement.id,
+          // Link to the achievement record
+          points: slab.pointsEarned,
+          memo: `Reward for clearing slab: ${slab.slabDescription || "Scheme Level"}`
+        });
+        return { achievement: newAchievement, newBalance: updatedMason.newBalance };
+      });
+      return res.status(201).json({
+        success: true,
+        message: `Achievement unlocked! ${slab.pointsEarned} points credited.`,
+        data: result.achievement,
+        newPointsBalance: result.newBalance
+      });
+    } catch (err) {
+      console.error(`Create ${tableName4} error:`, err);
+      if (err instanceof z27.ZodError) {
+        return res.status(400).json({ success: false, error: "Validation failed", details: err.errors });
+      }
+      const msg = String(err?.message ?? "").toLowerCase();
+      if (err?.code === "23505" || msg.includes("unique_mason_slab_claim")) {
+        return res.status(409).json({
+          success: false,
+          error: "This reward level has already been claimed by this mason."
+        });
+      }
+      if (err?.code === "23503") {
+        return res.status(400).json({
+          success: false,
+          error: "Invalid Mason ID or Slab ID provided."
+        });
+      }
+      return res.status(500).json({
+        success: false,
+        error: `Failed to claim achievement.`,
+        details: err?.message
+      });
+    }
+  });
+  console.log("\u2705 Mason Slab Achievements POST endpoint setup complete (Transactional)");
 }
 
 // src/routes/updateRoutes/dealers.ts
-import { eq as eq47 } from "drizzle-orm";
-import { z as z26 } from "zod";
-var strOrNull6 = z26.preprocess((val) => {
+import { eq as eq50 } from "drizzle-orm";
+import { z as z28 } from "zod";
+var strOrNull6 = z28.preprocess((val) => {
   if (val === "" || val === void 0) return null;
   if (val === null) return null;
   if (typeof val === "string") {
@@ -9142,22 +9550,22 @@ var strOrNull6 = z26.preprocess((val) => {
     return t === "" ? null : t;
   }
   return String(val);
-}, z26.string().nullable().optional());
-var dateOrNull3 = z26.preprocess((val) => {
+}, z28.string().nullable().optional());
+var dateOrNull3 = z28.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   const d = new Date(String(val));
   return isNaN(d.getTime()) ? null : d;
-}, z26.date().nullable().optional());
-var numOrNull3 = z26.preprocess((val) => {
+}, z28.date().nullable().optional());
+var numOrNull3 = z28.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   const n = Number(val);
   return isNaN(n) ? null : n;
-}, z26.number().nullable().optional());
-var intOrNull3 = z26.preprocess((val) => {
+}, z28.number().nullable().optional());
+var intOrNull3 = z28.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   const n = parseInt(String(val), 10);
   return isNaN(n) ? null : n;
-}, z26.number().int().nullable().optional());
+}, z28.number().int().nullable().optional());
 var toStringArray4 = (v) => {
   if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
   if (typeof v === "string") {
@@ -9175,15 +9583,15 @@ var toDateOnlyString2 = (d) => {
     return null;
   }
 };
-var dealerBaseSchema = z26.object({
+var dealerBaseSchema = z28.object({
   userId: intOrNull3,
-  type: z26.string().min(1),
+  type: z28.string().min(1),
   parentDealerId: strOrNull6,
-  name: z26.string().min(1),
-  region: z26.string().min(1),
-  area: z26.string().min(1),
-  phoneNo: z26.string().min(1),
-  address: z26.string().min(1),
+  name: z28.string().min(1),
+  region: z28.string().min(1),
+  area: z28.string().min(1),
+  phoneNo: z28.string().min(1),
+  address: z28.string().min(1),
   pinCode: strOrNull6,
   // numeric coords
   latitude: numOrNull3,
@@ -9191,18 +9599,18 @@ var dealerBaseSchema = z26.object({
   dateOfBirth: dateOrNull3,
   anniversaryDate: dateOrNull3,
   // numeric potentials
-  totalPotential: z26.coerce.number(),
-  bestPotential: z26.coerce.number(),
-  brandSelling: z26.preprocess(toStringArray4, z26.array(z26.string()).min(1)),
-  feedbacks: z26.string().min(1),
+  totalPotential: z28.coerce.number(),
+  bestPotential: z28.coerce.number(),
+  brandSelling: z28.preprocess(toStringArray4, z28.array(z28.string()).min(1)),
+  feedbacks: z28.string().min(1),
   remarks: strOrNull6,
   dealerDevelopmentStatus: strOrNull6,
   dealerDevelopmentObstacle: strOrNull6,
   salesGrowthPercentage: numOrNull3,
   noOfPJP: intOrNull3,
-  verificationStatus: z26.enum(["PENDING", "VERIFIED"]).optional(),
+  verificationStatus: z28.enum(["PENDING", "VERIFIED"]).optional(),
   whatsappNo: strOrNull6,
-  emailId: z26.preprocess((val) => val === "" ? null : val, z26.string().email().nullable().optional()),
+  emailId: z28.preprocess((val) => val === "" ? null : val, z28.string().email().nullable().optional()),
   businessType: strOrNull6,
   // --- ✅ NEW FIELDS ADDED ---
   nameOfFirm: strOrNull6,
@@ -9248,7 +9656,7 @@ var dealerBaseSchema = z26.object({
 });
 var dealerUpdateSchema = dealerBaseSchema.partial().extend({
   // Optional geofence radius for Radar circle
-  radius: z26.preprocess((v) => v === "" ? void 0 : v, z26.coerce.number().min(10).max(1e4).optional())
+  radius: z28.preprocess((v) => v === "" ? void 0 : v, z28.coerce.number().min(10).max(1e4).optional())
 }).strict();
 async function upsertRadarGeofence(dealer, radius) {
   if (!process.env.RADAR_SECRET_KEY) {
@@ -9306,7 +9714,7 @@ function setupDealersPatchRoutes(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update" });
       }
-      const [existingDealer] = await db.select().from(dealers).where(eq47(dealers.id, id)).limit(1);
+      const [existingDealer] = await db.select().from(dealers).where(eq50(dealers.id, id)).limit(1);
       if (!existingDealer) {
         return res.status(404).json({ success: false, error: `Dealer with ID '${id}' not found.` });
       }
@@ -9398,7 +9806,7 @@ function setupDealersPatchRoutes(app2) {
         }
       }
       patch.updatedAt = /* @__PURE__ */ new Date();
-      const [updatedDealer] = await db.update(dealers).set(patch).where(eq47(dealers.id, id)).returning();
+      const [updatedDealer] = await db.update(dealers).set(patch).where(eq50(dealers.id, id)).returning();
       return res.json({
         success: true,
         message: "Dealer updated successfully",
@@ -9406,7 +9814,7 @@ function setupDealersPatchRoutes(app2) {
         geofenceRef: geofenceRef ? { id: geofenceRef._id, tag: geofenceRef.tag, externalId: geofenceRef.externalId } : "not_updated"
       });
     } catch (error) {
-      if (error instanceof z26.ZodError) {
+      if (error instanceof z28.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       }
       console.error("Update Dealer error:", error);
@@ -9421,27 +9829,24 @@ function setupDealersPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/pjp.ts
-import { eq as eq48 } from "drizzle-orm";
-import { z as z27 } from "zod";
+import { eq as eq51 } from "drizzle-orm";
+import { z as z29 } from "zod";
 var toDateOnly5 = (d) => d.toISOString().slice(0, 10);
-var strOrNull7 = z27.preprocess((val) => {
+var strOrNull7 = z29.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   return String(val).trim();
-}, z27.string().nullable().optional());
-var pjpPatchSchema = z27.object({
-  userId: z27.coerce.number().int().positive().optional(),
-  createdById: z27.coerce.number().int().positive().optional(),
-  // --- ✅ FIX ---
+}, z29.string().nullable().optional());
+var pjpPatchSchema = z29.object({
+  userId: z29.coerce.number().int().positive().optional(),
+  createdById: z29.coerce.number().int().positive().optional(),
   dealerId: strOrNull7,
-  // Replaced visitDealerName
-  // --- END FIX ---
-  planDate: z27.coerce.date().optional(),
-  areaToBeVisited: z27.string().max(500).optional(),
-  description: z27.string().max(500).optional().nullable(),
-  // Allow regular null
-  status: z27.string().max(50).optional(),
-  verificationStatus: z27.string().max(50).optional().nullable(),
-  additionalVisitRemarks: z27.string().max(500).optional().nullable()
+  siteId: strOrNull7,
+  planDate: z29.coerce.date().optional(),
+  areaToBeVisited: z29.string().max(500).optional(),
+  description: z29.string().max(500).optional().nullable(),
+  status: z29.string().max(50).optional(),
+  verificationStatus: z29.string().max(50).optional().nullable(),
+  additionalVisitRemarks: z29.string().max(500).optional().nullable()
 }).strict();
 function setupPjpPatchRoutes(app2) {
   app2.patch("/api/pjp/:id", async (req, res) => {
@@ -9451,7 +9856,7 @@ function setupPjpPatchRoutes(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update" });
       }
-      const [existing] = await db.select({ id: permanentJourneyPlans.id }).from(permanentJourneyPlans).where(eq48(permanentJourneyPlans.id, id)).limit(1);
+      const [existing] = await db.select({ id: permanentJourneyPlans.id }).from(permanentJourneyPlans).where(eq51(permanentJourneyPlans.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({
           success: false,
@@ -9462,20 +9867,21 @@ function setupPjpPatchRoutes(app2) {
       if (input.userId !== void 0) patch.userId = input.userId;
       if (input.createdById !== void 0) patch.createdById = input.createdById;
       if (input.dealerId !== void 0) patch.dealerId = input.dealerId;
+      if (input.siteId !== void 0) patch.siteId = input.siteId;
       if (input.planDate !== void 0) patch.planDate = toDateOnly5(input.planDate);
       if (input.areaToBeVisited !== void 0) patch.areaToBeVisited = input.areaToBeVisited;
       if (input.status !== void 0) patch.status = input.status;
       if (input.description !== void 0) patch.description = input.description;
       if (input.verificationStatus !== void 0) patch.verificationStatus = input.verificationStatus;
       if (input.additionalVisitRemarks !== void 0) patch.additionalVisitRemarks = input.additionalVisitRemarks;
-      const [updated] = await db.update(permanentJourneyPlans).set(patch).where(eq48(permanentJourneyPlans.id, id)).returning();
+      const [updated] = await db.update(permanentJourneyPlans).set(patch).where(eq51(permanentJourneyPlans.id, id)).returning();
       return res.json({
         success: true,
         message: "Permanent Journey Plan updated successfully",
         data: updated
       });
     } catch (error) {
-      if (error instanceof z27.ZodError) {
+      if (error instanceof z29.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       }
       console.error("Update PJP error:", error);
@@ -9485,12 +9891,12 @@ function setupPjpPatchRoutes(app2) {
       });
     }
   });
-  console.log("\u2705 PJP PATCH endpoints (using dealerId) setup complete");
+  console.log("\u2705 PJP PATCH endpoints (dealerId + siteId) setup complete");
 }
 
 // src/routes/updateRoutes/dailytask.ts
-import { eq as eq49 } from "drizzle-orm";
-import { z as z28 } from "zod";
+import { eq as eq52 } from "drizzle-orm";
+import { z as z30 } from "zod";
 var dailyTaskUpdateSchema = insertDailyTaskSchema.partial();
 function setupDailyTaskPatchRoutes(app2) {
   app2.patch("/api/daily-tasks/:id", async (req, res) => {
@@ -9503,7 +9909,7 @@ function setupDailyTaskPatchRoutes(app2) {
           error: "No fields to update were provided."
         });
       }
-      const [existingTask] = await db.select().from(dailyTasks).where(eq49(dailyTasks.id, id)).limit(1);
+      const [existingTask] = await db.select().from(dailyTasks).where(eq52(dailyTasks.id, id)).limit(1);
       if (!existingTask) {
         return res.status(404).json({
           success: false,
@@ -9514,14 +9920,14 @@ function setupDailyTaskPatchRoutes(app2) {
         ...validatedData,
         updatedAt: /* @__PURE__ */ new Date()
         // Automatically update the timestamp
-      }).where(eq49(dailyTasks.id, id)).returning();
+      }).where(eq52(dailyTasks.id, id)).returning();
       res.json({
         success: true,
         message: "Daily Task updated successfully",
         data: updatedTask
       });
     } catch (error) {
-      if (error instanceof z28.ZodError) {
+      if (error instanceof z30.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -9540,15 +9946,15 @@ function setupDailyTaskPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/brandMapping.ts
-import { eq as eq50 } from "drizzle-orm";
-import { z as z29 } from "zod";
+import { eq as eq53 } from "drizzle-orm";
+import { z as z31 } from "zod";
 var mappingUpdateSchema = insertDealerBrandMappingSchema.pick({ capacityMT: true });
 function setupDealerBrandMappingPatchRoutes(app2) {
   app2.patch("/api/dealer-brand-mapping/:id", async (req, res) => {
     try {
       const { id } = req.params;
       const validatedData = mappingUpdateSchema.parse(req.body);
-      const [existingMapping] = await db.select().from(dealerBrandMapping).where(eq50(dealerBrandMapping.id, id)).limit(1);
+      const [existingMapping] = await db.select().from(dealerBrandMapping).where(eq53(dealerBrandMapping.id, id)).limit(1);
       if (!existingMapping) {
         return res.status(404).json({
           success: false,
@@ -9557,14 +9963,14 @@ function setupDealerBrandMappingPatchRoutes(app2) {
       }
       const [updatedMapping] = await db.update(dealerBrandMapping).set({
         capacityMT: validatedData.capacityMT
-      }).where(eq50(dealerBrandMapping.id, id)).returning();
+      }).where(eq53(dealerBrandMapping.id, id)).returning();
       res.json({
         success: true,
         message: "Dealer Brand Mapping updated successfully",
         data: updatedMapping
       });
     } catch (error) {
-      if (error instanceof z29.ZodError) {
+      if (error instanceof z31.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -9583,8 +9989,8 @@ function setupDealerBrandMappingPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/brands.ts
-import { eq as eq51 } from "drizzle-orm";
-import { z as z30 } from "zod";
+import { eq as eq54 } from "drizzle-orm";
+import { z as z32 } from "zod";
 var brandUpdateSchema = insertBrandSchema.pick({ name: true });
 function setupBrandsPatchRoutes(app2) {
   app2.patch("/api/brands/:id", async (req, res) => {
@@ -9594,7 +10000,7 @@ function setupBrandsPatchRoutes(app2) {
         return res.status(400).json({ success: false, error: "Invalid brand ID." });
       }
       const validatedData = brandUpdateSchema.parse(req.body);
-      const [existingBrand] = await db.select().from(brands).where(eq51(brands.id, id)).limit(1);
+      const [existingBrand] = await db.select().from(brands).where(eq54(brands.id, id)).limit(1);
       if (!existingBrand) {
         return res.status(404).json({
           success: false,
@@ -9603,14 +10009,14 @@ function setupBrandsPatchRoutes(app2) {
       }
       const [updatedBrand] = await db.update(brands).set({
         name: validatedData.name
-      }).where(eq51(brands.id, id)).returning();
+      }).where(eq54(brands.id, id)).returning();
       res.json({
         success: true,
         message: "Brand updated successfully",
         data: updatedBrand
       });
     } catch (error) {
-      if (error instanceof z30.ZodError) {
+      if (error instanceof z32.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -9629,8 +10035,8 @@ function setupBrandsPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/ratings.ts
-import { eq as eq52 } from "drizzle-orm";
-import { z as z31 } from "zod";
+import { eq as eq55 } from "drizzle-orm";
+import { z as z33 } from "zod";
 var ratingUpdateSchema = insertRatingSchema.pick({ rating: true });
 function setupRatingsPatchRoutes(app2) {
   app2.patch("/api/ratings/:id", async (req, res) => {
@@ -9640,7 +10046,7 @@ function setupRatingsPatchRoutes(app2) {
         return res.status(400).json({ success: false, error: "Invalid rating ID." });
       }
       const validatedData = ratingUpdateSchema.parse(req.body);
-      const [existingRating] = await db.select().from(ratings).where(eq52(ratings.id, id)).limit(1);
+      const [existingRating] = await db.select().from(ratings).where(eq55(ratings.id, id)).limit(1);
       if (!existingRating) {
         return res.status(404).json({
           success: false,
@@ -9649,14 +10055,14 @@ function setupRatingsPatchRoutes(app2) {
       }
       const [updatedRating] = await db.update(ratings).set({
         rating: validatedData.rating
-      }).where(eq52(ratings.id, id)).returning();
+      }).where(eq55(ratings.id, id)).returning();
       res.json({
         success: true,
         message: "Rating updated successfully",
         data: updatedRating
       });
     } catch (error) {
-      if (error instanceof z31.ZodError) {
+      if (error instanceof z33.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -9675,8 +10081,8 @@ function setupRatingsPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/dealerReportandScores.ts
-import { eq as eq53 } from "drizzle-orm";
-import { z as z32 } from "zod";
+import { eq as eq56 } from "drizzle-orm";
+import { z as z34 } from "zod";
 var dealerScoresUpdateSchema = insertDealerReportsAndScoresSchema.partial();
 function setupDealerScoresPatchRoutes(app2) {
   app2.patch("/api/dealer-reports-scores/:dealerId", async (req, res) => {
@@ -9689,7 +10095,7 @@ function setupDealerScoresPatchRoutes(app2) {
           error: "No fields to update were provided."
         });
       }
-      const [existingRecord] = await db.select().from(dealerReportsAndScores).where(eq53(dealerReportsAndScores.dealerId, dealerId)).limit(1);
+      const [existingRecord] = await db.select().from(dealerReportsAndScores).where(eq56(dealerReportsAndScores.dealerId, dealerId)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({
           success: false,
@@ -9702,14 +10108,14 @@ function setupDealerScoresPatchRoutes(app2) {
         // Always update the lastUpdatedDate
         updatedAt: /* @__PURE__ */ new Date()
         // Always update the timestamp
-      }).where(eq53(dealerReportsAndScores.dealerId, dealerId)).returning();
+      }).where(eq56(dealerReportsAndScores.dealerId, dealerId)).returning();
       res.json({
         success: true,
         message: "Dealer scores updated successfully",
         data: updatedRecord
       });
     } catch (error) {
-      if (error instanceof z32.ZodError) {
+      if (error instanceof z34.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -9728,8 +10134,8 @@ function setupDealerScoresPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/dvr.ts
-import { eq as eq54 } from "drizzle-orm";
-import { z as z33 } from "zod";
+import { eq as eq57 } from "drizzle-orm";
+import { z as z35 } from "zod";
 var toDateOnly6 = (d) => d.toISOString().slice(0, 10);
 var toStringArray5 = (v) => {
   if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
@@ -9740,42 +10146,42 @@ var toStringArray5 = (v) => {
   }
   return [];
 };
-var strOrNull8 = z33.preprocess((val) => {
+var strOrNull8 = z35.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   return String(val).trim();
-}, z33.string().nullable().optional());
-var numOrNull4 = z33.preprocess((val) => val === "" || val === null || val === void 0 ? null : val, z33.coerce.number().nullable().optional());
-var dvrPatchSchema = z33.object({
+}, z35.string().nullable().optional());
+var numOrNull4 = z35.preprocess((val) => val === "" || val === null || val === void 0 ? null : val, z35.coerce.number().nullable().optional());
+var dvrPatchSchema = z35.object({
   // --- ✅ FIX ---
   dealerId: strOrNull8,
   subDealerId: strOrNull8,
   // --- END FIX ---
-  userId: z33.coerce.number().int().positive().optional(),
-  reportDate: z33.coerce.date().optional(),
-  dealerType: z33.string().max(50).optional(),
+  userId: z35.coerce.number().int().positive().optional(),
+  reportDate: z35.coerce.date().optional(),
+  dealerType: z35.string().max(50).optional(),
   // dealerName: nullableString, // <-- REMOVED
   // subDealerName: nullableString, // <-- REMOVED
-  location: z33.string().max(500).optional(),
-  latitude: z33.coerce.number().optional(),
-  longitude: z33.coerce.number().optional(),
-  visitType: z33.string().max(50).optional(),
-  dealerTotalPotential: z33.coerce.number().optional(),
-  dealerBestPotential: z33.coerce.number().optional(),
-  brandSelling: z33.preprocess(toStringArray5, z33.array(z33.string()).min(1)).optional(),
+  location: z35.string().max(500).optional(),
+  latitude: z35.coerce.number().optional(),
+  longitude: z35.coerce.number().optional(),
+  visitType: z35.string().max(50).optional(),
+  dealerTotalPotential: z35.coerce.number().optional(),
+  dealerBestPotential: z35.coerce.number().optional(),
+  brandSelling: z35.preprocess(toStringArray5, z35.array(z35.string()).min(1)).optional(),
   contactPerson: strOrNull8,
   contactPersonPhoneNo: strOrNull8,
-  todayOrderMt: z33.coerce.number().optional(),
-  todayCollectionRupees: z33.coerce.number().optional(),
+  todayOrderMt: z35.coerce.number().optional(),
+  todayCollectionRupees: z35.coerce.number().optional(),
   overdueAmount: numOrNull4,
-  feedbacks: z33.string().max(500).min(1).optional(),
+  feedbacks: z35.string().max(500).min(1).optional(),
   solutionBySalesperson: strOrNull8,
   anyRemarks: strOrNull8,
-  checkInTime: z33.coerce.date().optional(),
-  checkOutTime: z33.coerce.date().nullable().optional(),
+  checkInTime: z35.coerce.date().optional(),
+  checkOutTime: z35.coerce.date().nullable().optional(),
   timeSpentinLoc: strOrNull8,
   inTimeImageUrl: strOrNull8,
   outTimeImageUrl: strOrNull8,
-  pjpId: z33.string().max(255).nullable().optional()
+  pjpId: z35.string().max(255).nullable().optional()
 }).strict();
 function setupDailyVisitReportsPatchRoutes(app2) {
   app2.patch("/api/daily-visit-reports/:id", async (req, res) => {
@@ -9785,7 +10191,7 @@ function setupDailyVisitReportsPatchRoutes(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update" });
       }
-      const [existing] = await db.select({ id: dailyVisitReports.id }).from(dailyVisitReports).where(eq54(dailyVisitReports.id, id)).limit(1);
+      const [existing] = await db.select({ id: dailyVisitReports.id }).from(dailyVisitReports).where(eq57(dailyVisitReports.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({
           success: false,
@@ -9819,14 +10225,14 @@ function setupDailyVisitReportsPatchRoutes(app2) {
       if (input.inTimeImageUrl !== void 0) patch.inTimeImageUrl = input.inTimeImageUrl;
       if (input.outTimeImageUrl !== void 0) patch.outTimeImageUrl = input.outTimeImageUrl;
       if (input.pjpId !== void 0) patch.pjpId = input.pjpId;
-      const [updated] = await db.update(dailyVisitReports).set(patch).where(eq54(dailyVisitReports.id, id)).returning();
+      const [updated] = await db.update(dailyVisitReports).set(patch).where(eq57(dailyVisitReports.id, id)).returning();
       return res.json({
         success: true,
         message: "Daily Visit Report updated successfully",
         data: updated
       });
     } catch (error) {
-      if (error instanceof z33.ZodError) {
+      if (error instanceof z35.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       }
       console.error("Update DVR error:", error);
@@ -9840,8 +10246,8 @@ function setupDailyVisitReportsPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/tvr.ts
-import { eq as eq55 } from "drizzle-orm";
-import { z as z34 } from "zod";
+import { eq as eq58 } from "drizzle-orm";
+import { z as z36 } from "zod";
 var toDateOnly7 = (d) => d.toISOString().slice(0, 10);
 var toStringArray6 = (v) => {
   if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
@@ -9852,54 +10258,73 @@ var toStringArray6 = (v) => {
   }
   return [];
 };
-var nullableString2 = z34.string().transform((s) => s.trim() === "" ? null : s).optional().nullable();
-var tvrPatchSchema = z34.object({
-  userId: z34.coerce.number().int().positive().optional(),
-  reportDate: z34.coerce.date().optional(),
-  visitType: z34.string().max(50).optional(),
-  siteNameConcernedPerson: z34.string().max(255).optional(),
-  phoneNo: z34.string().max(20).optional(),
+var nullableString2 = z36.string().transform((s) => s.trim() === "" ? null : s).optional().nullable();
+var nullableBoolean2 = z36.boolean().optional().nullable();
+var tvrPatchSchema = z36.object({
+  // Core & Contact
+  userId: z36.coerce.number().int().positive().optional(),
+  reportDate: z36.coerce.date().optional(),
+  visitType: z36.string().max(50).optional(),
+  siteNameConcernedPerson: z36.string().max(255).optional(),
+  phoneNo: z36.string().max(20).optional(),
+  whatsappNo: nullableString2,
   emailId: nullableString2,
-  clientsRemarks: z34.string().max(500).optional(),
-  salespersonRemarks: z34.string().max(500).optional(),
-  checkInTime: z34.coerce.date().optional(),
-  checkOutTime: z34.coerce.date().nullable().optional(),
-  inTimeImageUrl: nullableString2,
-  outTimeImageUrl: nullableString2,
-  // Array fields
-  siteVisitBrandInUse: z34.preprocess(toStringArray6, z34.array(z34.string()).min(1)).optional(),
-  influencerType: z34.preprocess(toStringArray6, z34.array(z34.string()).min(1)).optional(),
-  // Nullable text fields
+  siteAddress: nullableString2,
+  marketName: nullableString2,
+  visitCategory: nullableString2,
+  customerType: nullableString2,
+  purposeOfVisit: nullableString2,
   siteVisitStage: nullableString2,
-  conversionFromBrand: nullableString2,
-  conversionQuantityUnit: nullableString2,
+  constAreaSqFt: z36.coerce.number().int().nullable().optional(),
+  siteVisitBrandInUse: z36.preprocess(toStringArray6, z36.array(z36.string()).min(1)).optional(),
+  currentBrandPrice: z36.coerce.number().nullable().optional(),
+  siteStock: z36.coerce.number().nullable().optional(),
+  estRequirement: z36.coerce.number().nullable().optional(),
+  supplyingDealerName: nullableString2,
+  nearbyDealerName: nullableString2,
   associatedPartyName: nullableString2,
-  serviceType: nullableString2,
-  qualityComplaint: nullableString2,
-  promotionalActivity: nullableString2,
   channelPartnerVisit: nullableString2,
-  // Nullable numeric
-  conversionQuantityValue: z34.coerce.number().nullable().optional(),
-  siteVisitType: nullableString2,
+  isConverted: nullableBoolean2,
+  conversionType: nullableString2,
+  conversionFromBrand: nullableString2,
+  conversionQuantityValue: z36.coerce.number().nullable().optional(),
+  conversionQuantityUnit: nullableString2,
+  isTechService: nullableBoolean2,
+  serviceDesc: nullableString2,
+  serviceType: nullableString2,
   dhalaiVerificationCode: nullableString2,
   isVerificationStatus: nullableString2,
+  qualityComplaint: nullableString2,
+  influencerName: nullableString2,
+  influencerPhone: nullableString2,
+  isSchemeEnrolled: nullableBoolean2,
+  influencerProductivity: nullableString2,
+  influencerType: z36.preprocess(toStringArray6, z36.array(z36.string()).min(1)).optional(),
+  clientsRemarks: z36.string().max(500).optional(),
+  salespersonRemarks: z36.string().max(500).optional(),
+  promotionalActivity: nullableString2,
+  checkInTime: z36.coerce.date().optional(),
+  checkOutTime: z36.coerce.date().nullable().optional(),
+  inTimeImageUrl: nullableString2,
+  outTimeImageUrl: nullableString2,
+  sitePhotoUrl: nullableString2,
+  timeSpentinLoc: nullableString2,
+  siteVisitType: nullableString2,
   meetingId: nullableString2,
   pjpId: nullableString2,
-  timeSpentinLoc: nullableString2,
-  purposeOfVisit: nullableString2,
-  sitePhotoUrl: nullableString2,
-  firstVisitTime: z34.coerce.date().nullable().optional(),
-  lastVisitTime: z34.coerce.date().nullable().optional(),
+  masonId: nullableString2,
+  siteId: nullableString2,
+  firstVisitTime: z36.coerce.date().nullable().optional(),
+  lastVisitTime: z36.coerce.date().nullable().optional(),
   firstVisitDay: nullableString2,
   lastVisitDay: nullableString2,
-  siteVisitsCount: z34.coerce.number().int().nullable().optional(),
-  otherVisitsCount: z34.coerce.number().int().nullable().optional(),
-  totalVisitsCount: z34.coerce.number().int().nullable().optional(),
+  siteVisitsCount: z36.coerce.number().int().nullable().optional(),
+  otherVisitsCount: z36.coerce.number().int().nullable().optional(),
+  totalVisitsCount: z36.coerce.number().int().nullable().optional(),
   region: nullableString2,
   area: nullableString2,
-  latitude: z34.coerce.number().nullable().optional(),
-  longitude: z34.coerce.number().nullable().optional(),
-  masonId: nullableString2
+  latitude: z36.coerce.number().nullable().optional(),
+  longitude: z36.coerce.number().nullable().optional()
 }).strict();
 function setupTechnicalVisitReportsPatchRoutes(app2) {
   app2.patch("/api/technical-visit-reports/:id", async (req, res) => {
@@ -9909,7 +10334,7 @@ function setupTechnicalVisitReportsPatchRoutes(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update were provided." });
       }
-      const [existing] = await db.select({ id: technicalVisitReports.id }).from(technicalVisitReports).where(eq55(technicalVisitReports.id, id)).limit(1);
+      const [existing] = await db.select({ id: technicalVisitReports.id }).from(technicalVisitReports).where(eq58(technicalVisitReports.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({
           success: false,
@@ -9922,32 +10347,63 @@ function setupTechnicalVisitReportsPatchRoutes(app2) {
       if (input.visitType !== void 0) patch.visitType = input.visitType;
       if (input.siteNameConcernedPerson !== void 0) patch.siteNameConcernedPerson = input.siteNameConcernedPerson;
       if (input.phoneNo !== void 0) patch.phoneNo = input.phoneNo;
+      if (input.whatsappNo !== void 0) patch.whatsappNo = input.whatsappNo;
       if (input.emailId !== void 0) patch.emailId = input.emailId;
+      if (input.siteAddress !== void 0) patch.siteAddress = input.siteAddress;
+      if (input.marketName !== void 0) patch.marketName = input.marketName;
+      if (input.region !== void 0) patch.region = input.region;
+      if (input.area !== void 0) patch.area = input.area;
+      if (input.visitCategory !== void 0) patch.visitCategory = input.visitCategory;
+      if (input.customerType !== void 0) patch.customerType = input.customerType;
+      if (input.purposeOfVisit !== void 0) patch.purposeOfVisit = input.purposeOfVisit;
+      if (input.siteVisitStage !== void 0) patch.siteVisitStage = input.siteVisitStage;
+      if (input.constAreaSqFt !== void 0) patch.constAreaSqFt = input.constAreaSqFt;
+      if (input.siteVisitBrandInUse !== void 0) patch.siteVisitBrandInUse = input.siteVisitBrandInUse;
+      if (input.currentBrandPrice !== void 0) {
+        patch.currentBrandPrice = input.currentBrandPrice !== null ? String(input.currentBrandPrice) : null;
+      }
+      if (input.siteStock !== void 0) {
+        patch.siteStock = input.siteStock !== null ? String(input.siteStock) : null;
+      }
+      if (input.estRequirement !== void 0) {
+        patch.estRequirement = input.estRequirement !== null ? String(input.estRequirement) : null;
+      }
+      if (input.supplyingDealerName !== void 0) patch.supplyingDealerName = input.supplyingDealerName;
+      if (input.nearbyDealerName !== void 0) patch.nearbyDealerName = input.nearbyDealerName;
+      if (input.associatedPartyName !== void 0) patch.associatedPartyName = input.associatedPartyName;
+      if (input.channelPartnerVisit !== void 0) patch.channelPartnerVisit = input.channelPartnerVisit;
+      if (input.isConverted !== void 0) patch.isConverted = input.isConverted;
+      if (input.conversionType !== void 0) patch.conversionType = input.conversionType;
+      if (input.conversionFromBrand !== void 0) patch.conversionFromBrand = input.conversionFromBrand;
+      if (input.conversionQuantityUnit !== void 0) patch.conversionQuantityUnit = input.conversionQuantityUnit;
+      if (input.conversionQuantityValue !== void 0) {
+        patch.conversionQuantityValue = input.conversionQuantityValue !== null ? String(input.conversionQuantityValue) : null;
+      }
+      if (input.isTechService !== void 0) patch.isTechService = input.isTechService;
+      if (input.serviceDesc !== void 0) patch.serviceDesc = input.serviceDesc;
+      if (input.serviceType !== void 0) patch.serviceType = input.serviceType;
+      if (input.dhalaiVerificationCode !== void 0) patch.dhalaiVerificationCode = input.dhalaiVerificationCode;
+      if (input.isVerificationStatus !== void 0) patch.isVerificationStatus = input.isVerificationStatus;
+      if (input.qualityComplaint !== void 0) patch.qualityComplaint = input.qualityComplaint;
+      if (input.influencerName !== void 0) patch.influencerName = input.influencerName;
+      if (input.influencerPhone !== void 0) patch.influencerPhone = input.influencerPhone;
+      if (input.isSchemeEnrolled !== void 0) patch.isSchemeEnrolled = input.isSchemeEnrolled;
+      if (input.influencerProductivity !== void 0) patch.influencerProductivity = input.influencerProductivity;
+      if (input.influencerType !== void 0) patch.influencerType = input.influencerType;
       if (input.clientsRemarks !== void 0) patch.clientsRemarks = input.clientsRemarks;
       if (input.salespersonRemarks !== void 0) patch.salespersonRemarks = input.salespersonRemarks;
+      if (input.promotionalActivity !== void 0) patch.promotionalActivity = input.promotionalActivity;
       if (input.checkInTime !== void 0) patch.checkInTime = input.checkInTime;
       if (input.checkOutTime !== void 0) patch.checkOutTime = input.checkOutTime;
       if (input.inTimeImageUrl !== void 0) patch.inTimeImageUrl = input.inTimeImageUrl;
       if (input.outTimeImageUrl !== void 0) patch.outTimeImageUrl = input.outTimeImageUrl;
-      if (input.siteVisitBrandInUse !== void 0) patch.siteVisitBrandInUse = input.siteVisitBrandInUse;
-      if (input.influencerType !== void 0) patch.influencerType = input.influencerType;
-      if (input.siteVisitStage !== void 0) patch.siteVisitStage = input.siteVisitStage;
-      if (input.conversionFromBrand !== void 0) patch.conversionFromBrand = input.conversionFromBrand;
-      if (input.conversionQuantityValue !== void 0) patch.conversionQuantityValue = input.conversionQuantityValue;
-      if (input.conversionQuantityUnit !== void 0) patch.conversionQuantityUnit = input.conversionQuantityUnit;
-      if (input.associatedPartyName !== void 0) patch.associatedPartyName = input.associatedPartyName;
-      if (input.serviceType !== void 0) patch.serviceType = input.serviceType;
-      if (input.qualityComplaint !== void 0) patch.qualityComplaint = input.qualityComplaint;
-      if (input.promotionalActivity !== void 0) patch.promotionalActivity = input.promotionalActivity;
-      if (input.channelPartnerVisit !== void 0) patch.channelPartnerVisit = input.channelPartnerVisit;
+      if (input.sitePhotoUrl !== void 0) patch.sitePhotoUrl = input.sitePhotoUrl;
+      if (input.timeSpentinLoc !== void 0) patch.timeSpentinLoc = input.timeSpentinLoc;
       if (input.siteVisitType !== void 0) patch.siteVisitType = input.siteVisitType;
-      if (input.dhalaiVerificationCode !== void 0) patch.dhalaiVerificationCode = input.dhalaiVerificationCode;
-      if (input.isVerificationStatus !== void 0) patch.isVerificationStatus = input.isVerificationStatus;
       if (input.meetingId !== void 0) patch.meetingId = input.meetingId;
       if (input.pjpId !== void 0) patch.pjpId = input.pjpId;
-      if (input.timeSpentinLoc !== void 0) patch.timeSpentinLoc = input.timeSpentinLoc;
-      if (input.purposeOfVisit !== void 0) patch.purposeOfVisit = input.purposeOfVisit;
-      if (input.sitePhotoUrl !== void 0) patch.sitePhotoUrl = input.sitePhotoUrl;
+      if (input.masonId !== void 0) patch.masonId = input.masonId;
+      if (input.siteId !== void 0) patch.siteId = input.siteId;
       if (input.firstVisitTime !== void 0) patch.firstVisitTime = input.firstVisitTime;
       if (input.lastVisitTime !== void 0) patch.lastVisitTime = input.lastVisitTime;
       if (input.firstVisitDay !== void 0) patch.firstVisitDay = input.firstVisitDay;
@@ -9955,12 +10411,6 @@ function setupTechnicalVisitReportsPatchRoutes(app2) {
       if (input.siteVisitsCount !== void 0) patch.siteVisitsCount = input.siteVisitsCount;
       if (input.otherVisitsCount !== void 0) patch.otherVisitsCount = input.otherVisitsCount;
       if (input.totalVisitsCount !== void 0) patch.totalVisitsCount = input.totalVisitsCount;
-      if (input.region !== void 0) patch.region = input.region;
-      if (input.area !== void 0) patch.area = input.area;
-      if (input.masonId !== void 0) patch.masonId = input.masonId;
-      if (input.conversionQuantityValue !== void 0) {
-        patch.conversionQuantityValue = input.conversionQuantityValue !== null ? String(input.conversionQuantityValue) : null;
-      }
       if (input.latitude !== void 0) {
         patch.latitude = input.latitude !== null ? String(input.latitude) : null;
       }
@@ -9968,14 +10418,14 @@ function setupTechnicalVisitReportsPatchRoutes(app2) {
         patch.longitude = input.longitude !== null ? String(input.longitude) : null;
       }
       patch.updatedAt = /* @__PURE__ */ new Date();
-      const [updated] = await db.update(technicalVisitReports).set(patch).where(eq55(technicalVisitReports.id, id)).returning();
+      const [updated] = await db.update(technicalVisitReports).set(patch).where(eq58(technicalVisitReports.id, id)).returning();
       return res.json({
         success: true,
         message: "Technical Visit Report updated successfully",
         data: updated
       });
     } catch (error) {
-      if (error instanceof z34.ZodError) {
+      if (error instanceof z36.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -9998,17 +10448,17 @@ function setupTechnicalVisitReportsPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/tsoMeetings.ts
-import { eq as eq56 } from "drizzle-orm";
-import { z as z35 } from "zod";
+import { eq as eq59 } from "drizzle-orm";
+import { z as z37 } from "zod";
 var toDateOnly8 = (d) => d.toISOString().slice(0, 10);
-var nullableNumber2 = z35.coerce.number().positive().optional().nullable();
-var meetingPatchSchema = z35.object({
-  createdByUserId: z35.coerce.number().int().positive().optional(),
-  type: z35.string().max(100).min(1).optional(),
-  date: z35.coerce.date().optional(),
-  location: z35.string().max(500).min(1).optional(),
+var nullableNumber2 = z37.coerce.number().positive().optional().nullable();
+var meetingPatchSchema = z37.object({
+  createdByUserId: z37.coerce.number().int().positive().optional(),
+  type: z37.string().max(100).min(1).optional(),
+  date: z37.coerce.date().optional(),
+  location: z37.string().max(500).min(1).optional(),
   budgetAllocated: nullableNumber2,
-  participantsCount: z35.coerce.number().int().positive().optional().nullable()
+  participantsCount: z37.coerce.number().int().positive().optional().nullable()
 }).strict();
 function setupTsoMeetingsPatchRoutes(app2) {
   app2.patch("/api/tso-meetings/:id", async (req, res) => {
@@ -10018,7 +10468,7 @@ function setupTsoMeetingsPatchRoutes(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update" });
       }
-      const [existing] = await db.select({ id: tsoMeetings.id }).from(tsoMeetings).where(eq56(tsoMeetings.id, id)).limit(1);
+      const [existing] = await db.select({ id: tsoMeetings.id }).from(tsoMeetings).where(eq59(tsoMeetings.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({ success: false, error: `Meeting with ID '${id}' not found.` });
       }
@@ -10032,14 +10482,14 @@ function setupTsoMeetingsPatchRoutes(app2) {
         patch.budgetAllocated = input.budgetAllocated ? String(input.budgetAllocated) : null;
       }
       patch.updatedAt = /* @__PURE__ */ new Date();
-      const [updated] = await db.update(tsoMeetings).set(patch).where(eq56(tsoMeetings.id, id)).returning();
+      const [updated] = await db.update(tsoMeetings).set(patch).where(eq59(tsoMeetings.id, id)).returning();
       return res.json({
         success: true,
         message: "TSO Meeting updated successfully",
         data: updated
       });
     } catch (error) {
-      if (error instanceof z35.ZodError) {
+      if (error instanceof z37.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -10057,8 +10507,8 @@ function setupTsoMeetingsPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/salesorder.ts
-import { z as z36 } from "zod";
-import { eq as eq57 } from "drizzle-orm";
+import { z as z38 } from "zod";
+import { eq as eq60 } from "drizzle-orm";
 var toYYYYMMDD2 = (v) => {
   if (v == null || v === "") return null;
   if (typeof v === "string") {
@@ -10076,38 +10526,38 @@ var toDecimalString2 = (v) => {
   return String(n);
 };
 var nullIfEmpty2 = (v) => v == null || typeof v === "string" && v.trim() === "" ? null : String(v);
-var salesOrderPatchSchema = z36.object({
-  userId: z36.coerce.number().int().optional().nullable(),
-  dealerId: z36.string().max(255).optional().nullable().or(z36.literal("")),
-  dvrId: z36.string().max(255).optional().nullable().or(z36.literal("")),
-  pjpId: z36.string().max(255).optional().nullable().or(z36.literal("")),
-  orderDate: z36.union([z36.string(), z36.date()]).optional(),
-  orderPartyName: z36.string().min(1).optional(),
+var salesOrderPatchSchema = z38.object({
+  userId: z38.coerce.number().int().optional().nullable(),
+  dealerId: z38.string().max(255).optional().nullable().or(z38.literal("")),
+  dvrId: z38.string().max(255).optional().nullable().or(z38.literal("")),
+  pjpId: z38.string().max(255).optional().nullable().or(z38.literal("")),
+  orderDate: z38.union([z38.string(), z38.date()]).optional(),
+  orderPartyName: z38.string().min(1).optional(),
   // ... (all other fields) ...
-  partyPhoneNo: z36.string().optional().nullable().or(z36.literal("")),
-  partyArea: z36.string().optional().nullable().or(z36.literal("")),
-  partyRegion: z36.string().optional().nullable().or(z36.literal("")),
-  partyAddress: z36.string().optional().nullable().or(z36.literal("")),
-  deliveryDate: z36.union([z36.string(), z36.date()]).optional().nullable(),
-  deliveryArea: z36.string().optional().nullable().or(z36.literal("")),
-  deliveryRegion: z36.string().optional().nullable().or(z36.literal("")),
-  deliveryAddress: z36.string().optional().nullable().or(z36.literal("")),
-  deliveryLocPincode: z36.string().optional().nullable().or(z36.literal("")),
-  paymentMode: z36.string().optional().nullable().or(z36.literal("")),
-  paymentTerms: z36.string().optional().nullable().or(z36.literal("")),
-  paymentAmount: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  receivedPayment: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  receivedPaymentDate: z36.union([z36.string(), z36.date()]).optional().nullable(),
-  pendingPayment: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  orderQty: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  orderUnit: z36.string().max(20).optional().nullable().or(z36.literal("")),
-  itemPrice: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  discountPercentage: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  itemPriceAfterDiscount: z36.union([z36.string(), z36.number()]).optional().nullable(),
-  itemType: z36.string().max(20).optional().nullable().or(z36.literal("")),
-  itemGrade: z36.string().max(10).optional().nullable().or(z36.literal("")),
+  partyPhoneNo: z38.string().optional().nullable().or(z38.literal("")),
+  partyArea: z38.string().optional().nullable().or(z38.literal("")),
+  partyRegion: z38.string().optional().nullable().or(z38.literal("")),
+  partyAddress: z38.string().optional().nullable().or(z38.literal("")),
+  deliveryDate: z38.union([z38.string(), z38.date()]).optional().nullable(),
+  deliveryArea: z38.string().optional().nullable().or(z38.literal("")),
+  deliveryRegion: z38.string().optional().nullable().or(z38.literal("")),
+  deliveryAddress: z38.string().optional().nullable().or(z38.literal("")),
+  deliveryLocPincode: z38.string().optional().nullable().or(z38.literal("")),
+  paymentMode: z38.string().optional().nullable().or(z38.literal("")),
+  paymentTerms: z38.string().optional().nullable().or(z38.literal("")),
+  paymentAmount: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  receivedPayment: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  receivedPaymentDate: z38.union([z38.string(), z38.date()]).optional().nullable(),
+  pendingPayment: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  orderQty: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  orderUnit: z38.string().max(20).optional().nullable().or(z38.literal("")),
+  itemPrice: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  discountPercentage: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  itemPriceAfterDiscount: z38.union([z38.string(), z38.number()]).optional().nullable(),
+  itemType: z38.string().max(20).optional().nullable().or(z38.literal("")),
+  itemGrade: z38.string().max(10).optional().nullable().or(z38.literal("")),
   // --- ✅ FIX ---
-  status: z36.string().max(50).optional()
+  status: z38.string().max(50).optional()
   // Admin approval field
   // --- END FIX ---
 }).strict();
@@ -10119,7 +10569,7 @@ function setupSalesOrdersPatchRoutes(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update" });
       }
-      const [existing] = await db.select().from(salesOrders).where(eq57(salesOrders.id, id)).limit(1);
+      const [existing] = await db.select().from(salesOrders).where(eq60(salesOrders.id, id)).limit(1);
       if (!existing) {
         return res.status(404).json({ success: false, error: `Sales Order with ID '${id}' not found.` });
       }
@@ -10169,14 +10619,14 @@ function setupSalesOrdersPatchRoutes(app2) {
           patch.pendingPayment = String(Number(pa) - Number(rp));
         }
       }
-      const [updated] = await db.update(salesOrders).set(patch).where(eq57(salesOrders.id, id)).returning();
+      const [updated] = await db.update(salesOrders).set(patch).where(eq60(salesOrders.id, id)).returning();
       return res.json({
         success: true,
         message: "Sales Order updated successfully",
         data: updated
       });
     } catch (error) {
-      if (error instanceof z36.ZodError) {
+      if (error instanceof z38.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       }
       console.error("Update Sales Order error:", error);
@@ -10190,30 +10640,30 @@ function setupSalesOrdersPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/masonpcSide.ts
-import { eq as eq58 } from "drizzle-orm";
-import { z as z37 } from "zod";
-var strOrNull9 = z37.preprocess((val) => {
+import { eq as eq61 } from "drizzle-orm";
+import { z as z39 } from "zod";
+var strOrNull9 = z39.preprocess((val) => {
   if (val === "") return null;
   if (typeof val === "string") {
     const t = val.trim();
     return t === "" ? null : t;
   }
   return val;
-}, z37.string().nullable().optional());
-var intOrNull4 = z37.preprocess((val) => {
+}, z39.string().nullable().optional());
+var intOrNull4 = z39.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   const n = parseInt(String(val), 10);
   return isNaN(n) ? null : n;
-}, z37.number().int().nullable().optional());
-var masonBaseSchema = z37.object({
-  name: z37.string().min(1, "Name is required"),
-  phoneNumber: z37.string().min(1, "Phone number is required"),
+}, z39.number().int().nullable().optional());
+var masonBaseSchema = z39.object({
+  name: z39.string().min(1, "Name is required"),
+  phoneNumber: z39.string().min(1, "Phone number is required"),
   kycDocumentName: strOrNull9,
   kycDocumentIdNum: strOrNull9,
   kycStatus: strOrNull9,
   pointsBalance: intOrNull4,
   bagsLifted: intOrNull4,
-  isReferred: z37.boolean().nullable().optional(),
+  isReferred: z39.boolean().nullable().optional(),
   referredByUser: strOrNull9,
   referredToUser: strOrNull9,
   dealerId: strOrNull9,
@@ -10236,7 +10686,7 @@ function setupMasonPcSidePatchRoutes(app2) {
     const tableName4 = "Mason";
     try {
       const { id } = req.params;
-      if (!z37.string().uuid().safeParse(id).success) {
+      if (!z39.string().uuid().safeParse(id).success) {
         return res.status(400).json({ success: false, error: "Invalid Mason ID format. Expected UUID." });
       }
       const validatedData = masonUpdateSchema.parse(req.body);
@@ -10247,21 +10697,21 @@ function setupMasonPcSidePatchRoutes(app2) {
         });
       }
       const updatePayload = cleanUpdatePayload(validatedData);
-      const [existingMason] = await db.select({ id: masonPcSide.id }).from(masonPcSide).where(eq58(masonPcSide.id, id)).limit(1);
+      const [existingMason] = await db.select({ id: masonPcSide.id }).from(masonPcSide).where(eq61(masonPcSide.id, id)).limit(1);
       if (!existingMason) {
         return res.status(404).json({
           success: false,
           error: `Mason with ID '${id}' not found.`
         });
       }
-      const [updatedMason] = await db.update(masonPcSide).set(updatePayload).where(eq58(masonPcSide.id, id)).returning();
+      const [updatedMason] = await db.update(masonPcSide).set(updatePayload).where(eq61(masonPcSide.id, id)).returning();
       res.json({
         success: true,
         message: "Mason updated successfully",
         data: updatedMason
       });
     } catch (err) {
-      if (err instanceof z37.ZodError) {
+      if (err instanceof z39.ZodError) {
         return res.status(400).json({
           success: false,
           error: "Validation failed",
@@ -10298,9 +10748,9 @@ function setupMasonPcSidePatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/schemesOffers.ts
-import { eq as eq59 } from "drizzle-orm";
-import { z as z38 } from "zod";
-var strOrNull10 = z38.preprocess((val) => {
+import { eq as eq62 } from "drizzle-orm";
+import { z as z40 } from "zod";
+var strOrNull10 = z40.preprocess((val) => {
   if (val === "" || val === void 0) return null;
   if (val === null) return null;
   if (typeof val === "string") {
@@ -10308,8 +10758,8 @@ var strOrNull10 = z38.preprocess((val) => {
     return t === "" ? null : t;
   }
   return val;
-}, z38.string().nullable().optional());
-var dateOrNull4 = z38.preprocess((val) => {
+}, z40.string().nullable().optional());
+var dateOrNull4 = z40.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   try {
     const d = new Date(String(val));
@@ -10318,17 +10768,17 @@ var dateOrNull4 = z38.preprocess((val) => {
   } catch {
     return null;
   }
-}, z38.date().nullable().optional());
-var schemeOfferBaseSchema = z38.object({
-  name: z38.string().min(1, "Name is required"),
+}, z40.date().nullable().optional());
+var schemeOfferBaseSchema = z40.object({
+  name: z40.string().min(1, "Name is required"),
   description: strOrNull10.optional(),
   // Make optional here to allow PATCH to omit it
   startDate: dateOrNull4.optional(),
   endDate: dateOrNull4.optional()
 });
 var schemeOfferPatchSchema = schemeOfferBaseSchema.partial().strict();
-var schemeOfferPutSchema = z38.object({
-  name: z38.string().min(1, "Name is required"),
+var schemeOfferPutSchema = z40.object({
+  name: z40.string().min(1, "Name is required"),
   description: strOrNull10.transform((val) => val ?? null),
   // Transform to null if missing/empty string
   startDate: dateOrNull4.transform((val) => val ?? null),
@@ -10339,25 +10789,25 @@ function setupSchemesOffersPatchRoutes(app2) {
   app2.patch("/api/schemes-offers/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      if (!z38.string().uuid().safeParse(id).success) {
+      if (!z40.string().uuid().safeParse(id).success) {
         return res.status(400).json({ success: false, error: "Invalid Scheme ID format. Expected UUID." });
       }
       const validatedData = schemeOfferPatchSchema.parse(req.body);
       if (Object.keys(validatedData).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update were provided." });
       }
-      const [existingRecord] = await db.select({ id: schemesOffers.id }).from(schemesOffers).where(eq59(schemesOffers.id, id)).limit(1);
+      const [existingRecord] = await db.select({ id: schemesOffers.id }).from(schemesOffers).where(eq62(schemesOffers.id, id)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({ error: `${tableName4} with ID '${id}' not found.` });
       }
-      const [updatedRecord] = await db.update(schemesOffers).set(validatedData).where(eq59(schemesOffers.id, id)).returning();
+      const [updatedRecord] = await db.update(schemesOffers).set(validatedData).where(eq62(schemesOffers.id, id)).returning();
       return res.json({
         success: true,
         message: `${tableName4} updated successfully (PATCH)`,
         data: updatedRecord
       });
     } catch (err) {
-      if (err instanceof z38.ZodError) {
+      if (err instanceof z40.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: err.issues });
       }
       console.error(`PATCH ${tableName4} error:`, err);
@@ -10367,22 +10817,22 @@ function setupSchemesOffersPatchRoutes(app2) {
   app2.put("/api/schemes-offers/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      if (!z38.string().uuid().safeParse(id).success) {
+      if (!z40.string().uuid().safeParse(id).success) {
         return res.status(400).json({ success: false, error: "Invalid Scheme ID format. Expected UUID." });
       }
       const validatedData = schemeOfferPutSchema.parse(req.body);
-      const [existingRecord] = await db.select({ id: schemesOffers.id }).from(schemesOffers).where(eq59(schemesOffers.id, id)).limit(1);
+      const [existingRecord] = await db.select({ id: schemesOffers.id }).from(schemesOffers).where(eq62(schemesOffers.id, id)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({ error: `${tableName4} with ID '${id}' not found for replacement.` });
       }
-      const [updatedRecord] = await db.update(schemesOffers).set(validatedData).where(eq59(schemesOffers.id, id)).returning();
+      const [updatedRecord] = await db.update(schemesOffers).set(validatedData).where(eq62(schemesOffers.id, id)).returning();
       return res.json({
         success: true,
         message: `${tableName4} replaced successfully (PUT)`,
         data: updatedRecord
       });
     } catch (err) {
-      if (err instanceof z38.ZodError) {
+      if (err instanceof z40.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: err.issues });
       }
       console.error(`PUT ${tableName4} error:`, err);
@@ -10393,73 +10843,91 @@ function setupSchemesOffersPatchRoutes(app2) {
 }
 
 // src/routes/updateRoutes/kycSubmission.ts
-import { eq as eq60 } from "drizzle-orm";
-import { z as z39 } from "zod";
-var kycApprovalSchema = z39.object({
-  status: z39.enum(["approved", "rejected", "pending"]),
-  remark: z39.string().max(500).optional().nullable()
+import { eq as eq63, sql as sql16 } from "drizzle-orm";
+import { z as z41 } from "zod";
+import { randomUUID as randomUUID18 } from "crypto";
+var kycApprovalSchema = z41.object({
+  status: z41.enum(["approved", "rejected", "pending"]),
+  remark: z41.string().max(500).optional().nullable(),
+  // Allow updating Mason Profile details
+  masonUpdates: z41.object({
+    dealerId: z41.string().optional().nullable(),
+    name: z41.string().min(1).optional()
+  }).optional(),
+  documents: z41.any().optional()
 }).strict();
 function setupKycSubmissionsPatchRoute(app2) {
   app2.patch("/api/kyc-submissions/:id", async (req, res) => {
     const tableName4 = "KYC Submission";
     try {
       const { id } = req.params;
-      if (!z39.string().uuid().safeParse(id).success) {
-        return res.status(400).json({ success: false, error: "Invalid Submission ID format. Expected UUID." });
-      }
       const input = kycApprovalSchema.parse(req.body);
-      const [existingRecord] = await db.select().from(kycSubmissions).where(eq60(kycSubmissions.id, id)).limit(1);
-      if (!existingRecord) {
-        return res.status(404).json({ error: `${tableName4} with ID '${id}' not found.` });
-      }
-      const { status, remark } = input;
+      const { status, remark, masonUpdates, documents } = input;
+      const [existingRecord] = await db.select().from(kycSubmissions).where(eq63(kycSubmissions.id, id)).limit(1);
+      if (!existingRecord) return res.status(404).json({ error: `${tableName4} with ID '${id}' not found.` });
       const masonId = existingRecord.masonId;
+      const [mason] = await db.select().from(masonPcSide).where(eq63(masonPcSide.id, masonId)).limit(1);
+      if (!mason) return res.status(404).json({ error: "Associated Mason not found." });
       const [updatedSubmission] = await db.transaction(async (tx) => {
-        const [submission] = await tx.update(kycSubmissions).set({
-          status,
-          remark: remark ?? null,
-          updatedAt: /* @__PURE__ */ new Date()
-        }).where(eq60(kycSubmissions.id, id)).returning();
-        await tx.update(masonPcSide).set({ kycStatus: status }).where(eq60(masonPcSide.id, masonId));
+        const subUpdates = { status, updatedAt: /* @__PURE__ */ new Date() };
+        if (remark !== void 0) subUpdates.remark = remark;
+        if (documents !== void 0) subUpdates.documents = JSON.stringify(documents);
+        const [submission] = await tx.update(kycSubmissions).set(subUpdates).where(eq63(kycSubmissions.id, id)).returning();
+        const masonFieldsToUpdate = { kycStatus: status };
+        if (masonUpdates) {
+          if (masonUpdates.dealerId !== void 0) masonFieldsToUpdate.dealerId = masonUpdates.dealerId;
+          if (masonUpdates.name !== void 0) masonFieldsToUpdate.name = masonUpdates.name;
+        }
+        const joiningBonus = calculateJoiningBonusPoints();
+        let appliedBonus = 0;
+        if (status === "approved" && mason.kycStatus !== "approved" && joiningBonus > 0) {
+          appliedBonus = joiningBonus;
+          masonFieldsToUpdate.pointsBalance = sql16`${masonPcSide.pointsBalance} + ${joiningBonus}`;
+          await tx.insert(pointsLedger).values({
+            id: randomUUID18(),
+            masonId,
+            sourceType: "joining_bonus",
+            // or 'adjustment' depending on your enum convention
+            sourceId: submission.id,
+            // Link to the KYC submission ID
+            points: joiningBonus,
+            memo: `Joining Bonus: KYC Verified on ${(/* @__PURE__ */ new Date()).toLocaleDateString()}`
+          });
+        }
+        await tx.update(masonPcSide).set(masonFieldsToUpdate).where(eq63(masonPcSide.id, masonId));
         return [submission];
       });
       res.json({
         success: true,
-        message: `KYC submission status updated to '${updatedSubmission.status}' and Mason's status updated.`,
+        message: `KYC Updated to '${updatedSubmission.status}'. Mason Profile synced.`,
         data: updatedSubmission
       });
     } catch (error) {
-      if (error instanceof z39.ZodError) {
-        return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
-      }
+      if (error instanceof z41.ZodError) return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       console.error(`PATCH ${tableName4} error:`, error);
-      return res.status(500).json({
-        success: false,
-        error: `Failed to update ${tableName4} status.`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      return res.status(500).json({ success: false, error: `Failed to update.` });
     }
   });
-  console.log("\u2705 KYC Submissions PATCH (Approval) endpoint setup complete");
+  console.log("\u2705 KYC Submissions PATCH (Approved + Joining Bonus) endpoint setup complete");
 }
 
 // src/routes/updateRoutes/rewards.ts
-import { eq as eq61 } from "drizzle-orm";
-import { z as z40 } from "zod";
+import { eq as eq64 } from "drizzle-orm";
+import { z as z42 } from "zod";
 var rewardPatchSchema = insertRewardsSchema.omit({
   id: true,
   createdAt: true,
   updatedAt: true
 }).partial().extend({
-  categoryId: z40.preprocess(
+  categoryId: z42.preprocess(
     (v) => typeof v === "string" ? parseInt(v, 10) : v,
-    z40.number().int().positive("Category ID must be a positive integer.").optional()
+    z42.number().int().positive("Category ID must be a positive integer.").optional()
   ),
-  pointCost: z40.coerce.number().int().positive("Point cost must be a positive integer.").optional(),
-  totalAvailableQuantity: z40.coerce.number().int().nonnegative("Total quantity cannot be negative.").optional(),
-  stock: z40.coerce.number().int().nonnegative("Stock cannot be negative.").optional(),
-  meta: z40.any().optional().nullable(),
-  isActive: z40.boolean().optional()
+  pointCost: z42.coerce.number().int().positive("Point cost must be a positive integer.").optional(),
+  totalAvailableQuantity: z42.coerce.number().int().nonnegative("Total quantity cannot be negative.").optional(),
+  stock: z42.coerce.number().int().nonnegative("Stock cannot be negative.").optional(),
+  meta: z42.any().optional().nullable(),
+  isActive: z42.boolean().optional()
 }).strict();
 function setupRewardsPatchRoute(app2) {
   app2.patch("/api/rewards/:id", async (req, res) => {
@@ -10471,7 +10939,7 @@ function setupRewardsPatchRoute(app2) {
       if (Object.keys(input).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update were provided." });
       }
-      const [existingRecord] = await db.select({ id: rewards.id }).from(rewards).where(eq61(rewards.id, id)).limit(1);
+      const [existingRecord] = await db.select({ id: rewards.id }).from(rewards).where(eq64(rewards.id, id)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({ success: false, error: `${tableName4} with ID '${id}' not found.` });
       }
@@ -10481,7 +10949,7 @@ function setupRewardsPatchRoute(app2) {
         patchData.meta = input.meta ? JSON.stringify(input.meta) : null;
       }
       patchData.updatedAt = /* @__PURE__ */ new Date();
-      const [updatedRecord] = await db.update(rewards).set(patchData).where(eq61(rewards.id, id)).returning();
+      const [updatedRecord] = await db.update(rewards).set(patchData).where(eq64(rewards.id, id)).returning();
       return res.json({
         success: true,
         message: `${tableName4} updated successfully`,
@@ -10489,7 +10957,7 @@ function setupRewardsPatchRoute(app2) {
       });
     } catch (err) {
       console.error(`PATCH ${tableName4} error:`, err);
-      if (err instanceof z40.ZodError) {
+      if (err instanceof z42.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: err.errors });
       }
       const msg = String(err?.message ?? "").toLowerCase();
@@ -10509,76 +10977,92 @@ function setupRewardsPatchRoute(app2) {
 }
 
 // src/routes/updateRoutes/rewardsRedemption.ts
-import { eq as eq62, sql as sql15 } from "drizzle-orm";
-import { z as z41 } from "zod";
-var redemptionFulfillmentSchema = z41.object({
-  status: z41.enum(["approved", "shipped", "delivered", "rejected"]),
-  fulfillmentNotes: z41.string().max(500).optional().nullable()
+import { eq as eq65, sql as sql17 } from "drizzle-orm";
+import { z as z43 } from "zod";
+import crypto3 from "crypto";
+var redemptionFulfillmentSchema = z43.object({
+  status: z43.enum(["approved", "shipped", "delivered", "rejected"]),
+  fulfillmentNotes: z43.string().max(500).optional().nullable()
 }).strict();
 function setupRewardsRedemptionPatchRoute(app2) {
   app2.patch("/api/rewards-redemption/:id", async (req, res) => {
     const tableName4 = "Reward Redemption";
     try {
       const { id } = req.params;
-      if (!req.auth || !req.auth.sub) {
-        return res.status(401).json({ success: false, error: "Authentication details missing." });
-      }
-      const authenticatedUserId = parseInt(req.auth.sub, 10);
-      if (!z41.string().uuid().safeParse(id).success) {
+      if (!z43.string().uuid().safeParse(id).success) {
         return res.status(400).json({ success: false, error: "Invalid Redemption ID format. Expected UUID." });
       }
       const input = redemptionFulfillmentSchema.parse(req.body);
-      const [existingRecord] = await db.select().from(rewardRedemptions).where(eq62(rewardRedemptions.id, id)).limit(1);
+      const { status, fulfillmentNotes } = input;
+      const [existingRecord] = await db.select().from(rewardRedemptions).where(eq65(rewardRedemptions.id, id)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({ error: `${tableName4} with ID '${id}' not found.` });
       }
-      const { status, fulfillmentNotes } = input;
       const currentStatus = existingRecord.status;
-      const masonId = existingRecord.masonId;
-      const points = existingRecord.pointsDebited;
+      const { masonId, pointsDebited: points, quantity: qty, rewardId } = existingRecord;
       if (currentStatus === "delivered" && status !== "delivered") {
         return res.status(400).json({ success: false, error: "Cannot change status of an already delivered item." });
       }
+      if (currentStatus === "rejected") {
+        return res.status(400).json({ success: false, error: "Cannot update a rejected order. Please place a new order." });
+      }
       const updatedRecord = await db.transaction(async (tx) => {
         if (currentStatus === "placed" && status === "approved") {
+          const [item] = await tx.select({ stock: rewards.stock }).from(rewards).where(eq65(rewards.id, rewardId));
+          if (!item || item.stock < qty) {
+            throw new Error(`Insufficient stock to approve. Available: ${item?.stock ?? 0}, Required: ${qty}`);
+          }
+          await tx.update(rewards).set({ stock: sql17`${rewards.stock} - ${qty}` }).where(eq65(rewards.id, rewardId));
+          const [updated] = await tx.update(rewardRedemptions).set({
+            status: "approved",
+            updatedAt: /* @__PURE__ */ new Date()
+          }).where(eq65(rewardRedemptions.id, id)).returning();
+          return updated;
+        } else if (currentStatus === "placed" && status === "rejected") {
           await tx.insert(pointsLedger).values({
+            id: crypto3.randomUUID(),
             masonId,
-            sourceType: "redemption",
+            sourceType: "adjustment",
+            // or 'refund'
             sourceId: id,
-            // Link back to the Redemption record
-            points: -points,
-            // ⬅️ DEBIT: Insert negative points
-            memo: `Points deducted for approved redemption ID ${id}. Approved by TSO ${authenticatedUserId}.`
-          }).returning();
-          await tx.update(masonPcSide).set({
-            pointsBalance: sql15`${masonPcSide.pointsBalance} - ${points}`
-            // ⬅️ DEBIT: Subtract the points
-          }).where(eq62(masonPcSide.id, masonId));
-          const [updated] = await tx.update(rewardRedemptions).set({ status: "approved", updatedAt: /* @__PURE__ */ new Date() }).where(eq62(rewardRedemptions.id, id)).returning();
+            // Link back to the order
+            points,
+            // Positive value adds back to balance
+            memo: `Refund: Order ${id} rejected by TSO. Reason: ${fulfillmentNotes || "N/A"}`
+          });
+          await tx.update(masonPcSide).set({ pointsBalance: sql17`${masonPcSide.pointsBalance} + ${points}` }).where(eq65(masonPcSide.id, masonId));
+          const [updated] = await tx.update(rewardRedemptions).set({ status: "rejected", updatedAt: /* @__PURE__ */ new Date() }).where(eq65(rewardRedemptions.id, id)).returning();
           return updated;
-        } else if (status !== "approved") {
-          const [updated] = await tx.update(rewardRedemptions).set({ status, updatedAt: /* @__PURE__ */ new Date() }).where(eq62(rewardRedemptions.id, id)).returning();
-          return updated;
-        } else if (currentStatus === "approved" && status === "approved") {
-          const [updated] = await tx.update(rewardRedemptions).set({ updatedAt: /* @__PURE__ */ new Date() }).where(eq62(rewardRedemptions.id, id)).returning();
+        } else if (currentStatus === "approved" && status === "rejected") {
+          await tx.insert(pointsLedger).values({
+            id: crypto3.randomUUID(),
+            masonId,
+            sourceType: "adjustment",
+            sourceId: id,
+            points,
+            memo: `Refund: Approved Order ${id} cancelled.`
+          });
+          await tx.update(masonPcSide).set({ pointsBalance: sql17`${masonPcSide.pointsBalance} + ${points}` }).where(eq65(masonPcSide.id, masonId));
+          await tx.update(rewards).set({ stock: sql17`${rewards.stock} + ${qty}` }).where(eq65(rewards.id, rewardId));
+          const [updated] = await tx.update(rewardRedemptions).set({ status: "rejected", updatedAt: /* @__PURE__ */ new Date() }).where(eq65(rewardRedemptions.id, id)).returning();
           return updated;
         } else {
-          tx.rollback();
-          throw new Error(`Invalid status transition from '${currentStatus}' to '${status}'.`);
+          const [updated] = await tx.update(rewardRedemptions).set({ status, updatedAt: /* @__PURE__ */ new Date() }).where(eq65(rewardRedemptions.id, id)).returning();
+          return updated;
         }
       });
       res.json({
         success: true,
-        message: `${tableName4} status updated to '${updatedRecord.status}' successfully.`,
+        message: `Status updated to '${updatedRecord.status}'.`,
         data: updatedRecord
       });
     } catch (error) {
-      if (error instanceof z41.ZodError) {
+      if (error instanceof z43.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       }
       console.error(`PATCH ${tableName4} error:`, error);
       const msg = error?.message ?? "";
-      if (msg.includes("Invalid status transition") || msg.includes("Mason ID")) {
+      if (msg.includes("Insufficient") || msg.includes("Cannot change")) {
         return res.status(400).json({ success: false, error: msg });
       }
       return res.status(500).json({
@@ -10587,148 +11071,142 @@ function setupRewardsRedemptionPatchRoute(app2) {
       });
     }
   });
-  console.log("\u2705 Reward Redemptions PATCH (Debit/Fulfillment) endpoint setup complete");
+  console.log("\u2705 Reward Redemptions PATCH (NO AUTH) endpoint ready");
 }
 
 // src/routes/updateRoutes/bagsLift.ts
-import { eq as eq63, sql as sql16 } from "drizzle-orm";
-import { z as z42 } from "zod";
-import { randomUUID as randomUUID16 } from "crypto";
-var bagLiftApprovalSchema = z42.object({
-  status: z42.enum(["approved", "rejected", "pending"]),
-  memo: z42.string().max(500).optional()
-  // 'approvedBy' was removed. It will be taken from the authenticated user's token (req.auth.sub).
+import { eq as eq66, sql as sql18 } from "drizzle-orm";
+import { z as z44 } from "zod";
+import { randomUUID as randomUUID19 } from "crypto";
+var bagLiftApprovalSchema = z44.object({
+  status: z44.enum(["approved", "rejected", "pending"]),
+  memo: z44.string().max(500).optional(),
+  approvedBy: z44.number().int().optional(),
+  // <--- PASS USER ID HERE FROM FRONTEND
+  // Optional Corrections
+  bagCount: z44.number().int().positive().optional(),
+  purchaseDate: z44.string().transform((str) => new Date(str)).optional(),
+  imageUrl: z44.string().url().optional(),
+  // Verification Fields
+  dealerId: z44.string().optional().nullable().or(z44.literal("")),
+  siteId: z44.string().optional().nullable().or(z44.literal("")),
+  siteKeyPersonName: z44.string().optional().nullable(),
+  siteKeyPersonPhone: z44.string().optional().nullable(),
+  verificationSiteImageUrl: z44.string().optional().nullable(),
+  verificationProofImageUrl: z44.string().optional().nullable()
 }).strict();
 function setupBagLiftsPatchRoute(app2) {
-  app2.patch("/api/bag-lifts/:id", tsoAuth, async (req, res) => {
+  app2.patch("/api/bag-lifts/:id", async (req, res) => {
     const tableName4 = "Bag Lift";
     try {
       const { id } = req.params;
-      const authenticatedUserId = parseInt(req.auth.sub, 10);
-      if (isNaN(authenticatedUserId)) {
-        return res.status(400).json({ success: false, error: "Invalid user ID in auth token." });
-      }
       const input = bagLiftApprovalSchema.parse(req.body);
-      const [existingRecord] = await db.select().from(bagLifts).where(eq63(bagLifts.id, id)).limit(1);
-      if (!existingRecord) {
-        return res.status(404).json({ error: `${tableName4} with ID '${id}' not found.` });
-      }
-      const { status, memo } = input;
+      const { status, memo, approvedBy } = input;
+      const [existingRecord] = await db.select().from(bagLifts).where(eq66(bagLifts.id, id)).limit(1);
+      if (!existingRecord) return res.status(404).json({ error: `${tableName4} with ID '${id}' not found.` });
       const currentStatus = existingRecord.status;
       const masonId = existingRecord.masonId;
-      const points = existingRecord.pointsCredited;
-      if (status === currentStatus) {
-        return res.status(400).json({ success: false, error: `Status is already '${currentStatus}'.` });
-      }
-      if (status === "approved" && currentStatus === "rejected") {
-        return res.status(400).json({ success: false, error: "Cannot directly approve a previously rejected transaction." });
+      const finalBagCount = input.bagCount ?? existingRecord.bagCount;
+      const finalPurchaseDate = input.purchaseDate ?? existingRecord.purchaseDate;
+      const recalculatedPoints = calculateBaseAndBonanzaPoints(finalBagCount, finalPurchaseDate);
+      const updates = {
+        status,
+        bagCount: finalBagCount,
+        purchaseDate: finalPurchaseDate,
+        pointsCredited: recalculatedPoints
+      };
+      if (input.imageUrl !== void 0) updates.imageUrl = input.imageUrl;
+      if (input.dealerId !== void 0) updates.dealerId = input.dealerId && input.dealerId.length > 0 ? input.dealerId : null;
+      if (input.siteId !== void 0) updates.siteId = input.siteId && input.siteId.length > 0 ? input.siteId : null;
+      if (input.siteKeyPersonName !== void 0) updates.siteKeyPersonName = input.siteKeyPersonName;
+      if (input.siteKeyPersonPhone !== void 0) updates.siteKeyPersonPhone = input.siteKeyPersonPhone;
+      if (input.verificationSiteImageUrl !== void 0) updates.verificationSiteImageUrl = input.verificationSiteImageUrl;
+      if (input.verificationProofImageUrl !== void 0) updates.verificationProofImageUrl = input.verificationProofImageUrl;
+      if (status === "approved") {
+        updates.approvedBy = approvedBy || null;
+        updates.approvedAt = /* @__PURE__ */ new Date();
       }
       const updatedBagLift = await db.transaction(async (tx) => {
-        if (status === "approved" && currentStatus === "pending") {
-          const [masonBeforeCredit] = await tx.select().from(masonPcSide).where(eq63(masonPcSide.id, masonId)).limit(1);
-          if (!masonBeforeCredit) {
-            tx.rollback();
-            throw new Error(`Mason ID ${masonId} not found.`);
-          }
-          const [updated] = await tx.update(bagLifts).set({
-            status: "approved",
-            approvedBy: authenticatedUserId,
-            // <-- Use the ID from auth
-            approvedAt: /* @__PURE__ */ new Date()
-          }).where(eq63(bagLifts.id, id)).returning();
+        const [updated] = await tx.update(bagLifts).set(updates).where(eq66(bagLifts.id, id)).returning();
+        if (status === "approved" && currentStatus !== "approved") {
+          await tx.update(masonPcSide).set({
+            pointsBalance: sql18`${masonPcSide.pointsBalance} + ${recalculatedPoints}`,
+            bagsLifted: sql18`${masonPcSide.bagsLifted} + ${finalBagCount}`
+          }).where(eq66(masonPcSide.id, masonId));
           await tx.insert(pointsLedger).values({
+            id: randomUUID19(),
             masonId,
             sourceType: "bag_lift",
             sourceId: updated.id,
-            points,
-            memo: memo || `Credit for ${updated.bagCount} bags (Base+Bonanza).`
-          }).returning();
-          await tx.update(masonPcSide).set({
-            pointsBalance: sql16`${masonPcSide.pointsBalance} + ${points}`,
-            bagsLifted: sql16`${masonPcSide.bagsLifted} + ${updated.bagCount}`
-          }).where(eq63(masonPcSide.id, masonId));
-          const oldTotalBags = masonBeforeCredit.bagsLifted ?? 0;
-          const currentLiftBags = updated.bagCount;
-          const extraBonus = calculateExtraBonusPoints(oldTotalBags, currentLiftBags, existingRecord.purchaseDate);
-          if (extraBonus > 0) {
-            await tx.insert(pointsLedger).values({
-              masonId,
-              points: extraBonus,
-              sourceType: "adjustment",
-              // Policy Rule 13 uses "adjustment" type
-              memo: `Extra Bonus: ${extraBonus} points for crossing bag slab.`
-            });
-            await tx.update(masonPcSide).set({
-              pointsBalance: sql16`${masonPcSide.pointsBalance} + ${extraBonus}`
-            }).where(eq63(masonPcSide.id, masonId));
-          }
-          if (masonBeforeCredit.referredByUser) {
-            const referrerId = masonBeforeCredit.referredByUser;
-            const referralPoints = checkReferralBonusTrigger(oldTotalBags, currentLiftBags);
-            if (referralPoints > 0) {
+            points: recalculatedPoints,
+            memo: memo || `Credit for ${finalBagCount} bags.`
+          });
+          const [masonState] = await tx.select({
+            bagsLifted: masonPcSide.bagsLifted,
+            referredByUser: masonPcSide.referredByUser
+          }).from(masonPcSide).where(eq66(masonPcSide.id, masonId)).limit(1);
+          if (masonState) {
+            const currentTotal = masonState.bagsLifted ?? 0;
+            const previousTotal = currentTotal - finalBagCount;
+            const extraBonus = calculateExtraBonusPoints(previousTotal, finalBagCount, finalPurchaseDate);
+            if (extraBonus > 0) {
               await tx.insert(pointsLedger).values({
-                masonId: referrerId,
-                points: referralPoints,
-                sourceType: "referral_bonus",
-                memo: `Referral bonus for Mason ${masonId} hitting 200 bags.`
+                id: randomUUID19(),
+                masonId,
+                points: extraBonus,
+                sourceType: "adjustment",
+                sourceId: null,
+                memo: `Extra Bonus: Slab Crossed via BagLift ${updated.id}.`
               });
-              await tx.update(masonPcSide).set({
-                pointsBalance: sql16`${masonPcSide.pointsBalance} + ${referralPoints}`
-              }).where(eq63(masonPcSide.id, referrerId));
+              await tx.update(masonPcSide).set({ pointsBalance: sql18`${masonPcSide.pointsBalance} + ${extraBonus}` }).where(eq66(masonPcSide.id, masonId));
+            }
+            if (masonState.referredByUser) {
+              const referrerId = masonState.referredByUser;
+              const referralPoints = checkReferralBonusTrigger(previousTotal, finalBagCount);
+              if (referralPoints > 0) {
+                await tx.insert(pointsLedger).values({
+                  id: randomUUID19(),
+                  masonId: referrerId,
+                  points: referralPoints,
+                  sourceType: "referral_bonus",
+                  sourceId: null,
+                  memo: `Referral bonus for Mason ${masonId}.`
+                });
+                await tx.update(masonPcSide).set({ pointsBalance: sql18`${masonPcSide.pointsBalance} + ${referralPoints}` }).where(eq66(masonPcSide.id, referrerId));
+              }
             }
           }
-          return updated;
         } else if (status === "rejected" && currentStatus === "approved") {
-          const [updated] = await tx.update(bagLifts).set({
-            status: "rejected"
-            // Note: We keep the original 'approvedBy' ID to know who approved it,
-            // but we could nullify it if business logic required.
-            // approvedBy: null, 
-          }).where(eq63(bagLifts.id, id)).returning();
+          const pointsToDebit = existingRecord.pointsCredited;
+          await tx.update(masonPcSide).set({
+            pointsBalance: sql18`${masonPcSide.pointsBalance} - ${pointsToDebit}`,
+            bagsLifted: sql18`${masonPcSide.bagsLifted} - ${existingRecord.bagCount}`
+          }).where(eq66(masonPcSide.id, masonId));
           await tx.insert(pointsLedger).values({
+            id: randomUUID19(),
             masonId,
             sourceType: "adjustment",
-            sourceId: randomUUID16(),
-            // New UUID for the adjustment record
-            points: -points,
-            // Negative points for debit
-            memo: memo || `Debit adjustment: Bag Lift ${id} rejected by User ${authenticatedUserId}. Reversing main points.`
-          }).returning();
-          await tx.update(masonPcSide).set({
-            pointsBalance: sql16`${masonPcSide.pointsBalance} - ${points}`,
-            // FIX 2: Apply non-null assertion to existingRecord.bagCount
-            bagsLifted: sql16`${masonPcSide.bagsLifted} - ${existingRecord.bagCount}`
-          }).where(eq63(masonPcSide.id, masonId));
-          return updated;
-        } else {
-          const [updated] = await tx.update(bagLifts).set({ status }).where(eq63(bagLifts.id, id)).returning();
-          return updated;
+            sourceId: null,
+            points: -pointsToDebit,
+            memo: memo || `Debit: Bag Lift ${id} rejected after approval.`
+          });
         }
+        return updated;
       });
-      res.json({
-        success: true,
-        message: `Bag Lift status updated to '${updatedBagLift.status}' successfully.`,
-        data: updatedBagLift
-      });
+      res.json({ success: true, message: "Updated successfully.", data: updatedBagLift });
     } catch (error) {
-      if (error instanceof z42.ZodError) {
-        return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
-      }
+      if (error instanceof z44.ZodError) return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       console.error(`PATCH Bag Lift error:`, error);
-      return res.status(500).json({
-        success: false,
-        error: `Failed to update Bag Lift status.`,
-        details: error instanceof Error ? error.message : "Unknown error"
-      });
+      res.status(500).json({ success: false, error: `Failed to update.`, details: error.message });
     }
   });
-  console.log("\u2705 Bag Lifts PATCH (Approval) endpoint setup complete (Now protected by tsoAuth middleware)");
+  console.log("\u2705 Bag Lifts PATCH (NO AUTH) endpoint ready");
 }
 
 // src/routes/updateRoutes/technicalSites.ts
-import { eq as eq64 } from "drizzle-orm";
-import { z as z43 } from "zod";
-var strOrNull11 = z43.preprocess((val) => {
+import { eq as eq67 } from "drizzle-orm";
+import { z as z45 } from "zod";
+var strOrNull11 = z45.preprocess((val) => {
   if (val === "" || val === void 0) return null;
   if (val === null) return null;
   if (typeof val === "string") {
@@ -10736,73 +11214,64 @@ var strOrNull11 = z43.preprocess((val) => {
     return t === "" ? null : t;
   }
   return String(val);
-}, z43.string().nullable().optional());
-var dateOrNull5 = z43.preprocess((val) => {
+}, z45.string().nullable().optional());
+var dateOrNull5 = z45.preprocess((val) => {
   if (val === "" || val === null || val === void 0) return null;
   const d = new Date(String(val));
   return isNaN(d.getTime()) ? null : d;
-}, z43.date().nullable().optional());
-var numOrNull5 = z43.preprocess((val) => {
-  if (val === "" || val === null || val === void 0) return null;
-  const n = Number(val);
-  return isNaN(n) ? null : n;
-}, z43.number().nullable().optional());
-var boolOrNull = z43.preprocess((val) => {
+}, z45.date().nullable().optional());
+var boolOrNull = z45.preprocess((val) => {
   if (val === "true" || val === true) return true;
   if (val === "false" || val === false) return false;
   if (val === "" || val === null || val === void 0) return null;
   return void 0;
-}, z43.boolean().nullable().optional());
-var technicalSiteBaseSchema = z43.object({
-  siteName: z43.string().min(1).max(255).optional(),
-  concernedPerson: z43.string().min(1).max(255).optional(),
-  phoneNo: z43.string().min(1).max(20).optional(),
+}, z45.boolean().nullable().optional());
+var technicalSiteBaseSchema = z45.object({
+  siteName: z45.string().min(1).max(255).optional(),
+  concernedPerson: z45.string().min(1).max(255).optional(),
+  phoneNo: z45.string().min(1).max(20).optional(),
   address: strOrNull11,
-  latitude: numOrNull5,
-  longitude: numOrNull5,
+  latitude: z45.coerce.string().optional(),
+  longitude: z45.coerce.string().optional(),
   siteType: strOrNull11,
   area: strOrNull11,
   region: strOrNull11,
   keyPersonName: strOrNull11,
   keyPersonPhoneNum: strOrNull11,
   stageOfConstruction: strOrNull11,
-  // Dates are coerced to Date objects here, then converted back to string/Date in the handler
+  // Date Handling
   constructionStartDate: dateOrNull5,
   constructionEndDate: dateOrNull5,
   firstVistDate: dateOrNull5,
   lastVisitDate: dateOrNull5,
   convertedSite: boolOrNull,
   needFollowUp: boolOrNull,
-  // Foreign Keys (must be UUID string or null)
-  relatedDealerID: strOrNull11,
-  // z.string().uuid().nullable().optional() equivalent
-  relatedMasonpcID: strOrNull11
+  imageUrl: strOrNull11,
+  // associatedMasonIds & associatedDealerIds are the only way to link now
+  associatedMasonIds: z45.array(z45.string()).optional(),
+  associatedDealerIds: z45.array(z45.string()).optional()
 });
-var technicalSitePatchSchema = technicalSiteBaseSchema.partial().strict();
-var technicalSitePutSchema = technicalSiteBaseSchema.extend({
-  // Make required fields mandatory for PUT operations
-  siteName: z43.string().min(1).max(255),
-  concernedPerson: z43.string().min(1).max(255),
-  phoneNo: z43.string().min(1).max(20)
-});
+var technicalSitePatchSchema = technicalSiteBaseSchema.partial();
 var toDrizzleDateValue = (d) => {
   if (!d) return null;
-  return d;
+  return d.toISOString();
 };
 function setupTechnicalSitesUpdateRoutes(app2) {
   app2.patch("/api/technical-sites/:id", async (req, res) => {
     try {
       const { id } = req.params;
-      const input = technicalSitePatchSchema.parse(req.body);
-      if (Object.keys(input).length === 0) {
-        return res.status(400).json({ success: false, error: "No fields to update" });
+      const parsed2 = technicalSitePatchSchema.safeParse(req.body);
+      if (!parsed2.success) {
+        return res.status(400).json({ success: false, error: "Validation failed", details: parsed2.error.issues });
       }
-      const [existingSite] = await db.select().from(technicalSites).where(eq64(technicalSites.id, id)).limit(1);
+      const input = parsed2.data;
+      const [existingSite] = await db.select().from(technicalSites).where(eq67(technicalSites.id, id)).limit(1);
       if (!existingSite) {
         return res.status(404).json({ success: false, error: `Technical Site with ID '${id}' not found.` });
       }
       const patch = {};
       Object.keys(input).forEach((key) => {
+        if (key === "associatedMasonIds" || key === "associatedDealerIds") return;
         const value = input[key];
         if (key.includes("Date")) {
           patch[key] = toDrizzleDateValue(value);
@@ -10811,17 +11280,44 @@ function setupTechnicalSitesUpdateRoutes(app2) {
         }
       });
       patch.updatedAt = /* @__PURE__ */ new Date();
-      const [updatedSite] = await db.update(technicalSites).set(patch).where(eq64(technicalSites.id, id)).returning();
+      const result = await db.transaction(async (tx) => {
+        let updatedSite = existingSite;
+        if (Object.keys(patch).length > 1) {
+          [updatedSite] = await tx.update(technicalSites).set(patch).where(eq67(technicalSites.id, id)).returning();
+        }
+        if (input.associatedMasonIds !== void 0) {
+          await tx.delete(siteAssociatedMasons).where(eq67(siteAssociatedMasons.B, id));
+          const masons = input.associatedMasonIds;
+          if (masons.length > 0) {
+            const unique = [...new Set(masons)];
+            await tx.insert(siteAssociatedMasons).values(
+              unique.map((mid) => ({ A: mid, B: id }))
+            );
+          }
+        }
+        if (input.associatedDealerIds !== void 0) {
+          await tx.delete(siteAssociatedDealers).where(eq67(siteAssociatedDealers.B, id));
+          const dealers2 = input.associatedDealerIds;
+          if (dealers2.length > 0) {
+            const unique = [...new Set(dealers2)];
+            await tx.insert(siteAssociatedDealers).values(
+              unique.map((did) => ({ A: did, B: id }))
+            );
+          }
+        }
+        return updatedSite;
+      });
       return res.json({
         success: true,
         message: "Technical Site updated successfully",
-        data: updatedSite
+        data: result
       });
     } catch (error) {
-      if (error instanceof z43.ZodError) {
-        return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
-      }
       console.error("Update Technical Site error:", error);
+      const msg = String(error?.message ?? "").toLowerCase();
+      if (msg.includes("violates foreign key constraint")) {
+        return res.status(400).json({ success: false, error: "Invalid ID provided for Mason or Dealer" });
+      }
       return res.status(500).json({
         success: false,
         error: "Failed to update technical site",
@@ -10829,49 +11325,13 @@ function setupTechnicalSitesUpdateRoutes(app2) {
       });
     }
   });
-  app2.put("/api/technical-sites/:id", async (req, res) => {
-    try {
-      const { id } = req.params;
-      const input = technicalSitePutSchema.parse(req.body);
-      const [existingSite] = await db.select().from(technicalSites).where(eq64(technicalSites.id, id)).limit(1);
-      if (!existingSite) {
-        return res.status(404).json({ success: false, error: `Technical Site with ID '${id}' not found.` });
-      }
-      const updateData = {};
-      Object.entries(input).forEach(([key, value]) => {
-        if (key.includes("Date")) {
-          updateData[key] = toDrizzleDateValue(value);
-        } else {
-          updateData[key] = value;
-        }
-      });
-      updateData.updatedAt = /* @__PURE__ */ new Date();
-      updateData.id = id;
-      const [updatedSite] = await db.update(technicalSites).set(updateData).where(eq64(technicalSites.id, id)).returning();
-      return res.json({
-        success: true,
-        message: "Technical Site replaced successfully",
-        data: updatedSite
-      });
-    } catch (error) {
-      if (error instanceof z43.ZodError) {
-        return res.status(400).json({ success: false, error: "Validation failed for full replacement", details: error.issues });
-      }
-      console.error("PUT Technical Site error:", error);
-      return res.status(500).json({
-        success: false,
-        error: "Failed to replace technical site",
-        details: error?.message ?? "Unknown error"
-      });
-    }
-  });
-  console.log("\u2705 Technical Sites PATCH and PUT endpoints setup complete");
+  console.log("\u2705 Technical Sites PATCH endpoint ready (M-N Support Only)");
 }
 
 // src/routes/geoTrackingRoutes/geoTracking.ts
-import { eq as eq65, desc as desc34 } from "drizzle-orm";
-import { z as z44 } from "zod";
-import crypto3 from "crypto";
+import { eq as eq68, desc as desc36 } from "drizzle-orm";
+import { z as z46 } from "zod";
+import crypto4 from "crypto";
 var geoTrackingUpdateSchema = insertGeoTrackingSchema.partial();
 function setupGeoTrackingRoutes(app2) {
   app2.get("/api/geotracking/user/:userId", async (req, res) => {
@@ -10880,7 +11340,7 @@ function setupGeoTrackingRoutes(app2) {
       if (isNaN(userId)) {
         return res.status(400).json({ success: false, error: "Invalid user ID." });
       }
-      const records = await db.select().from(geoTracking).where(eq65(geoTracking.userId, userId)).orderBy(desc34(geoTracking.recordedAt));
+      const records = await db.select().from(geoTracking).where(eq68(geoTracking.userId, userId)).orderBy(desc36(geoTracking.recordedAt));
       res.json({ success: true, data: records });
     } catch (error) {
       console.error("Get Geo-tracking by User ID error:", error);
@@ -10890,7 +11350,7 @@ function setupGeoTrackingRoutes(app2) {
   app2.get("/api/geotracking/journey/:journeyId", async (req, res) => {
     try {
       const { journeyId } = req.params;
-      const records = await db.select().from(geoTracking).where(eq65(geoTracking.journeyId, journeyId)).orderBy(desc34(geoTracking.recordedAt));
+      const records = await db.select().from(geoTracking).where(eq68(geoTracking.journeyId, journeyId)).orderBy(desc36(geoTracking.recordedAt));
       res.json({ success: true, data: records });
     } catch (error) {
       console.error("Get Geo-tracking by Journey ID error:", error);
@@ -10903,7 +11363,7 @@ function setupGeoTrackingRoutes(app2) {
       if (isNaN(userId)) {
         return res.status(400).json({ success: false, error: "Invalid user ID." });
       }
-      const [latest] = await db.select().from(geoTracking).where(eq65(geoTracking.userId, userId)).orderBy(desc34(geoTracking.recordedAt)).limit(1);
+      const [latest] = await db.select().from(geoTracking).where(eq68(geoTracking.userId, userId)).orderBy(desc36(geoTracking.recordedAt)).limit(1);
       if (!latest) {
         return res.json({ success: true, data: null });
       }
@@ -10948,7 +11408,7 @@ function setupGeoTrackingRoutes(app2) {
       const data = parsed2.data;
       const now = /* @__PURE__ */ new Date();
       const payload = {
-        id: crypto3.randomUUID(),
+        id: crypto4.randomUUID(),
         userId: data.userId ?? data.user_id,
         latitude: typeof data.latitude === "string" ? Number(data.latitude) : data.latitude ?? (data.lat ? Number(data.lat) : void 0),
         longitude: typeof data.longitude === "string" ? Number(data.longitude) : data.longitude ?? (data.lng ? Number(data.lng) : void 0),
@@ -10984,14 +11444,14 @@ function setupGeoTrackingRoutes(app2) {
       if (Object.keys(validatedData).length === 0) {
         return res.status(400).json({ success: false, error: "No fields to update were provided." });
       }
-      const [existingRecord] = await db.select().from(geoTracking).where(eq65(geoTracking.id, id)).limit(1);
+      const [existingRecord] = await db.select().from(geoTracking).where(eq68(geoTracking.id, id)).limit(1);
       if (!existingRecord) {
         return res.status(404).json({ success: false, error: `Tracking record with ID '${id}' not found.` });
       }
-      const [updatedRecord] = await db.update(geoTracking).set({ ...validatedData, updatedAt: /* @__PURE__ */ new Date() }).where(eq65(geoTracking.id, id)).returning();
+      const [updatedRecord] = await db.update(geoTracking).set({ ...validatedData, updatedAt: /* @__PURE__ */ new Date() }).where(eq68(geoTracking.id, id)).returning();
       res.json({ success: true, message: "Tracking record updated successfully", data: updatedRecord });
     } catch (error) {
-      if (error instanceof z44.ZodError) {
+      if (error instanceof z46.ZodError) {
         return res.status(400).json({ success: false, error: "Validation failed", details: error.issues });
       }
       console.error("Update Geo-tracking error:", error);
@@ -11250,6 +11710,8 @@ setupRewardsGetRoutes(app);
 setupRewardsRedemptionGetRoutes(app);
 setupKycSubmissionsRoutes(app);
 setupTechnicalSitesRoutes(app);
+setupSchemeSlabsGetRoutes(app);
+setupMasonSlabAchievementsGetRoutes(app);
 setupTechnicalVisitReportsPostRoutes(app);
 setupPermanentJourneyPlansPostRoutes(app);
 setupDealersPostRoutes(app);
@@ -11274,6 +11736,8 @@ setupKycSubmissionsPostRoute(app);
 setupRewardsPostRoute(app);
 setupPointsLedgerGetRoutes(app);
 setupTechnicalSitesPostRoutes(app);
+setupSchemeSlabsPostRoute(app);
+setupMasonSlabAchievementsPostRoute(app);
 setupDealersDeleteRoutes(app);
 setupPermanentJourneyPlansDeleteRoutes(app);
 setupTechnicalVisitReportsDeleteRoutes(app);

@@ -71,9 +71,9 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
           phoneNumber: validated.phoneNumber,
           kycDocumentName: validated.kycDocumentName ?? null,
           kycDocumentIdNum: validated.kycDocumentIdNum ?? null,
-          kycStatus: validated.kycStatus ?? 'pending', // Default to pending if not provided
+          kycStatus: validated.kycStatus ?? 'pending', 
           bagsLifted: validated.bagsLifted ?? 0,
-          pointsBalance: joiningPoints, // <<<--- SET INITIAL BALANCE
+          pointsBalance: joiningPoints, 
           isReferred: validated.isReferred ?? null,
           referredByUser: validated.referredByUser ?? null,
           referredToUser: validated.referredToUser ?? null,
@@ -147,7 +147,7 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
 
       const msg = String(err?.message ?? '').toLowerCase();
       
-      // Handle Foreign Key Violation - SQLSTATE 23503
+      // Handle Foreign Key Violation
       if (err?.code === '23503' || msg.includes('foreign key constraint')) {
         let field = 'related record';
         if (msg.includes('mason_pc_side_dealer_id_fkey')) {

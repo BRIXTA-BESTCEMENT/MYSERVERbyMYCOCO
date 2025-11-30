@@ -67,13 +67,11 @@ export const users = pgTable("users", {
 
   // --- ADDED FOR PRISMA PARITY ---
   noOfPJP: integer("no_of_pjp"),
-  siteId: uuid("site_id").references((): any => technicalSites.id, { onDelete: "set null" }),
   
 }, (t) => [
   uniqueIndex("users_companyid_email_unique").on(t.companyId, t.email),
   index("idx_user_company_id").on(t.companyId),
   index("idx_workos_user_id").on(t.workosUserId),
-  index("idx_user_site_id").on(t.siteId),
 ]);
 
 /* ========================= tso_meetings (Moved up) ========================= */
@@ -343,14 +341,11 @@ export const dealers = pgTable("dealers", {
   blankChequePicUrl: varchar("blank_cheque_pic_url", { length: 500 }),
   partnershipDeedPicUrl: varchar("partnership_deed_pic_url", { length: 500 }),
 
-  siteId: uuid("site_id").references(():any => technicalSites.id, { onDelete: "set null" }),
-
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
   index("idx_dealers_user_id").on(t.userId),
   index("idx_dealers_parent_dealer_id").on(t.parentDealerId),
-  index("idx_dealers_site_id").on(t.siteId),
 ]);
 
 /* ========================= salesman_attendance ========================= */
@@ -659,12 +654,10 @@ export const masonPcSide = pgTable("mason_pc_side", {
   referredByUser: text("referred_by_user"),
   referredToUser: text("referred_to_user"),
   dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null", onUpdate: "cascade" }),
-  siteId: uuid("site_id").references(():any => technicalSites.id, { onDelete: "set null" }),
   userId: integer("user_id").references(() => users.id, { onDelete: "set null", onUpdate: "cascade" }), // TSO/Salesperson ID
 }, (t) => [
   index("idx_mason_pc_side_dealer_id").on(t.dealerId),
   index("idx_mason_pc_side_user_id").on(t.userId),
-  index("idx_mason_pc_side_site_id").on(t.siteId),
 ]);
 
 /* ========================= otp_verifications ========================= */
@@ -841,17 +834,9 @@ export const technicalSites = pgTable("technical_sites", {
   needFollowUp: boolean("need_follow_up").default(false),
   imageUrl: text("image_url"),
 
-  // PRIMARY RELATIONS (Foreign Keys)
-  relatedDealerID: varchar("related_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-
-  relatedMasonpcID: uuid("related_mason_pc_id").references(() => masonPcSide.id, { onDelete: "set null" }),
-
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
-}, (t) => [
-  index("idx_technical_sites_dealer_id").on(t.relatedDealerID),
-  index("idx_technical_sites_mason_id").on(t.relatedMasonpcID),
-]);
+});
 
 export const schemeSlabs = pgTable("scheme_slabs", {
   id: uuid("id").primaryKey().defaultRandom(),
