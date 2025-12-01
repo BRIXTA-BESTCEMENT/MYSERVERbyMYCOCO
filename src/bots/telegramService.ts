@@ -58,9 +58,9 @@ export class TelegramService {
     });
 
     // 👈 2. Pass the async version of the handler
-    this.bot.on('message', (msg) => this.handleTelegramMessage(msg));
-    this.bot.on('polling_error', (err) => console.error('Telegram polling error', err?.message || err));
-    this.bot.on('error', (err) => console.error('Telegram bot error', err?.message || err));
+    //this.bot.on('message', (msg) => this.handleTelegramMessage(msg));
+    //this.bot.on('polling_error', (err) => console.error('Telegram polling error', err?.message || err));
+    //this.bot.on('error', (err) => console.error('Telegram bot error', err?.message || err));
 
     try {
       const me = await this.bot.getMe();

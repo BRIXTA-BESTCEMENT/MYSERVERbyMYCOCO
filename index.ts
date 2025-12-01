@@ -113,7 +113,7 @@ import setupGeoTrackingRoutes from './src/routes/geoTrackingRoutes/geoTracking';
 
 // --- TelegramBot + AI Bot setups ---
 import setupAiService from './src/bots/aiService';
-import setupTelegramService from './src/bots/telegramService';
+//import setupTelegramService from './src/bots/telegramService';
 
 // Initialize environment variables
 
@@ -279,7 +279,7 @@ console.log('✅ All routes registered successfully.');
 
 //------------ TelegramBot + AI setup ----------------
 setupAiService(app);
-setupTelegramService(app);
+//setupTelegramService(app);
 
 
 // Handle 404 - Not Found for any routes not matched above
