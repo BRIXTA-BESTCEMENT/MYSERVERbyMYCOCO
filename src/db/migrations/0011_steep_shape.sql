@@ -1,0 +1,2 @@
+ALTER TABLE "salesman_attendance" ADD COLUMN "role" varchar(50) DEFAULT 'SALES' NOT NULL;--> statement-breakpoint
+ALTER TABLE "salesman_attendance" ADD CONSTRAINT "unique_attendance_per_role_per_day" UNIQUE("user_id","attendance_date","role");

@@ -20,6 +20,7 @@ const attendanceInSchema = z.object({
   inTimeSpeed: z.number().optional().nullable(),
   inTimeHeading: z.number().optional().nullable(),
   inTimeAltitude: z.number().optional().nullable(),
+  role: z.enum(['SALES', 'TECHNICAL']).default('SALES'),
 });
 
 export default function setupAttendanceInPostRoutes(app: Express) {
@@ -41,10 +42,12 @@ export default function setupAttendanceInPostRoutes(app: Express) {
         inTimeSpeed,
         inTimeHeading,
         inTimeAltitude,
+        role,
       } = parsed;
 
       // Ensure attendanceDate is Date
       const dateObj = new Date(attendanceDate);
+      const dateStr = dateObj.toISOString().split('T')[0];
 
       // Check if user already checked in today
       const [existingAttendance] = await db
@@ -53,7 +56,8 @@ export default function setupAttendanceInPostRoutes(app: Express) {
         .where(
           and(
             eq(salesmanAttendance.userId, userId),
-            eq(salesmanAttendance.attendanceDate, dateObj)
+            eq(salesmanAttendance.attendanceDate, dateStr),
+            eq(salesmanAttendance.role, role)
           )
         )
         .limit(1);
@@ -67,7 +71,8 @@ export default function setupAttendanceInPostRoutes(app: Express) {
 
       const attendanceData = {
         userId,
-        attendanceDate: dateObj,
+        attendanceDate: dateStr, // Pass string for date column
+        role,
         locationName,
         inTimeTimestamp: new Date(),
         outTimeTimestamp: null,
@@ -75,12 +80,12 @@ export default function setupAttendanceInPostRoutes(app: Express) {
         outTimeImageCaptured: false,
         inTimeImageUrl: inTimeImageUrl || null,
         outTimeImageUrl: null,
-        inTimeLatitude,
-        inTimeLongitude,
-        inTimeAccuracy: inTimeAccuracy || null,
-        inTimeSpeed: inTimeSpeed || null,
-        inTimeHeading: inTimeHeading || null,
-        inTimeAltitude: inTimeAltitude || null,
+        inTimeLatitude: inTimeLatitude.toString(),
+        inTimeLongitude: inTimeLongitude.toString(),
+        inTimeAccuracy: inTimeAccuracy?.toString() ?? null,
+        inTimeSpeed: inTimeSpeed?.toString() ?? null,
+        inTimeHeading: inTimeHeading?.toString() ?? null,
+        inTimeAltitude: inTimeAltitude?.toString() ?? null,
         outTimeLatitude: null,
         outTimeLongitude: null,
         outTimeAccuracy: null,

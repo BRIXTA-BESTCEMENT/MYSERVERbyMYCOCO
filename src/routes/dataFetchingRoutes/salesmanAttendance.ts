@@ -4,7 +4,8 @@
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { salesmanAttendance, insertSalesmanAttendanceSchema } from '../../db/schema';
-import { eq, and, desc, gte, lte } from 'drizzle-orm';
+// --- ✅ Added SQL import for type safety ---
+import { eq, and, desc, gte, lte, SQL } from 'drizzle-orm'; 
 import { z } from 'zod';
 
 function createAutoCRUD(app: Express, config: {
@@ -39,7 +40,7 @@ function createAutoCRUD(app: Express, config: {
           : eq(table.userId, parseInt(userId as string));
       }
 
-      // Additional filters
+      // Additional filters (Handles 'role' automatically if passed in query)
       Object.entries(filters).forEach(([key, value]) => {
         if (value && table[key]) {
           if (key === 'userId') {
@@ -80,7 +81,8 @@ function createAutoCRUD(app: Express, config: {
   app.get(`/api/${endpoint}/user/:userId`, async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
-      const { startDate, endDate, limit = '50' } = req.query;
+      // --- ✅ Extract role from query ---
+      const { startDate, endDate, limit = '50', role } = req.query;
 
       let whereCondition:any = eq(table.userId, parseInt(userId));
 
@@ -91,6 +93,11 @@ function createAutoCRUD(app: Express, config: {
           gte(table[dateField], startDate as string),
           lte(table[dateField], endDate as string)
         );
+      }
+
+      // --- ✅ Filter by Role if provided ---
+      if (role) {
+        whereCondition = and(whereCondition, eq(table.role, String(role)));
       }
 
       const orderField = table[dateField as any] || table.createdAt;
@@ -138,15 +145,23 @@ function createAutoCRUD(app: Express, config: {
   app.get(`/api/${endpoint}/user/:userId/today`, async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
+      const { role } = req.query; // ✅ Get role from query params
       const today = new Date().toISOString().split('T')[0];
 
+      // --- ✅ 1. Define conditions array ---
+      const conditions: SQL[] = [
+        eq(table.userId, parseInt(userId)),
+        eq(table.attendanceDate, today)
+      ];
+
+      // --- ✅ 2. Add role condition if provided ---
+      if (role) {
+        conditions.push(eq(table.role, String(role)));
+      }
+
+      // --- ✅ 3. Execute query with all conditions applied ---
       const [record] = await db.select().from(table)
-        .where(
-          and(
-            eq(table.userId, parseInt(userId)),
-            eq(table.attendanceDate, today)
-          )
-        )
+        .where(and(...conditions))
         .limit(1);
 
       if (!record) {

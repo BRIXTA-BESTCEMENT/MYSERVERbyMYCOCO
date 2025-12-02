@@ -1,7 +1,7 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey,
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -124,18 +124,16 @@ export const permanentJourneyPlans = pgTable("permanent_journey_plans", {
   index("idx_pjp_site_id").on(t.siteId),
 ]);
 
-/* ========================= daily_visit_reports (FIXED w/ Sub Dealers) ========================= */
+/* ========================= daily_visit_reports ========================= */
 export const dailyVisitReports = pgTable("daily_visit_reports", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
 
-  // The main dealer this visit is associated with.
   dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-  // The specific sub-dealer that was visited (if any).
   subDealerId: varchar("sub_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
   
   reportDate: date("report_date").notNull(),
-  dealerType: varchar("dealer_type", { length: 50 }).notNull(), // "Dealer" | "Sub Dealer"
+  dealerType: varchar("dealer_type", { length: 50 }).notNull(), 
 
   location: varchar("location", { length: 500 }).notNull(),
   latitude: numeric("latitude", { precision: 10, scale: 7 }).notNull(),
@@ -152,13 +150,10 @@ export const dailyVisitReports = pgTable("daily_visit_reports", {
   feedbacks: varchar("feedbacks", { length: 500 }).notNull(),
   solutionBySalesperson: varchar("solution_by_salesperson", { length: 500 }),
   anyRemarks: varchar("any_remarks", { length: 500 }),
+
   checkInTime: timestamp("check_in_time", { withTimezone: true, precision: 6 }).notNull(),
   checkOutTime: timestamp("check_out_time", { withTimezone: true, precision: 6 }),
-
-  // --- ADDED FROM PRISMA SYNC ---
   timeSpentinLoc: varchar("time_spent_in_loc", { length: 255 }),
-  // --- END ADDED FIELD ---
-
   inTimeImageUrl: varchar("in_time_image_url", { length: 500 }),
   outTimeImageUrl: varchar("out_time_image_url", { length: 500 }),
   pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
@@ -352,6 +347,7 @@ export const dealers = pgTable("dealers", {
 export const salesmanAttendance = pgTable("salesman_attendance", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  role: varchar("role", { length: 50 }).default('SALES').notNull(),
   attendanceDate: date("attendance_date").notNull(),
   locationName: varchar("location_name", { length: 500 }).notNull(),
   inTimeTimestamp: timestamp("in_time_timestamp", { withTimezone: true, precision: 6 }).notNull(),
@@ -376,6 +372,7 @@ export const salesmanAttendance = pgTable("salesman_attendance", {
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
   index("idx_salesman_attendance_user_id").on(t.userId),
+  unique("unique_attendance_per_role_per_day").on(t.userId, t.attendanceDate, t.role),
 ]);
 
 /* ========================= salesman_leave_applications ========================= */

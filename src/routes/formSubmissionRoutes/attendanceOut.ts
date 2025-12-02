@@ -19,6 +19,7 @@ const attendanceOutSchema = z.object({
   outTimeSpeed: z.number().optional().nullable(),
   outTimeHeading: z.number().optional().nullable(),
   outTimeAltitude: z.number().optional().nullable(),
+  role: z.enum(['SALES', 'TECHNICAL']).default('SALES'),
 });
 
 export default function setupAttendanceOutPostRoutes(app: Express) {
@@ -39,9 +40,11 @@ export default function setupAttendanceOutPostRoutes(app: Express) {
         outTimeSpeed,
         outTimeHeading,
         outTimeAltitude,
+        role,
       } = parsed;
 
       const dateObj = new Date(attendanceDate);
+      const dateStr = dateObj.toISOString().split('T')[0];
 
       // Find existing attendance record for today
       const [existingAttendance] = await db
@@ -50,7 +53,8 @@ export default function setupAttendanceOutPostRoutes(app: Express) {
         .where(
           and(
             eq(salesmanAttendance.userId, userId),
-            eq(salesmanAttendance.attendanceDate, dateObj),
+            eq(salesmanAttendance.attendanceDate, dateStr),
+            eq(salesmanAttendance.role, role),
             isNull(salesmanAttendance.outTimeTimestamp)
           )
         )
@@ -67,12 +71,12 @@ export default function setupAttendanceOutPostRoutes(app: Express) {
         outTimeTimestamp: new Date(),
         outTimeImageCaptured: outTimeImageCaptured ?? false,
         outTimeImageUrl: outTimeImageUrl || null,
-        outTimeLatitude: outTimeLatitude || null,
-        outTimeLongitude: outTimeLongitude || null,
-        outTimeAccuracy: outTimeAccuracy || null,
-        outTimeSpeed: outTimeSpeed || null,
-        outTimeHeading: outTimeHeading || null,
-        outTimeAltitude: outTimeAltitude || null,
+        outTimeLatitude: outTimeLatitude?.toString() ?? null,
+        outTimeLongitude: outTimeLongitude?.toString() ?? null,
+        outTimeAccuracy: outTimeAccuracy?.toString() ?? null,
+        outTimeSpeed: outTimeSpeed?.toString() ?? null,
+        outTimeHeading: outTimeHeading?.toString() ?? null,
+        outTimeAltitude: outTimeAltitude?.toString() ?? null,
         updatedAt: new Date(),
       };
 
