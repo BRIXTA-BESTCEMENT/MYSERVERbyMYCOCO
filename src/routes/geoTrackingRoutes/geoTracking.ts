@@ -84,11 +84,11 @@ export default function setupGeoTrackingRoutes(app: Express) {
   });
 
   // -------------------------
-  // POST Endpoint (FIXED)
+  // POST Endpoint
   // -------------------------
 
   app.post('/api/geotracking', async (req: Request, res: Response) => {
-    console.log("🔥 RAW BODY RECEIVED:", JSON.stringify(req.body, null, 2));
+    //console.log("🔥 RAW BODY RECEIVED:", JSON.stringify(req.body, null, 2));
     try {
       // 0) Defensive deep clone
       const incomingRaw = JSON.parse(JSON.stringify(req.body || {})) as Record<string, any>;
@@ -154,8 +154,8 @@ export default function setupGeoTrackingRoutes(app: Express) {
 
         // Site / Destination
         siteName: data.siteName ?? data.site_name,
-        // ✅ CRITICAL FIX: Read from incomingRaw directly to bypass Zod stripping
         siteId: incomingRaw.siteId ?? incomingRaw.site_id ?? data.siteId ?? data.site_id,
+        dealerId: incomingRaw.dealerId ?? incomingRaw.dealer_id ?? data.dealerId ?? data.dealer_id,
 
         destLat: data.destLat ?? data.dest_lat,
         destLng: data.destLng ?? data.dest_lng,
@@ -198,12 +198,8 @@ export default function setupGeoTrackingRoutes(app: Express) {
   // -------------------------
   // PATCH Endpoint
 
-  // -------------------------
-  // PATCH Endpoint (Fixes Numbers AND Dates)
-  // -------------------------
-
   app.patch('/api/geotracking/:id', async (req: Request, res: Response) => {
-    console.log("RAW PATCH BODY RECEIVED:", JSON.stringify(req.body, null, 2));
+    //console.log("RAW PATCH BODY RECEIVED:", JSON.stringify(req.body, null, 2));
 
     try {
       const { id } = req.params;
@@ -225,12 +221,10 @@ export default function setupGeoTrackingRoutes(app: Express) {
         }
       }
 
-      // 2) ✅ CRITICAL FIX: Coerce Date fields from String -> Date Object
       const DATE_KEYS = ['recordedAt', 'checkInTime', 'checkOutTime'];
 
       for (const key of DATE_KEYS) {
         if (incomingRaw[key] && typeof incomingRaw[key] === 'string') {
-          // If it's a valid ISO string, convert to Date object for Zod/Drizzle
           const d = new Date(incomingRaw[key]);
           if (!isNaN(d.getTime())) {
             incomingRaw[key] = d;
@@ -257,12 +251,12 @@ export default function setupGeoTrackingRoutes(app: Express) {
         .where(eq(geoTracking.id, id))
         .returning();
 
-      console.log("✅ PATCH SUCCESS:", updatedRecord); // Debug log
+      console.log("PATCH SUCCESS:", updatedRecord);
 
       res.json({ success: true, message: 'Tracking record updated successfully', data: updatedRecord });
     } catch (error) {
       if (error instanceof z.ZodError) {
-        console.error("❌ Validation Error:", JSON.stringify(error.issues, null, 2));
+        console.error("Validation Error:", JSON.stringify(error.issues, null, 2));
         return res.status(400).json({ success: false, error: 'Validation failed', details: error.issues });
       }
       console.error('Update Geo-tracking error:', error);

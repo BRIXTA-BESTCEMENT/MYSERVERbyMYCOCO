@@ -436,6 +436,7 @@ export const geoTracking = pgTable("geo_tracking", {
   destLat: numeric("dest_lat", { precision: 10, scale: 7 }),
   destLng: numeric("dest_lng", { precision: 10, scale: 7 }),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
+  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -445,6 +446,7 @@ export const geoTracking = pgTable("geo_tracking", {
   index("idx_geo_tracking_user_id").on(t.userId),
   index("idx_geo_tracking_recorded_at").on(t.recordedAt),
   index("idx_geo_tracking_site_id").on(t.siteId),
+  index("idx_geo_tracking_dealer_id").on(t.dealerId),
 ]);
 
 /* ========================= daily_tasks ========================= */
