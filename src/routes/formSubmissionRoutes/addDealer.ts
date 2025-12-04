@@ -190,7 +190,7 @@ function createAutoCRUD(
       }
 
       // 2) Map to DB insert object
-      // --- ✅ FIXED: Convert numbers/Dates to strings for Drizzle ---
+      // --- Convert numbers/Dates to strings for Drizzle ---
       const finalData: Omit<DealerInsert, 'id' | 'createdAt' | 'updatedAt'> = {
         userId: input.userId ?? null,
         type: input.type,
@@ -220,17 +220,13 @@ function createAutoCRUD(
         dealerDevelopmentObstacle: input.dealerDevelopmentObstacle ?? null,
         salesGrowthPercentage: input.salesGrowthPercentage ? String(input.salesGrowthPercentage) : null,
         noOfPJP: input.noOfPJP ?? null,
-        // -----------------------------
 
         verificationStatus: input.verificationStatus ?? 'PENDING',
         whatsappNo: input.whatsappNo ?? null,
         emailId: input.emailId ?? null,
         businessType: input.businessType ?? null,
-
-        // --- ✅ NEW FIELDS ADDED ---
         nameOfFirm: input.nameOfFirm ?? null,
         underSalesPromoterName: input.underSalesPromoterName ?? null,
-        // --- END NEW FIELDS ---
 
         gstinNo: input.gstinNo ?? null,
         panNo: input.panNo ?? null,
