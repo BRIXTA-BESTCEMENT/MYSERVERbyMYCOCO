@@ -108,7 +108,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
                   id: crypto.randomUUID(), 
                   masonId: masonId,
                   sourceType: 'adjustment', // or 'refund'
-                  sourceId: id, // Link back to the order
+                  sourceId: crypto.randomUUID(),
                   points: points, // Positive value adds back to balance
                   memo: `Refund: Order ${id} rejected by TSO. Reason: ${fulfillmentNotes || 'N/A'}`,
               });
@@ -138,7 +138,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
                   id: crypto.randomUUID(),
                   masonId: masonId,
                   sourceType: 'adjustment',
-                  sourceId: id,
+                  sourceId: crypto.randomUUID(),
                   points: points, 
                   memo: `Refund: Approved Order ${id} cancelled.`,
               });

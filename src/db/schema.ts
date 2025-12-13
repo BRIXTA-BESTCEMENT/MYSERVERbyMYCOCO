@@ -1,7 +1,7 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey, unique
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -67,7 +67,7 @@ export const users = pgTable("users", {
 
   // --- ADDED FOR PRISMA PARITY ---
   noOfPJP: integer("no_of_pjp"),
-  
+
 }, (t) => [
   uniqueIndex("users_companyid_email_unique").on(t.companyId, t.email),
   index("idx_user_company_id").on(t.companyId),
@@ -131,14 +131,14 @@ export const dailyVisitReports = pgTable("daily_visit_reports", {
 
   dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
   subDealerId: varchar("sub_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-  
+
   reportDate: date("report_date").notNull(),
-  dealerType: varchar("dealer_type", { length: 50 }).notNull(), 
+  dealerType: varchar("dealer_type", { length: 50 }).notNull(),
 
   location: varchar("location", { length: 500 }).notNull(),
   latitude: numeric("latitude", { precision: 10, scale: 7 }).notNull(),
   longitude: numeric("longitude", { precision: 10, scale: 7 }).notNull(),
-  visitType: varchar("visit_type", { length: 50 }).notNull(), 
+  visitType: varchar("visit_type", { length: 50 }).notNull(),
   dealerTotalPotential: numeric("dealer_total_potential", { precision: 10, scale: 2 }).notNull(),
   dealerBestPotential: numeric("dealer_best_potential", { precision: 10, scale: 2 }).notNull(),
   brandSelling: text("brand_selling").array().notNull(),
@@ -157,7 +157,7 @@ export const dailyVisitReports = pgTable("daily_visit_reports", {
   inTimeImageUrl: varchar("in_time_image_url", { length: 500 }),
   outTimeImageUrl: varchar("out_time_image_url", { length: 500 }),
   pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -174,49 +174,49 @@ export const technicalVisitReports = pgTable("technical_visit_reports", {
   reportDate: date("report_date").notNull(),
   region: varchar("region", { length: 100 }),
   area: varchar("area", { length: 100 }),
-  marketName: varchar("market_name", { length: 100 }), 
-  siteAddress: varchar("site_address", { length: 500 }), 
+  marketName: varchar("market_name", { length: 100 }),
+  siteAddress: varchar("site_address", { length: 500 }),
   siteNameConcernedPerson: varchar("site_name_concerned_person", { length: 255 }).notNull(),
   phoneNo: varchar("phone_no", { length: 20 }).notNull(),
-  whatsappNo: varchar("whatsapp_no", { length: 20 }), 
+  whatsappNo: varchar("whatsapp_no", { length: 20 }),
   emailId: varchar("email_id", { length: 255 }),
   latitude: numeric("latitude", { precision: 9, scale: 6 }),
   longitude: numeric("longitude", { precision: 9, scale: 6 }),
   visitType: varchar("visit_type", { length: 50 }).notNull(),
-  visitCategory: varchar("visit_category", { length: 50 }), 
+  visitCategory: varchar("visit_category", { length: 50 }),
   customerType: varchar("customer_type", { length: 50 }),
   purposeOfVisit: varchar("purpose_of_visit", { length: 500 }),
   siteVisitStage: text("site_visit_stage"),
-  constAreaSqFt: integer("const_area_sq_ft"), 
+  constAreaSqFt: integer("const_area_sq_ft"),
   siteVisitBrandInUse: text("site_visit_brand_in_use").array().notNull(),
-  currentBrandPrice: numeric("current_brand_price", { precision: 10, scale: 2 }), 
-  siteStock: numeric("site_stock", { precision: 10, scale: 2 }), 
-  estRequirement: numeric("est_requirement", { precision: 10, scale: 2 }), 
-  supplyingDealerName: varchar("supplying_dealer_name", { length: 255 }), 
-  nearbyDealerName: varchar("nearby_dealer_name", { length: 255 }), 
-  associatedPartyName: text("associated_party_name"), 
-  channelPartnerVisit: text("channel_partner_visit"), 
-  isConverted: boolean("is_converted"), 
-  conversionType: varchar("conversion_type", { length: 50 }), 
+  currentBrandPrice: numeric("current_brand_price", { precision: 10, scale: 2 }),
+  siteStock: numeric("site_stock", { precision: 10, scale: 2 }),
+  estRequirement: numeric("est_requirement", { precision: 10, scale: 2 }),
+  supplyingDealerName: varchar("supplying_dealer_name", { length: 255 }),
+  nearbyDealerName: varchar("nearby_dealer_name", { length: 255 }),
+  associatedPartyName: text("associated_party_name"),
+  channelPartnerVisit: text("channel_partner_visit"),
+  isConverted: boolean("is_converted"),
+  conversionType: varchar("conversion_type", { length: 50 }),
   conversionFromBrand: text("conversion_from_brand"),
   conversionQuantityValue: numeric("conversion_quantity_value", { precision: 10, scale: 2 }),
   conversionQuantityUnit: varchar("conversion_quantity_unit", { length: 20 }),
-  isTechService: boolean("is_tech_service"), 
-  serviceDesc: varchar("service_desc", { length: 500 }), 
+  isTechService: boolean("is_tech_service"),
+  serviceDesc: varchar("service_desc", { length: 500 }),
   serviceType: text("service_type"),
   dhalaiVerificationCode: varchar("dhalai_verification_code", { length: 50 }),
   isVerificationStatus: varchar("is_verification_status", { length: 50 }),
   qualityComplaint: text("quality_complaint"),
-  influencerName: varchar("influencer_name", { length: 255 }), 
-  influencerPhone: varchar("influencer_phone", { length: 20 }), 
-  isSchemeEnrolled: boolean("is_scheme_enrolled"), 
-  influencerProductivity: varchar("influencer_productivity", { length: 100 }), 
+  influencerName: varchar("influencer_name", { length: 255 }),
+  influencerPhone: varchar("influencer_phone", { length: 20 }),
+  isSchemeEnrolled: boolean("is_scheme_enrolled"),
+  influencerProductivity: varchar("influencer_productivity", { length: 100 }),
   influencerType: text("influencer_type").array().notNull(),
   clientsRemarks: varchar("clients_remarks", { length: 500 }).notNull(),
   salespersonRemarks: varchar("salesperson_remarks", { length: 500 }).notNull(),
   promotionalActivity: text("promotional_activity"),
-  siteVisitType: varchar("site_visit_type", { length: 50 }), 
-  
+  siteVisitType: varchar("site_visit_type", { length: 50 }),
+
   checkInTime: timestamp("check_in_time", { withTimezone: true, precision: 6 }).notNull(),
   checkOutTime: timestamp("check_out_time", { withTimezone: true, precision: 6 }),
   timeSpentinLoc: varchar("time_spent_in_loc", { length: 255 }),
@@ -233,9 +233,9 @@ export const technicalVisitReports = pgTable("technical_visit_reports", {
 
   meetingId: varchar("meeting_id", { length: 255 }).references(() => tsoMeetings.id),
   pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
-  masonId: uuid("mason_id").references((): any => masonPcSide.id, { onDelete: "set null" }), 
+  masonId: uuid("mason_id").references((): any => masonPcSide.id, { onDelete: "set null" }),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -280,10 +280,10 @@ export const dealers = pgTable("dealers", {
   whatsappNo: varchar("whatsapp_no", { length: 20 }),
   emailId: varchar("email_id", { length: 255 }),
   businessType: varchar("business_type", { length: 100 }),
-  
+
   // --- NEW FIELDS ADDED ---
-  nameOfFirm: varchar("nameOfFirm", {length: 500}),
-  underSalesPromoterName: varchar("underSalesPromoterName", {length: 200}),
+  nameOfFirm: varchar("nameOfFirm", { length: 500 }),
+  underSalesPromoterName: varchar("underSalesPromoterName", { length: 200 }),
   // --- END NEW FIELDS ---
 
   gstinNo: varchar("gstin_no", { length: 20 }).unique(),
@@ -546,7 +546,7 @@ export const giftAllocationLogs = pgTable("gift_allocation_logs", {
   quantity: integer("quantity").notNull(),
   sourceUserId: integer("source_user_id").references(() => users.id, { onDelete: "set null" }),
   destinationUserId: integer("destination_user_id").references(() => users.id, { onDelete: "set null" }),
-  
+
   // --- MODIFIED FOR PRISMA SYNC ---
   technicalVisitReportId: varchar("technical_visit_report_id", { length: 255 }).references(() => technicalVisitReports.id, { onDelete: "set null" }),
   dealerVisitReportId: varchar("dealer_visit_report_id", { length: 255 }).references(() => dailyVisitReports.id, { onDelete: "set null" }),
@@ -610,7 +610,7 @@ export const salesOrders = pgTable("sales_orders", {
   // Product classification
   itemType: varchar("item_type", { length: 20 }), // "PPC" | "OPC"
   itemGrade: varchar("item_grade", { length: 10 }), // "33" | "43" | "53"
-  
+
   // Added status field for the Admin approval workflow
   status: varchar("status", { length: 50 }).notNull().default("Pending"), // e.g., "Pending", "Approved", "Rejected"
 
@@ -626,12 +626,12 @@ export const salesOrders = pgTable("sales_orders", {
 
 // Tally Data Table
 export const tallyRaw = pgTable("tally_raw", {
- id: uuid("id").defaultRandom().primaryKey(),
- collectionName: text("collection_name").notNull(),
- rawData: jsonb("raw_data").notNull(),
- syncedAt: timestamp("synced_at", { withTimezone: true })
-  .defaultNow()
- .notNull(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  collectionName: text("collection_name").notNull(),
+  rawData: jsonb("raw_data").notNull(),
+  syncedAt: timestamp("synced_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 /* ========================= mason_pc_side (Modified for KYC and Points Balance) ========================= */
@@ -641,13 +641,13 @@ export const masonPcSide = pgTable("mason_pc_side", {
   phoneNumber: text("phone_number").notNull(),
   kycDocumentName: varchar("kyc_doc_name", { length: 100 }),
   kycDocumentIdNum: varchar("kyc_doc_id_num", { length: 150 }),
-  
+
   // Renamed verificationStatus to kycStatus for consistency with loyalty app
   kycStatus: varchar("kyc_status", { length: 50 }).default("none"), // "none" | "pending" | "approved" | "rejected"
   // Renamed pointsGained to pointsBalance for consistency with loyalty app
-  pointsBalance: integer("points_balance").notNull().default(0), 
+  pointsBalance: integer("points_balance").notNull().default(0),
   firebaseUid: varchar("firebase_uid", { length: 128 }).unique(),
-  
+
   bagsLifted: integer("bags_lifted"), // Keep for historical tracking of volume
   isReferred: boolean("is_referred"),
   referredByUser: text("referred_by_user"),
@@ -713,7 +713,7 @@ export const rewardCategories = pgTable("reward_categories", {
 export const kycSubmissions = pgTable("kyc_submissions", {
   id: uuid("id").primaryKey().defaultRandom(),
   // References masonPcSide ID (UUID)
-  masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }), 
+  masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }),
   aadhaarNumber: varchar("aadhaar_number", { length: 20 }),
   panNumber: varchar("pan_number", { length: 20 }),
   voterIdNumber: varchar("voter_id_number", { length: 20 }),
@@ -740,11 +740,11 @@ export const tsoAssignments = pgTable("tso_assignments", {
 /* ========================= bag_lifts (MODIFIED to match Prisma) ========================= */
 export const bagLifts = pgTable("bag_lifts", {
   id: uuid("id").primaryKey().defaultRandom(),
-  masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }), 
+  masonId: uuid("mason_id").notNull().references(() => masonPcSide.id, { onDelete: "cascade" }),
   dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
   purchaseDate: timestamp("purchase_date", { withTimezone: true, precision: 6 }).notNull(),
   bagCount: integer("bag_count").notNull(),
-  pointsCredited: integer("points_credited").notNull(), 
+  pointsCredited: integer("points_credited").notNull(),
   status: varchar("status", { length: 20 }).notNull().default("pending"),
   imageUrl: text("image_url"),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
@@ -753,7 +753,7 @@ export const bagLifts = pgTable("bag_lifts", {
   verificationSiteImageUrl: text("verification_site_image_url"),
   verificationProofImageUrl: text("verification_proof_image_url"),
 
-  approvedBy: integer("approved_by").references(() => users.id, { onDelete: "set null" }), 
+  approvedBy: integer("approved_by").references(() => users.id, { onDelete: "set null" }),
   approvedAt: timestamp("approved_at", { withTimezone: true, precision: 6 }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -840,11 +840,11 @@ export const technicalSites = pgTable("technical_sites", {
 export const schemeSlabs = pgTable("scheme_slabs", {
   id: uuid("id").primaryKey().defaultRandom(),
 
-  minBagsBest: integer("min_bags_best"),      
-  minBagsOthers: integer("min_bags_others"),  
+  minBagsBest: integer("min_bags_best"),
+  minBagsOthers: integer("min_bags_others"),
   pointsEarned: integer("points_earned").notNull(),
-  slabDescription: varchar("slab_description", { length: 255 }), 
-  
+  slabDescription: varchar("slab_description", { length: 255 }),
+
   rewardId: integer("reward_id").references(() => rewards.id, { onDelete: "set null" }),
   schemeId: uuid("scheme_id").notNull().references(() => schemesOffers.id, { onDelete: "cascade" }),
 
@@ -862,7 +862,7 @@ export const masonSlabAchievements = pgTable("mason_slab_achievements", {
   pointsAwarded: integer("points_awarded").notNull(),
 }, (t) => [
   index("idx_msa_mason_id").on(t.masonId),
-  uniqueIndex("unique_mason_slab_claim").on(t.masonId, t.schemeSlabId), 
+  uniqueIndex("unique_mason_slab_claim").on(t.masonId, t.schemeSlabId),
 ]);
 
 // ---------- MANY to MANY relations for User/Dealer/Masons/technicalSites -------- 
@@ -905,6 +905,318 @@ export const siteAssociatedUsers = pgTable("_SiteAssociatedUsers", {
   index("_SiteAssociatedUsers_B_index").on(t.B),
 ]);
 
+// Satellite Image Tables
+export const aoi = pgTable("aoi", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  name: text("name").notNull(),
+  type: text("type").notNull(), // 'district', 'belt', 'custom'
+
+  centerLat: doublePrecision("center_lat").notNull(),
+  centerLon: doublePrecision("center_lon").notNull(),
+  radiusKm: doublePrecision("radius_km").notNull(),
+
+  boundaryGeojson: jsonb("boundary_geojson"),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+export const aoiGridCell = pgTable("aoi_grid_cell", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  aoiId: uuid("aoi_id")
+    .notNull()
+    .references(() => aoi.id, { onDelete: "cascade" }),
+
+  cellRow: integer("cell_row").notNull(),
+  cellCol: integer("cell_col").notNull(),
+
+  centroidLat: doublePrecision("centroid_lat").notNull(),
+  centroidLon: doublePrecision("centroid_lon").notNull(),
+
+  geometryGeojson: jsonb("geometry_geojson").notNull(),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+// =========================
+// 2) Sentinel scenes & grid change
+// =========================
+
+export const satelliteScene = pgTable("satellite_scene", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  aoiId: uuid("aoi_id")
+    .notNull()
+    .references(() => aoi.id, { onDelete: "cascade" }),
+
+  provider: text("provider").notNull(), // 'sentinel-2'
+  stacId: text("stac_id").notNull(),
+  stacCollection: text("stac_collection").notNull(),
+
+  acquisitionDatetime: timestamp("acquisition_datetime", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  cloudCoverPercent: doublePrecision("cloud_cover_percent"),
+
+  bboxMinLon: doublePrecision("bbox_min_lon").notNull(),
+  bboxMinLat: doublePrecision("bbox_min_lat").notNull(),
+  bboxMaxLon: doublePrecision("bbox_max_lon").notNull(),
+  bboxMaxLat: doublePrecision("bbox_max_lat").notNull(),
+
+  crsEpsg: integer("crs_epsg"),
+  nativeResolutionM: doublePrecision("native_resolution_m"),
+
+  r2Bucket: text("r2_bucket").notNull(),
+  r2Prefix: text("r2_prefix").notNull(),
+
+  redBandKey: text("red_band_key").notNull(),   // B04
+  nirBandKey: text("nir_band_key").notNull(),   // B08
+  greenBandKey: text("green_band_key"),         // B03
+  blueBandKey: text("blue_band_key"),           // B02
+  rgbPreviewKey: text("rgb_preview_key"),       // optional PNG/JPEG
+
+  stacProperties: jsonb("stac_properties"),
+  stacAssets: jsonb("stac_assets"),
+
+  isDownloaded: boolean("is_downloaded").notNull().default(false),
+  isProcessed: boolean("is_processed").notNull().default(false),
+  isDeletedFromR2: boolean("is_deleted_from_r2").notNull().default(false),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+export const gridChangeScore = pgTable("grid_change_score", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  aoiId: uuid("aoi_id")
+    .notNull()
+    .references(() => aoi.id, { onDelete: "cascade" }),
+
+  gridCellId: uuid("grid_cell_id")
+    .notNull()
+    .references(() => aoiGridCell.id, { onDelete: "cascade" }),
+
+  earlierSceneId: uuid("earlier_scene_id")
+    .notNull()
+    .references(() => satelliteScene.id),
+
+  laterSceneId: uuid("later_scene_id")
+    .notNull()
+    .references(() => satelliteScene.id),
+
+  t0AcquisitionDatetime: timestamp("t0_acquisition_datetime", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  t1AcquisitionDatetime: timestamp("t1_acquisition_datetime", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  ndviDropMean: doublePrecision("ndvi_drop_mean"),
+  ndviDropFraction: doublePrecision("ndvi_drop_fraction"),
+  changeScore: doublePrecision("change_score"),
+
+  isHot: boolean("is_hot").notNull().default(false),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+// =========================
+// 3) High-res scenes & detected buildings
+// =========================
+
+export const highresScene = pgTable("highres_scene", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  aoiId: uuid("aoi_id")
+    .notNull()
+    .references(() => aoi.id, { onDelete: "cascade" }),
+
+  gridCellId: uuid("grid_cell_id")
+    .references(() => aoiGridCell.id, { onDelete: "set null" }),
+
+  provider: text("provider").notNull(), // 'planet', 'skyfi', ...
+  acquisitionDatetime: timestamp("acquisition_datetime", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  resolutionM: doublePrecision("resolution_m").notNull(),
+
+  bboxMinLon: doublePrecision("bbox_min_lon").notNull(),
+  bboxMinLat: doublePrecision("bbox_min_lat").notNull(),
+  bboxMaxLon: doublePrecision("bbox_max_lon").notNull(),
+  bboxMaxLat: doublePrecision("bbox_max_lat").notNull(),
+
+  r2Bucket: text("r2_bucket").notNull(),
+  r2Key: text("r2_key").notNull(),
+  rawMetadataJson: jsonb("raw_metadata_json"),
+
+  isDownloaded: boolean("is_downloaded").notNull().default(false),
+  isProcessed: boolean("is_processed").notNull().default(false),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+export const detectedBuilding = pgTable("detected_building", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  highresSceneId: uuid("highres_scene_id")
+    .notNull()
+    .references(() => highresScene.id, { onDelete: "cascade" }),
+
+  aoiId: uuid("aoi_id")
+    .notNull()
+    .references(() => aoi.id, { onDelete: "cascade" }),
+
+  gridCellId: uuid("grid_cell_id")
+    .references(() => aoiGridCell.id, { onDelete: "set null" }),
+
+  centroidLat: doublePrecision("centroid_lat").notNull(),
+  centroidLon: doublePrecision("centroid_lon").notNull(),
+
+  footprintGeojson: jsonb("footprint_geojson").notNull(),
+  areaSqM: doublePrecision("area_sq_m").notNull(),
+
+  detectionConfidence: doublePrecision("detection_confidence"),
+  status: text("status").notNull().default("auto_detected"),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+// =========================
+// 4) Construction sites & TSO visits
+// =========================
+
+export const constructionSite = pgTable("construction_site", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  aoiId: uuid("aoi_id")
+    .notNull()
+    .references(() => aoi.id, { onDelete: "cascade" }),
+
+  gridCellId: uuid("grid_cell_id")
+    .references(() => aoiGridCell.id, { onDelete: "set null" }),
+
+  sourceType: text("source_type").notNull(), // 'sentinel_hotspot', 'highres_building', 'tso_manual'
+  sourceBuildingId: uuid("source_building_id")
+    .references(() => detectedBuilding.id, { onDelete: "set null" }),
+
+  lat: doublePrecision("lat").notNull(),
+  lon: doublePrecision("lon").notNull(),
+  geomGeojson: jsonb("geom_geojson"),
+
+  estimatedAreaSqM: doublePrecision("estimated_area_sq_m"),
+
+  firstSeenDate: date("first_seen_date").notNull(),
+  lastSeenDate: date("last_seen_date").notNull(),
+
+  status: text("status").notNull().default("new"),
+
+  // Wire to your existing users/dealers tables manually if you want FK constraints
+  verifiedByTsoId: integer("verified_by_tso_id"),
+  verifiedAt: timestamp("verified_at", {
+    withTimezone: true,
+    mode: "string",
+  }),
+
+  linkedDealerId: uuid("linked_dealer_id"),
+
+  notes: text("notes"),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
+export const tsoVisit = pgTable("tso_visit", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  siteId: uuid("site_id")
+    .notNull()
+    .references(() => constructionSite.id, { onDelete: "cascade" }),
+
+  tsoId: integer("tso_id").notNull(),
+
+  visitedAt: timestamp("visited_at", {
+    withTimezone: true,
+    mode: "string",
+  }).notNull(),
+
+  visitOutcome: text("visit_outcome").notNull(),
+  comments: text("comments"),
+
+  photoUrls: text("photo_urls").array(),
+
+  createdAt: timestamp("created_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+
+  updatedAt: timestamp("updated_at", {
+    withTimezone: true,
+    mode: "string",
+  }).defaultNow().notNull(),
+});
+
 /* ========================= drizzle-zod insert schemas ========================= */
 export const insertCompanySchema = createInsertSchema(companies);
 export const insertUserSchema = createInsertSchema(users);
@@ -926,7 +1238,7 @@ export const insertTsoMeetingSchema = createInsertSchema(tsoMeetings);
 export const insertauthSessionsSchema = createInsertSchema(authSessions);
 
 // Changed giftInventory to rewards
-export const insertRewardsSchema = createInsertSchema(rewards); 
+export const insertRewardsSchema = createInsertSchema(rewards);
 export const insertGiftAllocationLogSchema = createInsertSchema(giftAllocationLogs);
 export const insertTallyRawTableSchema = createInsertSchema(tallyRaw);
 
@@ -946,3 +1258,13 @@ export const insertRewardRedemptionSchema = createInsertSchema(rewardRedemptions
 export const insertTechnicalSiteSchema = createInsertSchema(technicalSites);
 export const insertSchemeSlabsSchema = createInsertSchema(schemeSlabs);
 export const insertMasonSlabAchievementSchema = createInsertSchema(masonSlabAchievements);
+
+// satellite tables
+export const insertAoiSchema = createInsertSchema(aoi);
+export const insertAoiGridCellSchema = createInsertSchema(aoiGridCell);
+export const insertSatelliteSceneSchema = createInsertSchema(satelliteScene);
+export const insertGridChangeScoreSchema = createInsertSchema(gridChangeScore);
+export const insertHighResScreenSchema = createInsertSchema(highresScene);
+export const insertDetectedBuildingSchema = createInsertSchema(detectedBuilding);
+export const insertConstructionSiteSchema = createInsertSchema(constructionSite);
+export const insertTsoVisitSchema = createInsertSchema(tsoVisit);

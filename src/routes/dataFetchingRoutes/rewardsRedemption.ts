@@ -68,6 +68,7 @@ export default function setupRewardsRedemptionGetRoutes(app: Express) {
         let query = db.select({
             ...getTableColumns(table),
             masonName: masonPcSide.name,
+            masonPhone: masonPcSide.phoneNumber,
             masonTsoId: masonPcSide.userId, // Added for debugging
             rewardName: rewards.itemName,
             rewardMeta: rewards.meta,
