@@ -61,6 +61,8 @@ export const users = pgTable("users", {
   techLoginId: varchar("tech_login_id", { length: 255 }).unique(),
   techHashedPassword: text("tech_hash_password"),
 
+  deviceId: varchar("device_id", { length: 255 }).unique(),
+
   // Hierarchy
   // Drizzle needs this slightly loose typing for self-ref
   reportsToId: integer("reports_to_id").references((): any => users.id, { onDelete: "set null" }),
@@ -72,6 +74,7 @@ export const users = pgTable("users", {
   uniqueIndex("users_companyid_email_unique").on(t.companyId, t.email),
   index("idx_user_company_id").on(t.companyId),
   index("idx_workos_user_id").on(t.workosUserId),
+  index("idx_user_device_id").on(t.deviceId),
 ]);
 
 /* ========================= tso_meetings (Moved up) ========================= */
@@ -787,6 +790,7 @@ export const rewardRedemptions = pgTable("reward_redemptions", {
   rewardId: integer("reward_id").notNull().references(() => rewards.id, { onDelete: "no action" }),
   quantity: integer("quantity").notNull().default(1),
   status: varchar("status", { length: 20 }).notNull().default("placed"), // "placed", "approved", "shipped", "delivered", "rejected"
+  fulfillmentNotes: text("fulfillmentNotes"),
   pointsDebited: integer("points_debited").notNull(),
   // Delivery details
   deliveryName: varchar("delivery_name", { length: 160 }),

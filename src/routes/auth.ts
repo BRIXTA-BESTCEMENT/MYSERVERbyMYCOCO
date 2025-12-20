@@ -57,9 +57,10 @@ export default function setupAuthRoutes(app: Express) {
     try {
       const loginId = String(req.body?.loginId ?? "").trim();
       const password = String(req.body?.password ?? "");
+      const incomingDeviceId = String(req.body?.deviceId ?? "").trim(); 
 
-      if (!loginId || !password)
-        return res.status(400).json({ error: "Login ID and password are required" });
+      if (!loginId || !password || !incomingDeviceId)
+        return res.status(400).json({ error: "Login ID, password, and Device ID are required" });
 
       if (!process.env.JWT_SECRET) {
         console.error("JWT_SECRET is not defined in .env. Login is impossible.");
@@ -78,6 +79,7 @@ export default function setupAuthRoutes(app: Express) {
           salesmanLoginId: users.salesmanLoginId,
           techLoginId: users.techLoginId,
           techHashedPassword: users.techHashedPassword,
+          deviceId: users.deviceId,
         })
         .from(users)
         .where(or(eq(users.salesmanLoginId, loginId), eq(users.email, loginId), eq(users.techLoginId, loginId)))
@@ -85,6 +87,22 @@ export default function setupAuthRoutes(app: Express) {
 
       if (!row) return res.status(401).json({ error: "Invalid credentials" });
       if (row.status !== "active") return res.status(401).json({ error: "Account is not active" });
+
+      // --- DEVICE LOCK LOGIC ---
+      // If user is already locked to a different device
+      if (row.deviceId && row.deviceId !== incomingDeviceId) {
+        return res.status(403).json({ 
+          error: "Device Unauthorized: This account is locked to another device. Please contact Admin." 
+        });
+      }
+
+      // If user has no device locked, lock this one
+      if (!row.deviceId) {
+        await db.update(users)
+          .set({ deviceId: incomingDeviceId })
+          .where(eq(users.id, row.id));
+      }
+      // -------------------------
 
       let isAuthenticated = false;
 
@@ -110,10 +128,7 @@ export default function setupAuthRoutes(app: Express) {
 
       // --- Create the Token ---
       const payload = { id: row.id, email: row.email, role: row.role };
-      // --- (FIX) ---
-      // Changed 'jwt.sign' to just 'sign'
       const token = sign(
-        // --- (END FIX) ---
         payload,
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
@@ -123,7 +138,7 @@ export default function setupAuthRoutes(app: Express) {
       // Your app is hard-coded to look for "token" and "userId"
       return res.json({
         token: token,
-        userId: row.id // Your app parses this as an int
+        userId: row.id
       });
 
     } catch (err) {

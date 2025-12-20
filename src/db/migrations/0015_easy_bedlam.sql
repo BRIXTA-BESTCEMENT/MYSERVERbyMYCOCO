@@ -1,0 +1,1 @@
+ALTER TABLE "reward_redemptions" ADD COLUMN "fulfillmentNotes" text;
