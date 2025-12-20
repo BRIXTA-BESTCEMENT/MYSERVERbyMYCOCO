@@ -5,3 +5,4 @@ count:0
 count:*
 dist
 dist/
+service-account.json

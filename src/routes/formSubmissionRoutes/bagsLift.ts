@@ -7,6 +7,10 @@ import { z } from 'zod';
 import { randomUUID } from 'crypto'; 
 import { InferInsertModel } from 'drizzle-orm'; 
 
+//notification
+import { storage } from '../../db/storage';
+import { sendNotification } from '../../services/notifications';
+
 // --- IMPORT CORE CALCULATION LOGIC ---
 import { calculateBaseAndBonanzaPoints } from '../../utils/pointsCalcLogic'; 
 // --- END IMPORT ---
@@ -87,6 +91,22 @@ export default function setupBagLiftsPostRoute(app: Express) {
 
             if (!newBagLift) {
                 throw new Error('Failed to insert new bag lift record.');
+            }
+            //6. Notification part yaat ase:
+            const assignments = await storage.getTSOAssignmentsByMasonId(masonId);
+            if (assignments.length > 0) {
+                console.log(`🔔 Found ${assignments.length} TSOs for Mason ${masonId}. Sending alerts...`);
+                await Promise.all(assignments.map(async(assignment) =>{
+                    await sendNotification(
+                        assignment.tsoId,
+                            "BAG LIFTED, Approve now!",
+                            `Mason has submitted ${bagCount} bags. Tap to review.`,
+                            "BAG_LIFT",
+                            newBagLift.id
+                    );
+                }));
+            } else {
+                console.log(`⚠️ No TSO assigned to Mason ${masonId}. No notifications sent.`);
             }
 
             // 5. Send success response

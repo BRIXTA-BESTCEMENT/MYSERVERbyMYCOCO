@@ -406,6 +406,16 @@ export class DatabaseStorage implements IStorage {
     }).where(eq(users.id, id)).returning();
     return user;
   }
+  async updateUserDevice(userId: number, deviceId: string, fcmToken: string): Promise<void> {
+    // This updates the specific "Address" of the user for notifications
+    await db.update(users)
+      .set({ 
+        deviceId: deviceId, // The Hardware ID
+        fcmToken: fcmToken, // The Notification Address
+        updatedAt: new Date() 
+      })
+      .where(eq(users.id, userId));
+  }
 
   // ========================================
   // DAILY VISIT REPORTS

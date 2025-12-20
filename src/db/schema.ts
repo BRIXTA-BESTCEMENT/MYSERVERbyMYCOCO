@@ -7,7 +7,6 @@ import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
 // Assuming you have crypto available, as in your original file
 import crypto from "crypto";
-
 /* ========================= companies ========================= */
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
@@ -32,7 +31,6 @@ export const authSessions = pgTable("auth_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
 });
-
 /* ========================= users ========================= */
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -62,7 +60,7 @@ export const users = pgTable("users", {
   techHashedPassword: text("tech_hash_password"),
 
   deviceId: varchar("device_id", { length: 255 }).unique(),
-
+  fcmToken: varchar("fcm_token", { length: 500 }),
   // Hierarchy
   // Drizzle needs this slightly loose typing for self-ref
   reportsToId: integer("reports_to_id").references((): any => users.id, { onDelete: "set null" }),
@@ -76,6 +74,26 @@ export const users = pgTable("users", {
   index("idx_workos_user_id").on(t.workosUserId),
   index("idx_user_device_id").on(t.deviceId),
 ]);
+
+/* ========================= notifications ========================= */
+export const notifications = pgTable("notifications", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  recipientUserId: integer("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  title: varchar("title", { length: 255 }).notNull(),
+  body: text("body").notNull(),
+  
+  // These two fields allow you to find and DELETE the specific notification later
+  type: varchar("type", { length: 50 }).notNull(), 
+  referenceId: varchar("reference_id", { length: 255 }), 
+  
+  isRead: boolean("is_read").default(false).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_notifications_recipient").on(t.recipientUserId),
+]);
+
+// Don't forget to export the insert schema helper
+export const insertNotificationSchema = createInsertSchema(notifications);
 
 /* ========================= tso_meetings (Moved up) ========================= */
 export const tsoMeetings = pgTable("tso_meetings", {
