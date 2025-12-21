@@ -3,7 +3,7 @@ import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { masonPcSide, pointsLedger } from '../../db/schema'; // <<<--- pointsLedger imported
 import { z } from 'zod';
-import { InferInsertModel, eq, sql } from 'drizzle-orm'; 
+import { InferInsertModel, eq, sql } from 'drizzle-orm';
 import { randomUUID } from 'crypto'; // For generating ledger ID
 import { calculateJoiningBonusPoints } from '../../utils/pointsCalcLogic'; // <<<--- IMPORTED NEW LOGIC
 
@@ -34,36 +34,36 @@ const insertMasonPcSideSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required"),
   kycDocumentName: strOrNull,
   kycDocumentIdNum: strOrNull,
-  kycStatus: strOrNull, 
+  kycStatus: strOrNull,
   bagsLifted: intOrNull,
   isReferred: z.boolean().nullable().optional(),
   referredByUser: strOrNull,
   referredToUser: strOrNull,
   dealerId: strOrNull,
-  userId: intOrNull,  
+  userId: intOrNull,
   deviceId: strOrNull,
   fcmToken: strOrNull,
-}).strict(); 
+}).strict();
 
 type NewMason = InferInsertModel<typeof masonPcSide>;
 
 export default function setupMasonPcSidePostRoutes(app: Express) {
-  
+
   app.post('/api/masons', async (req: Request, res: Response) => {
     const tableName = 'Mason';
     const joiningPoints = calculateJoiningBonusPoints(); // Calculate points once
-    
+
     try {
       // 1. Validate and coerce the request body
       const validated = insertMasonPcSideSchema.parse(req.body);
       const generatedMasonId = randomUUID(); // Generate Mason ID now
-      
+
       let newRecord;
       let ledgerEntry;
 
       // --- 2. Start Transaction for Atomic Creation and Point Credit ---
       const transactionResult = await db.transaction(async (tx) => {
-        
+
         // A. Map validated data to the database schema
         const insertData: NewMason = {
           id: generatedMasonId, // Use the generated ID
@@ -71,9 +71,9 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
           phoneNumber: validated.phoneNumber,
           kycDocumentName: validated.kycDocumentName ?? null,
           kycDocumentIdNum: validated.kycDocumentIdNum ?? null,
-          kycStatus: validated.kycStatus ?? 'pending', 
+          kycStatus: validated.kycStatus ?? 'pending',
           bagsLifted: validated.bagsLifted ?? 0,
-          pointsBalance: joiningPoints, 
+          pointsBalance: joiningPoints,
           isReferred: validated.isReferred ?? null,
           referredByUser: validated.referredByUser ?? null,
           referredToUser: validated.referredToUser ?? null,
@@ -88,7 +88,7 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
           .insert(masonPcSide)
           .values(insertData)
           .returning();
-          
+
         if (!mason) {
           tx.rollback();
           throw new Error('Failed to create new mason record.');
@@ -105,7 +105,7 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
             memo: 'Credit for one-time joining bonus',
           })
           .returning();
-          
+
         if (!ledger) {
           tx.rollback();
           throw new Error('Failed to create joining bonus ledger entry.');
@@ -137,18 +137,18 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
 
       // Handle Zod validation errors
       if (err instanceof z.ZodError) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Validation failed', 
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
           details: err.errors.map(e => ({
             field: e.path.join('.'),
             message: e.message,
-          })) 
+          }))
         });
       }
 
       const msg = String(err?.message ?? '').toLowerCase();
-      
+
       // Handle Foreign Key Violation
       if (err?.code === '23503' || msg.includes('foreign key constraint')) {
         let field = 'related record';
@@ -157,19 +157,36 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
         } else if (msg.includes('mason_pc_side_user_id_fkey')) {
           field = 'userId';
         }
-        
-        return res.status(400).json({ 
-          success: false, 
+
+        return res.status(400).json({
+          success: false,
           error: `Foreign key violation: The specified ${field} does not exist.`,
-          details: err?.detail ?? err?.message 
+          details: err?.detail ?? err?.message
+        });
+      }
+
+      if (err?.code === '23505') {
+        const detail = String(err?.detail ?? '');
+        let errorMessage = "Conflict: A record with this information already exists.";
+
+        if (detail.includes('device_id')) {
+          errorMessage = "This device is already associated with an account. Please log in instead.";
+        } else if (detail.includes('phone_number')) {
+          errorMessage = "This phone number is already registered.";
+        }
+
+        return res.status(409).json({
+          success: false,
+          error: errorMessage,
+          details: err.detail
         });
       }
 
       // Handle other database or server errors
-      return res.status(500).json({ 
-        success: false, 
-        error: `Failed to create ${tableName}`, 
-        details: err?.message ?? 'Unknown error' 
+      return res.status(500).json({
+        success: false,
+        error: `Failed to create ${tableName}`,
+        details: err?.message ?? 'Unknown error'
       });
     }
   });

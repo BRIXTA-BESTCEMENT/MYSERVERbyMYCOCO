@@ -57,7 +57,8 @@ export default function setupAuthRoutes(app: Express) {
     try {
       const loginId = String(req.body?.loginId ?? "").trim();
       const password = String(req.body?.password ?? "");
-      const incomingDeviceId = String(req.body?.deviceId ?? "").trim(); 
+      const incomingDeviceId = String(req.body?.deviceId ?? "").trim();
+      const incomingFcmToken = String(req.body?.fcmToken ?? "").trim();
 
       if (!loginId || !password || !incomingDeviceId)
         return res.status(400).json({ error: "Login ID, password, and Device ID are required" });
@@ -92,18 +93,10 @@ export default function setupAuthRoutes(app: Express) {
       // --- DEVICE LOCK LOGIC ---
       // If user is already locked to a different device
       if (row.deviceId && row.deviceId !== incomingDeviceId) {
-        return res.status(403).json({ 
-          error: "Device Unauthorized: This account is locked to another device. Please contact Admin." 
+        return res.status(403).json({
+          error: "Device Unauthorized: This account is locked to another device. Please contact Admin."
         });
       }
-
-      // If user has no device locked, lock this one
-      if (!row.deviceId) {
-        await db.update(users)
-          .set({ deviceId: incomingDeviceId })
-          .where(eq(users.id, row.id));
-      }
-      // -------------------------
 
       let isAuthenticated = false;
 
@@ -112,10 +105,10 @@ export default function setupAuthRoutes(app: Express) {
       if (primaryPasswordMatches) {
         isAuthenticated = true;
       }
-      
+
       // 2. Check Technical Login (Tech ID) - Only check if ID matches tech ID
       const technicalPasswordMatches = row.techHashedPassword && row.techHashedPassword === password;
-      
+
       // Technical login is valid if the ID used was the tech ID AND passwords match AND user is flagged technical
       const isTechLoginValid = (row.techLoginId === loginId) && technicalPasswordMatches && row.isTechnicalRole;
 
@@ -127,6 +120,14 @@ export default function setupAuthRoutes(app: Express) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
+      // Only update tokens if the user actually proved who they are
+      await db.update(users)
+        .set({
+          fcmToken: incomingFcmToken || row.fcmToken, 
+          deviceId: row.deviceId || incomingDeviceId   
+        })
+        .where(eq(users.id, row.id));
+        
       // --- Create the Token ---
       const payload = { id: row.id, email: row.email, role: row.role };
       const token = sign(
@@ -223,6 +224,26 @@ export default function setupAuthRoutes(app: Express) {
     }
   });
 
+  app.put("/api/users/device", verifyToken, async (req: Request, res: Response) => {
+    try {
+      const { userId, fcmToken, deviceId } = req.body;
+
+      if (!userId || !fcmToken) {
+        return res.status(400).json({ error: "User ID and FCM Token are required" });
+      }
+
+      await db.update(users)
+        .set({
+          fcmToken: fcmToken,
+          deviceId: deviceId,
+        })
+        .where(eq(users.id, userId));
+
+      return res.json({ success: true, message: "Device tokens synced" });
+    } catch (err) {
+      console.error("Sync error:", err);
+      return res.status(500).json({ error: "Failed to sync device" });
+    }
+  });
   console.log('✅ Authentication endpoints setup complete');
 }
-
