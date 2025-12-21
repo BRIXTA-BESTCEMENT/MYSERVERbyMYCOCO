@@ -8,9 +8,9 @@ import { authSessions } from "../db/schema";
 import { eq } from "drizzle-orm";
 
 // 7-day expiry for the main JWT
-const JWT_TTL_SECONDS = 60 * 60 * 24 * 7; 
+const JWT_TTL_SECONDS = 60 * 60 * 24 * 7;
 // 60-day expiry for the persistent refresh token
-const SESSION_TTL_SECONDS = 60 * 60 * 24 * 60; 
+const SESSION_TTL_SECONDS = 60 * 60 * 24 * 60;
 
 // Utility to verify the JWT
 const verifyJwt = (token: string) => {
@@ -31,7 +31,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
   app.post("/api/auth/firebase", async (req: Request, res: Response) => {
     try {
       // 1. Get name (for sign-up) and idToken from the request body
-      const { idToken, name } = req.body; // <-- MODIFIED
+      const { idToken, name, deviceId, fcmToken } = req.body;
       if (!idToken) {
         return res.status(400).json({ success: false, error: "idToken required" });
       }
@@ -51,7 +51,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       if (!mason) {
         // Not found by UID, try to find by Phone Number
         mason = (await db.select().from(masonPcSide).where(eq(masonPcSide.phoneNumber, phone)).limit(1))[0];
-        
+
         if (!mason) {
           // --- Case A: NEW USER (Sign Up) ---
           // Mason not found by phone OR UID. Create them.
@@ -60,26 +60,54 @@ export default function setupAuthFirebaseRoutes(app: Express) {
             name: name || "New Contractor", // <-- MODIFIED: Use provided name
             phoneNumber: phone,
             firebaseUid,
+            deviceId: deviceId,
+            fcmToken: fcmToken || null,
             kycStatus: "none",
             pointsBalance: 0,
           }).returning();
           mason = created[0];
         } else {
-          // --- Case B: EXISTING USER, FIRST FIREBASE LOGIN ---
+          // Case B: EXISTING USER, LINKING FIREBASE FOR FIRST TIME
+          // Check if they already have a device locked to their phone record
+          if (mason.deviceId && mason.deviceId !== deviceId) {
+            return res.status(403).json({
+              success: false,
+              error: "Device Unauthorized: This account is locked to another device. Please contact Admin.",
+            });
+          }
+
           // Found by phone, but not UID. Link the Firebase UID to the existing account.
-          const updates: Partial<typeof masonPcSide.$inferInsert> = { firebaseUid };
+          const updates: Partial<typeof masonPcSide.$inferInsert> = { firebaseUid, deviceId };
 
           // Also, if they provided a name AND their current name is the default, update it.
           if (name && mason.name === "New Contractor") {
             updates.name = name;
           }
 
-          await db.update(masonPcSide).set(updates).where(eq(masonPcSide.id, mason.id));
+          const finalUpdates = { ...updates, fcmToken: fcmToken || mason.fcmToken };
+          await db.update(masonPcSide)
+            .set(finalUpdates)
+            .where(eq(masonPcSide.id, mason.id));
           mason = { ...mason, ...updates }; // Use updated data
         }
       }
-      // --- Case C: RETURNING USER (Login) ---
-      // Mason was found by Firebase UID. No updates needed.
+      else {
+        // Case C: RETURNING USER (Found by Firebase UID)
+        // CRITICAL CHECK: Compare device IDs
+        if (mason.deviceId && mason.deviceId !== deviceId) {
+          return res.status(403).json({
+            success: false,
+            error: "DEVICE_LOCKED",
+            message: "This account is registered to a different device."
+          });
+        }
+
+        // If the record had no deviceId (legacy), lock it now
+        if (!mason.deviceId) {
+          await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
+          mason.deviceId = deviceId;
+        }
+      }
 
       // 4. Create a persistent session (for "Remember Me")
       const sessionToken = crypto.randomBytes(32).toString("hex");
@@ -105,13 +133,14 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         jwt: jwtToken,
         sessionToken: sessionToken,
         sessionExpiresAt: sessionExpiresAt,
-        mason: { 
-          id: mason.id, 
-          phoneNumber: mason.phoneNumber, 
-          name: mason.name, 
-          kycStatus: mason.kycStatus, 
+        mason: {
+          id: mason.id,
+          phoneNumber: mason.phoneNumber,
+          name: mason.name,
+          kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
-          firebaseUid: mason.firebaseUid
+          firebaseUid: mason.firebaseUid,
+          deviceId: mason.deviceId,
         },
       });
     } catch (e) {
@@ -148,13 +177,13 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       // Token is valid, user exists. Send back mason data.
       return res.status(200).json({
         success: true,
-        mason: { 
-          id: mason.id, 
+        mason: {
+          id: mason.id,
           firebaseUid: mason.firebaseUid,
-          phoneNumber: mason.phoneNumber, 
-          name: mason.name, 
-          kycStatus: mason.kycStatus, 
-          pointsBalance: mason.pointsBalance 
+          phoneNumber: mason.phoneNumber,
+          name: mason.name,
+          kycStatus: mason.kycStatus,
+          pointsBalance: mason.pointsBalance
         },
       });
 
@@ -176,12 +205,12 @@ export default function setupAuthFirebaseRoutes(app: Express) {
 
       // Find the session in the DB
       const [session] = await db.select().from(authSessions).where(eq(authSessions.sessionToken, token)).limit(1);
-      
+
       // Check if session exists and is not expired
       // --- MODIFIED ---
       // Added a check for !session.expiresAt to handle the 'null' case
       if (!session || !session.expiresAt || session.expiresAt < new Date()) {
-      // --- END MODIFIED ---
+        // --- END MODIFIED ---
         // If expired, delete it
         if (session) {
           await db.delete(authSessions).where(eq(authSessions.sessionId, session.sessionId));
@@ -204,7 +233,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       // 2. Create a new Session Token and update the DB
       const newSessionToken = crypto.randomBytes(32).toString("hex");
       const newSessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000); // 60 days
-      
+
       await db.update(authSessions)
         .set({ sessionToken: newSessionToken, expiresAt: newSessionExpiresAt, createdAt: new Date() })
         .where(eq(authSessions.sessionId, session.sessionId));
@@ -215,11 +244,11 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         jwt: jwtToken,
         sessionToken: newSessionToken,
         sessionExpiresAt: newSessionExpiresAt,
-        mason: { 
-          id: mason.id, 
-          phoneNumber: mason.phoneNumber, 
-          name: mason.name, 
-          kycStatus: mason.kycStatus, 
+        mason: {
+          id: mason.id,
+          phoneNumber: mason.phoneNumber,
+          name: mason.name,
+          kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
           firebaseUid: mason.firebaseUid
         },
@@ -238,10 +267,10 @@ export default function setupAuthFirebaseRoutes(app: Express) {
     try {
       const token = req.header("x-session-token");
       if (!token) return res.status(400).json({ success: false, error: "x-session-token required" });
-      
+
       // Delete the session. We don't care if it fails, we just want it gone.
       await db.delete(authSessions).where(eq(authSessions.sessionToken, token));
-      
+
       return res.status(200).json({ success: true, message: "Logged out" });
     } catch (e) {
       return res.status(500).json({ success: false, error: "Logout failed" });
@@ -256,9 +285,9 @@ export default function setupAuthFirebaseRoutes(app: Express) {
     if (process.env.NODE_ENV !== "development") {
       return res.status(403).json({ success: false, error: "Forbidden in production" });
     }
-    
+
     try {
-      const { phone, name } = req.body;
+      const { phone, name, deviceId } = req.body;
       if (!phone) return res.status(400).json({ success: false, error: "Phone required" });
 
       let mason = (await db.select().from(masonPcSide).where(eq(masonPcSide.phoneNumber, phone)).limit(1))[0];
@@ -270,12 +299,16 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           name: name || "Dev Contractor",
           phoneNumber: phone,
           firebaseUid: `dev_${phone}`, // Create a fake UID
+          deviceId: deviceId || null,
           kycStatus: "none",
           pointsBalance: 0,
         }).returning();
         mason = created[0];
+      } else if (deviceId) {
+        // Update device info for existing dev users
+        await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
       }
-      
+
       // ... (Session creation and JWT signing logic is identical to /api/auth/firebase)
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
@@ -298,11 +331,11 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         jwt: jwtToken,
         sessionToken: sessionToken,
         sessionExpiresAt: sessionExpiresAt,
-        mason: { 
-          id: mason.id, 
-          phoneNumber: mason.phoneNumber, 
-          name: mason.name, 
-          kycStatus: mason.kycStatus, 
+        mason: {
+          id: mason.id,
+          phoneNumber: mason.phoneNumber,
+          name: mason.name,
+          kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
           firebaseUid: mason.firebaseUid
         },
@@ -311,6 +344,37 @@ export default function setupAuthFirebaseRoutes(app: Express) {
     } catch (e) {
       console.error("auth/dev-bypass error:", e);
       return res.status(500).json({ success: false, error: "Dev bypass failed" });
+    }
+  });
+
+  /**
+   * PATCH /api/auth/fcm-token
+   * Updates the FCM token for the currently authenticated Mason.
+   */
+  app.patch("/api/auth/fcm-token", async (req: Request, res: Response) => {
+    const authHeader = req.header("Authorization");
+    const fcmToken = req.body.fcmToken;
+
+    if (!authHeader || !fcmToken) {
+      return res.status(400).json({ success: false, error: "Auth header and fcmToken required" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    const decoded = verifyJwt(token);
+
+    if (!decoded) {
+      return res.status(401).json({ success: false, error: "Unauthorized" });
+    }
+
+    try {
+      await db.update(masonPcSide)
+        .set({ fcmToken: fcmToken })
+        .where(eq(masonPcSide.id, decoded.sub));
+
+      return res.status(200).json({ success: true, message: "FCM Token updated" });
+    } catch (e) {
+      console.error("FCM Token update error:", e);
+      return res.status(500).json({ success: false, error: "Database error" });
     }
   });
 }
