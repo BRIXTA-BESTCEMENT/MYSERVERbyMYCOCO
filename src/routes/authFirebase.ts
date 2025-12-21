@@ -113,6 +113,10 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       }
 
       // 4. Create a persistent session (for "Remember Me")
+      // first delete old session if any 
+      await db.delete(authSessions)
+        .where(eq(authSessions.masonId, mason.id));
+      // then create new session
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000); // 60 days
       await db.insert(authSessions).values({
@@ -159,41 +163,39 @@ export default function setupAuthFirebaseRoutes(app: Express) {
    */
   app.get("/api/auth/validate", async (req: Request, res: Response) => {
     const authHeader = req.header("Authorization");
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ success: false, error: "Authorization header missing" });
-    }
-    const token = authHeader.split(" ")[1];
+    const sessionToken = req.header("x-session-token");
 
+    if (!authHeader || !authHeader.startsWith("Bearer ") || !sessionToken) {
+      return res.status(401).json({ success: false, error: "Authorization missing" });
+    }
+
+    const token = authHeader.split(" ")[1];
     const decoded = verifyJwt(token);
     if (!decoded) {
       return res.status(401).json({ success: false, error: "Invalid or expired token" });
     }
 
-    try {
-      const masonId = decoded.sub;
-      const [mason] = await db.select().from(masonPcSide).where(eq(masonPcSide.id, masonId)).limit(1);
+    const [session] = await db
+      .select()
+      .from(authSessions)
+      .where(eq(authSessions.sessionToken, sessionToken))
+      .limit(1);
 
-      if (!mason) {
-        return res.status(404).json({ success: false, error: "Mason not found" });
-      }
-
-      // Token is valid, user exists. Send back mason data.
-      return res.status(200).json({
-        success: true,
-        mason: {
-          id: mason.id,
-          firebaseUid: mason.firebaseUid,
-          phoneNumber: mason.phoneNumber,
-          name: mason.name,
-          kycStatus: mason.kycStatus,
-          pointsBalance: mason.pointsBalance
-        },
-      });
-
-    } catch (e) {
-      console.error("auth/validate error:", e);
-      return res.status(500).json({ success: false, error: "Database error" });
+    if (!session || session.expiresAt === null || session.expiresAt.getTime() < Date.now()) {
+      return res.status(401).json({ success: false, error: "Session invalid" });
     }
+
+    const [mason] = await db
+      .select()
+      .from(masonPcSide)
+      .where(eq(masonPcSide.id, decoded.sub))
+      .limit(1);
+
+    if (!mason) {
+      return res.status(404).json({ success: false, error: "User missing" });
+    }
+
+    return res.status(200).json({ success: true, mason });
   });
 
   /**
@@ -224,6 +226,11 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       // Find the associated mason
       const [mason] = await db.select().from(masonPcSide).where(eq(masonPcSide.id, session.masonId)).limit(1);
       if (!mason) return res.status(401).json({ success: false, error: "Unknown user" });
+      
+      const deviceId = req.header("x-device-id");
+      if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+        return res.status(403).json({ success: false, code: "DEVICE_LOCKED" });
+      }
 
       // --- SESSION IS VALID ---
       // 1. Create a new JWT
