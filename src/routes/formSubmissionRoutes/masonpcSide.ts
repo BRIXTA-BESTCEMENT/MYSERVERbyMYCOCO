@@ -34,15 +34,15 @@ const insertMasonPcSideSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required"),
   kycDocumentName: strOrNull,
   kycDocumentIdNum: strOrNull,
-  // UPDATED: Field renamed from verificationStatus to kycStatus
   kycStatus: strOrNull, 
   bagsLifted: intOrNull,
-  // pointsBalance is removed from the POST body as it's set by the server
   isReferred: z.boolean().nullable().optional(),
   referredByUser: strOrNull,
   referredToUser: strOrNull,
-  dealerId: strOrNull, // Will be validated by DB foreign key
-  userId: intOrNull,    // Will be validated by DB foreign key
+  dealerId: strOrNull,
+  userId: intOrNull,  
+  deviceId: strOrNull,
+  fcmToken: strOrNull,
 }).strict(); 
 
 type NewMason = InferInsertModel<typeof masonPcSide>;
@@ -79,6 +79,8 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
           referredToUser: validated.referredToUser ?? null,
           dealerId: validated.dealerId ?? null,
           userId: validated.userId ?? null,
+          deviceId: validated.deviceId ?? null,
+          fcmToken: validated.fcmToken ?? null,
         };
 
         // B. Insert the new Mason record

@@ -31,6 +31,7 @@ export const authSessions = pgTable("auth_sessions", {
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
   expiresAt: timestamp("expires_at", { withTimezone: true }),
 });
+
 /* ========================= users ========================= */
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -61,13 +62,10 @@ export const users = pgTable("users", {
 
   deviceId: varchar("device_id", { length: 255 }).unique(),
   fcmToken: varchar("fcm_token", { length: 500 }),
-  // Hierarchy
-  // Drizzle needs this slightly loose typing for self-ref
-  reportsToId: integer("reports_to_id").references((): any => users.id, { onDelete: "set null" }),
 
+  reportsToId: integer("reports_to_id").references((): any => users.id, { onDelete: "set null" }),
   // --- ADDED FOR PRISMA PARITY ---
   noOfPJP: integer("no_of_pjp"),
-
 }, (t) => [
   uniqueIndex("users_companyid_email_unique").on(t.companyId, t.email),
   index("idx_user_company_id").on(t.companyId),

@@ -80,6 +80,7 @@ export default function setupAuthRoutes(app: Express) {
           techLoginId: users.techLoginId,
           techHashedPassword: users.techHashedPassword,
           deviceId: users.deviceId,
+          fcmToken: users.fcmToken,
         })
         .from(users)
         .where(or(eq(users.salesmanLoginId, loginId), eq(users.email, loginId), eq(users.techLoginId, loginId)))
