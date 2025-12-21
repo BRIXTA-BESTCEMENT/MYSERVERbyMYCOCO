@@ -92,9 +92,6 @@ export const notifications = pgTable("notifications", {
   index("idx_notifications_recipient").on(t.recipientUserId),
 ]);
 
-// Don't forget to export the insert schema helper
-export const insertNotificationSchema = createInsertSchema(notifications);
-
 /* ========================= tso_meetings (Moved up) ========================= */
 export const tsoMeetings = pgTable("tso_meetings", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -662,13 +659,11 @@ export const masonPcSide = pgTable("mason_pc_side", {
   phoneNumber: text("phone_number").notNull(),
   kycDocumentName: varchar("kyc_doc_name", { length: 100 }),
   kycDocumentIdNum: varchar("kyc_doc_id_num", { length: 150 }),
-
-  // Renamed verificationStatus to kycStatus for consistency with loyalty app
   kycStatus: varchar("kyc_status", { length: 50 }).default("none"), // "none" | "pending" | "approved" | "rejected"
-  // Renamed pointsGained to pointsBalance for consistency with loyalty app
   pointsBalance: integer("points_balance").notNull().default(0),
   firebaseUid: varchar("firebase_uid", { length: 128 }).unique(),
-
+  deviceId: varchar("device_id", { length: 255 }).unique(),
+  fcmToken: varchar("fcm_token", { length: 500 }),
   bagsLifted: integer("bags_lifted"), // Keep for historical tracking of volume
   isReferred: boolean("is_referred"),
   referredByUser: text("referred_by_user"),
@@ -1280,6 +1275,7 @@ export const insertRewardRedemptionSchema = createInsertSchema(rewardRedemptions
 export const insertTechnicalSiteSchema = createInsertSchema(technicalSites);
 export const insertSchemeSlabsSchema = createInsertSchema(schemeSlabs);
 export const insertMasonSlabAchievementSchema = createInsertSchema(masonSlabAchievements);
+export const insertNotificationSchema = createInsertSchema(notifications);
 
 // satellite tables
 export const insertAoiSchema = createInsertSchema(aoi);
