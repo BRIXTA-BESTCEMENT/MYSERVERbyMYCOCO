@@ -2,17 +2,17 @@
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { bagLifts, insertBagLiftSchema } from '../../db/schema';
+import { bagLifts, insertBagLiftSchema, masonPcSide } from '../../db/schema';
 import { z } from 'zod';
-import { randomUUID } from 'crypto'; 
-import { InferInsertModel } from 'drizzle-orm'; 
+import { randomUUID } from 'crypto';
+import { InferInsertModel } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 
 //notification
-import { storage } from '../../db/storage';
 import { sendNotification } from '../../services/notifications';
 
 // --- IMPORT CORE CALCULATION LOGIC ---
-import { calculateBaseAndBonanzaPoints } from '../../utils/pointsCalcLogic'; 
+import { calculateBaseAndBonanzaPoints } from '../../utils/pointsCalcLogic';
 // --- END IMPORT ---
 
 // Define the core BagLift type for use in the insert, excluding the memo that's not in the table
@@ -21,9 +21,9 @@ type BagLiftInsert = InferInsertModel<typeof bagLifts>;
 const bagLiftSubmissionSchema = insertBagLiftSchema.omit({
     id: true,
     status: true,
-    approvedBy: true, 
+    approvedBy: true,
     approvedAt: true,
-    createdAt: true, 
+    createdAt: true,
     pointsCredited: true,
     imageUrl: true,
     siteId: true,
@@ -32,8 +32,8 @@ const bagLiftSubmissionSchema = insertBagLiftSchema.omit({
     verificationSiteImageUrl: true,
     verificationProofImageUrl: true,
 }).extend({
-    masonId: z.string().uuid({ message: 'A valid Mason ID (UUID) is required.' }), 
-    purchaseDate: z.string().transform(str => new Date(str)), 
+    masonId: z.string().uuid({ message: 'A valid Mason ID (UUID) is required.' }),
+    purchaseDate: z.string().transform(str => new Date(str)),
     bagCount: z.number().int().positive('Bag count must be a positive integer.'),
     memo: z.string().max(500).optional(), // Note: Not inserted, but validated
     imageUrl: z.string().url({ message: "Invalid image URL" }).optional(),
@@ -53,37 +53,37 @@ export default function setupBagLiftsPostRoute(app: Express) {
             const validationResult = bagLiftSubmissionSchema.safeParse(req.body);
 
             if (!validationResult.success) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Validation failed for Bag Lift submission.', 
-                    details: validationResult.error.errors 
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation failed for Bag Lift submission.',
+                    details: validationResult.error.errors
                 });
             }
 
             const validatedData = validationResult.data;
             const { masonId, bagCount, purchaseDate, imageUrl, ...bagLiftBody } = validatedData;
-            
+
             // --- 2. SERVER-SIDE POINT CALCULATION (SECURITY FIX) ---
             // Now uses the imported, centralized logic
             const calculatedPoints = calculateBaseAndBonanzaPoints(bagCount, purchaseDate);
             // --- END CALCULATION ---
-            
+
             const generatedBagLiftId = randomUUID();
-            
+
             // 3. Prepare Insert Data
             const insertData: BagLiftInsert = {
-                ...(bagLiftBody as any), 
-                id: generatedBagLiftId, 
-                masonId: masonId, 
+                ...(bagLiftBody as any),
+                id: generatedBagLiftId,
+                masonId: masonId,
                 bagCount: bagCount,
                 purchaseDate: purchaseDate,
                 imageUrl: imageUrl,
                 pointsCredited: calculatedPoints, // <<<--- Calculated on server via imported function
-                status: 'pending', 
-                approvedBy: null, 
-                approvedAt: null, 
+                status: 'pending',
+                approvedBy: null,
+                approvedAt: null,
             };
-            
+
             // 4. Insert the Bag Lift record
             const [newBagLift] = await db.insert(bagLifts)
                 .values(insertData)
@@ -93,32 +93,35 @@ export default function setupBagLiftsPostRoute(app: Express) {
                 throw new Error('Failed to insert new bag lift record.');
             }
             //6. Notification part yaat ase:
-            const assignments = await storage.getTSOAssignmentsByMasonId(masonId);
-            if (assignments.length > 0) {
-                console.log(`🔔 Found ${assignments.length} TSOs for Mason ${masonId}. Sending alerts...`);
-                await Promise.all(assignments.map(async(assignment) =>{
-                    await sendNotification(
-                        assignment.tsoId,
-                            "BAG LIFTED, Approve now!",
-                            `Mason has submitted ${bagCount} bags. Tap to review.`,
-                            "BAG_LIFT",
-                            newBagLift.id
-                    );
-                }));
+            const [masonRecord] = await db
+                .select({ tsoId: masonPcSide.userId })
+                .from(masonPcSide)
+                .where(eq(masonPcSide.id, masonId))
+                .limit(1);
+            if (masonRecord && masonRecord.tsoId) {
+                console.log(`🔔 Found TSO (User ID: ${masonRecord.tsoId}) for Mason ${masonId}. Sending alert...`);
+
+                await sendNotification(
+                    masonRecord.tsoId, // Ensure it's a string for the notification service
+                    "BAG LIFTED, Approve now!",
+                    `Mason has submitted ${bagCount} bags. Tap to review.`,
+                    "BAG_LIFT",
+                    newBagLift.id
+                );
             } else {
-                console.log(`⚠️ No TSO assigned to Mason ${masonId}. No notifications sent.`);
+                console.log(`⚠️ No TSO assigned (userId is null) for Mason ${masonId}. No notifications sent.`);
             }
 
             // 5. Send success response
-            res.status(201).json({ 
-                success: true, 
-                message: `Bag Lift successfully submitted for TSO approval. Calculated points: ${newBagLift.pointsCredited}.`, 
+            res.status(201).json({
+                success: true,
+                message: `Bag Lift successfully submitted for TSO approval. Calculated points: ${newBagLift.pointsCredited}.`,
                 data: newBagLift,
             });
 
         } catch (error: any) {
             console.error(`POST Bag Lift error:`, error);
-            
+
             if (error instanceof z.ZodError) {
                 return res.status(400).json({
                     success: false,
