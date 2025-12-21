@@ -77,24 +77,27 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           }
 
           // Found by phone, but not UID. Link the Firebase UID to the existing account.
-          const updates: Partial<typeof masonPcSide.$inferInsert> = { firebaseUid, deviceId };
+          const finalUpdates: Partial<typeof masonPcSide.$inferInsert> = {
+            firebaseUid,
+            deviceId: deviceId || mason.deviceId,
+            fcmToken: fcmToken || mason.fcmToken
+          };
 
-          // Also, if they provided a name AND their current name is the default, update it.
           if (name && mason.name === "New Contractor") {
-            updates.name = name;
+            finalUpdates.name = name;
           }
 
-          const finalUpdates = { ...updates, fcmToken: fcmToken || mason.fcmToken };
           await db.update(masonPcSide)
             .set(finalUpdates)
             .where(eq(masonPcSide.id, mason.id));
-          mason = { ...mason, ...updates }; // Use updated data
+
+          mason = { ...mason, ...finalUpdates };
         }
       }
       else {
         // Case C: RETURNING USER (Found by Firebase UID)
-        // CRITICAL CHECK: Compare device IDs
-        if (mason.deviceId && mason.deviceId !== deviceId) {
+        // If the app is old and sends undefined, we let them through to avoid the hang.
+        if (deviceId && mason.deviceId && mason.deviceId !== deviceId) {
           return res.status(403).json({
             success: false,
             error: "DEVICE_LOCKED",
@@ -102,8 +105,8 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           });
         }
 
-        // If the record had no deviceId (legacy), lock it now
-        if (!mason.deviceId) {
+        // If the DB doesn't have a deviceId yet, but the new app sent one, lock it now.
+        if (deviceId && !mason.deviceId) {
           await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
           mason.deviceId = deviceId;
         }
@@ -145,7 +148,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       });
     } catch (e) {
       console.error("auth/firebase error:", e);
-      return res.status(401).json({ success: false, error: "Invalid Firebase token" });
+      return res.status(401).json({ success: false, error: "Invalid Firebase token and/or Device Id" });
     }
   });
 
