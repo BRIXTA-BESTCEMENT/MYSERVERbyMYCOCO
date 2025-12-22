@@ -801,7 +801,7 @@ export const rewardRedemptions = pgTable("reward_redemptions", {
   rewardId: integer("reward_id").notNull().references(() => rewards.id, { onDelete: "no action" }),
   quantity: integer("quantity").notNull().default(1),
   status: varchar("status", { length: 20 }).notNull().default("placed"), // "placed", "approved", "shipped", "delivered", "rejected"
-  fulfillmentNotes: text("fulfillmentNotes"),
+  fulfillmentNotes: text("fulfillment_notes"),
   pointsDebited: integer("points_debited").notNull(),
   // Delivery details
   deliveryName: varchar("delivery_name", { length: 160 }),

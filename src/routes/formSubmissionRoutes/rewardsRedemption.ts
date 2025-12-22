@@ -27,6 +27,7 @@ const redemptionSubmissionSchema = insertRewardRedemptionSchema.omit({
     deliveryPhone: z.string().max(20).optional(),
     deliveryAddress: z.string().optional(),
     memo: z.string().max(500).optional(), 
+    fulfillmentNotes: z.string().max(500).optional().nullable(),
 });
 
 export default function setupRewardsRedemptionPostRoute(app: Express) {
@@ -45,7 +46,7 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
             }
 
             const validatedData = validationResult.data;
-            const { masonId, quantity, memo, rewardId, ...redemptionBody } = validatedData;
+            const { masonId, quantity, memo, rewardId, fulfillmentNotes, ...redemptionBody } = validatedData;
             
             // 2. FETCH REWARD DETAILS (Source of Truth)
             // We must get the price and stock from the DB, not the client.
@@ -110,6 +111,7 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
                         pointsDebited: totalPointsDebited, 
                         quantity: quantity,
                         status: 'placed', // Initial status
+                        fulfillmentNotes: fulfillmentNotes,
                     })
                     .returning();
                 

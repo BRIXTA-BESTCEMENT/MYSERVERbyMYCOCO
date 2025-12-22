@@ -29,4 +29,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: goswamirohit/mycocoserver:v23
+          tags: goswamirohit/mycocoserver:v24
