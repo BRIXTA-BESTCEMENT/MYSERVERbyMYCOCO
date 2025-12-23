@@ -6,13 +6,20 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 // helpers
-const toDateOnly = (d: Date) => d.toISOString().slice(0, 10); // YYYY-MM-DD
+const toDateOnly = (d: Date) => d.toISOString().slice(0, 10); 
+
 const strOrNull = z.preprocess((val) => {
   if (val === '' || val === null || val === undefined) return null;
   return String(val).trim();
 }, z.string().nullable().optional());
 
-// --- PATCH schema UPDATED ---
+const numOrZero = z.preprocess((val) => {
+  if (val === null || val === undefined || val === '') return undefined;
+  const n = Number(val);
+  return isNaN(n) ? 0 : n;
+}, z.number().int().optional());
+
+// --- PATCH schema UPDATED for all new fields ---
 const pjpPatchSchema = z.object({
   userId: z.coerce.number().int().positive().optional(),
   createdById: z.coerce.number().int().positive().optional(),
@@ -20,8 +27,24 @@ const pjpPatchSchema = z.object({
   siteId: strOrNull,  
   planDate: z.coerce.date().optional(),
   areaToBeVisited: z.string().max(500).optional(),
+  route: strOrNull, // Added
   description: z.string().max(500).optional().nullable(), 
   status: z.string().max(50).optional(),
+  
+  // Numerical Metrics
+  plannedNewSiteVisits: numOrZero,
+  plannedFollowUpSiteVisits: numOrZero,
+  plannedNewDealerVisits: numOrZero,
+  plannedInfluencerVisits: numOrZero,
+  noOfConvertedBags: numOrZero,
+  noOfMasonPcSchemes: numOrZero,
+
+  // Influencer Data
+  influencerName: strOrNull,
+  influencerPhone: strOrNull,
+  activityType: strOrNull,
+  diversionReason: strOrNull,
+
   verificationStatus: z.string().max(50).optional().nullable(),
   additionalVisitRemarks: z.string().max(500).optional().nullable(),
 }).strict();
@@ -60,12 +83,24 @@ export default function setupPjpPatchRoutes(app: Express) {
 
       if (input.planDate !== undefined) patch.planDate = toDateOnly(input.planDate);
       if (input.areaToBeVisited !== undefined) patch.areaToBeVisited = input.areaToBeVisited;
+      if (input.route !== undefined) patch.route = input.route;
       if (input.status !== undefined) patch.status = input.status;
       
-      // Handle nullable string fields
       if (input.description !== undefined) patch.description = input.description;
       if (input.verificationStatus !== undefined) patch.verificationStatus = input.verificationStatus;
       if (input.additionalVisitRemarks !== undefined) patch.additionalVisitRemarks = input.additionalVisitRemarks;
+      
+      if (input.plannedNewSiteVisits !== undefined) patch.plannedNewSiteVisits = input.plannedNewSiteVisits;
+      if (input.plannedFollowUpSiteVisits !== undefined) patch.plannedFollowUpSiteVisits = input.plannedFollowUpSiteVisits;
+      if (input.plannedNewDealerVisits !== undefined) patch.plannedNewDealerVisits = input.plannedNewDealerVisits;
+      if (input.plannedInfluencerVisits !== undefined) patch.plannedInfluencerVisits = input.plannedInfluencerVisits;
+      if (input.noOfConvertedBags !== undefined) patch.noOfConvertedBags = input.noOfConvertedBags;
+      if (input.noOfMasonPcSchemes !== undefined) patch.noOfMasonPcSchemes = input.noOfMasonPcSchemes;
+
+      if (input.influencerName !== undefined) patch.influencerName = input.influencerName;
+      if (input.influencerPhone !== undefined) patch.influencerPhone = input.influencerPhone;
+      if (input.activityType !== undefined) patch.activityType = input.activityType;
+      if (input.diversionReason !== undefined) patch.diversionReason = input.diversionReason;
       
       // 4) update
       const [updated] = await db

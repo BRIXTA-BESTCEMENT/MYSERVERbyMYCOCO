@@ -60,8 +60,8 @@ export default function setupAuthRoutes(app: Express) {
       const incomingDeviceId = String(req.body?.deviceId ?? "").trim();
       const incomingFcmToken = String(req.body?.fcmToken ?? "").trim();
 
-      if (!loginId || !password || !incomingDeviceId)
-        return res.status(400).json({ error: "Login ID, password, and Device ID are required" });
+      if (!loginId || !password)
+        return res.status(400).json({ error: "Login ID, password, are required" });
 
       if (!process.env.JWT_SECRET) {
         console.error("JWT_SECRET is not defined in .env. Login is impossible.");
@@ -92,11 +92,11 @@ export default function setupAuthRoutes(app: Express) {
 
       // --- DEVICE LOCK LOGIC ---
       // If user is already locked to a different device
-      if (row.deviceId && row.deviceId !== incomingDeviceId) {
-        return res.status(403).json({
-          error: "Device Unauthorized: This account is locked to another device. Please contact Admin."
-        });
-      }
+      // if (row.deviceId && row.deviceId !== incomingDeviceId) {
+      //   return res.status(403).json({
+      //     error: "Device Unauthorized: This account is locked to another device. Please contact Admin."
+      //   });
+      // }
 
       let isAuthenticated = false;
 
@@ -124,7 +124,7 @@ export default function setupAuthRoutes(app: Express) {
       await db.update(users)
         .set({
           fcmToken: incomingFcmToken || row.fcmToken, 
-          deviceId: row.deviceId || incomingDeviceId   
+          deviceId: incomingDeviceId || row.deviceId,  
         })
         .where(eq(users.id, row.id));
         

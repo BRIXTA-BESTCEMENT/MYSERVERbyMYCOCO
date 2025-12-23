@@ -33,9 +33,10 @@ function createPJPAutoGET(app: Express, cfg: {
     updatedAt: 'updatedAt',
     status: 'status',
     areaToBeVisited: 'areaToBeVisited',
-    dealerId: 'dealerId', // <-- ✅ ADDED
+    dealerId: 'dealerId', 
     verificationStatus: 'verificationStatus',
-    // visitDealerName: 'visitDealerName', // <-- REMOVED
+    plannedNewSiteVisits: 'plannedNewSiteVisits',
+    noOfConvertedBags: 'noOfConvertedBags',
   };
 
   // --- buildWhere UPDATED ---
@@ -74,9 +75,12 @@ function createPJPAutoGET(app: Express, cfg: {
 
     if (q.search) {
       const s = `%${String(q.search).trim()}%`;
-      const searchConditions: SQLWrapper[] = [ilike(table.areaToBeVisited, s)];
+      const searchConditions: SQLWrapper[] = [
+        ilike(table.areaToBeVisited, s),
+        ilike(table.route, s), 
+        ilike(table.influencerName, s), 
+      ];
       if (table.description) searchConditions.push(ilike(table.description, s));
-      // if (table.visitDealerName) ... // <-- REMOVED
       if (table.additionalVisitRemarks) searchConditions.push(ilike(table.additionalVisitRemarks, s));
       
       conds.push(sql`(${sql.join(searchConditions, sql` OR `)})`);

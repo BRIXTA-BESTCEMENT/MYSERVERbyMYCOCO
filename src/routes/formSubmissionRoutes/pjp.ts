@@ -14,31 +14,67 @@ const strOrNull = z.preprocess((val) => {
   return String(val).trim();
 }, z.string().nullable().optional());
 
+const numOrZero = z.preprocess((val) => {
+  const n = Number(val);
+  return isNaN(n) ? 0 : n;
+}, z.number().int().default(0));
 // ---------- input schemas ----------
 const pjpInputSchema = z.object({
   userId: z.coerce.number().int().positive(),
   createdById: z.coerce.number().int().positive(),
-  dealerId: strOrNull,                         
-  siteId: strOrNull,                           
+  dealerId: strOrNull,
+  siteId: strOrNull,
   planDate: z.coerce.date(),
   areaToBeVisited: z.string().max(500).min(1),
+  route: strOrNull,
   description: strOrNull,
   status: z.string().max(50).min(1).default('PENDING'),
-  verificationStatus: strOrNull,
+  
+  // Numerical Plans
+  plannedNewSiteVisits: numOrZero,
+  plannedFollowUpSiteVisits: numOrZero,
+  plannedNewDealerVisits: numOrZero,
+  plannedInfluencerVisits: numOrZero,
+  
+  // Influencer Details
+  influencerName: strOrNull,
+  influencerPhone: strOrNull,
+  activityType: strOrNull,
+  
+  // Conversion & Schemes
+  noOfConvertedBags: numOrZero,
+  noOfMasonPcSchemes: numOrZero,
+  
+  verificationStatus: strOrNull.default('PENDING'),
   additionalVisitRemarks: strOrNull,
-  idempotencyKey: z.string().max(120).optional(), 
+  idempotencyKey: z.string().max(120).optional(),
 }).strict();
 
 const bulkSchema = z.object({
   userId: z.coerce.number().int().positive(),
   createdById: z.coerce.number().int().positive(),
-  dealerIds: z.array(z.string().min(1)).optional(), 
-  siteIds: z.array(z.string().min(1)).optional(),   
+  dealerIds: z.array(z.string().min(1)).optional(),
+  siteIds: z.array(z.string().min(1)).optional(),
   baseDate: z.coerce.date(),
   batchSizePerDay: z.coerce.number().int().min(1).max(500).default(8),
   areaToBeVisited: z.string().max(500).min(1),
+  route: strOrNull,
   description: strOrNull,
   status: z.string().max(50).default('PENDING'),
+  
+  // Default metrics for bulk creation
+  plannedNewSiteVisits: numOrZero,
+  plannedFollowUpSiteVisits: numOrZero,
+  plannedNewDealerVisits: numOrZero,
+  plannedInfluencerVisits: numOrZero,
+
+  noOfConvertedBags: numOrZero,
+  noOfMasonPcSchemes: numOrZero,
+
+  influencerName: strOrNull,
+  influencerPhone: strOrNull,
+  activityType: strOrNull,
+
   bulkOpId: z.string().max(50).optional(),
   idempotencyKey: z.string().max(120).optional(),
 }).strict().refine(data => data.dealerIds?.length || data.siteIds?.length, {
@@ -61,8 +97,24 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           siteId: input.siteId ?? null, 
           planDate: toDateOnly(input.planDate),
           areaToBeVisited: input.areaToBeVisited,
+          route: input.route,
           description: input.description ?? null,
           status: input.status,
+
+          plannedNewSiteVisits: input.plannedNewSiteVisits,
+          plannedFollowUpSiteVisits: input.plannedFollowUpSiteVisits,
+          plannedNewDealerVisits: input.plannedNewDealerVisits,
+          plannedInfluencerVisits: input.plannedInfluencerVisits,
+          
+          // Influencer Data
+          influencerName: input.influencerName,
+          influencerPhone: input.influencerPhone,
+          activityType: input.activityType,
+          
+          // Conversion
+          noOfConvertedBags: input.noOfConvertedBags,
+          noOfMasonPcSchemes: input.noOfMasonPcSchemes,
+
           verificationStatus: input.verificationStatus ?? 'PENDING', 
           additionalVisitRemarks: input.additionalVisitRemarks ?? null,
           idempotencyKey: input.idempotencyKey,
@@ -98,17 +150,12 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
       const input = bulkSchema.parse(req.body);
 
       const {
-        userId,
-        createdById,
-        dealerIds,
-        siteIds, 
-        baseDate,
-        batchSizePerDay,
-        areaToBeVisited,
-        description,
-        status,
-        bulkOpId,
-        idempotencyKey,
+        userId, createdById, dealerIds, siteIds, baseDate, batchSizePerDay, 
+        areaToBeVisited, route, description, status,
+        plannedNewSiteVisits, plannedFollowUpSiteVisits, plannedNewDealerVisits, plannedInfluencerVisits,
+        noOfConvertedBags, noOfMasonPcSchemes,
+        influencerName, influencerPhone, activityType,
+        bulkOpId, idempotencyKey,
       } = input;
 
       // Determine which ID list to use
@@ -126,8 +173,22 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           siteId: !isDealerBatch ? id : null,  
           planDate,
           areaToBeVisited,
+          route,
           description: description ?? null,
           status,
+
+          plannedNewSiteVisits,
+          plannedFollowUpSiteVisits,
+          plannedNewDealerVisits,
+          plannedInfluencerVisits,
+          
+          noOfConvertedBags,
+          noOfMasonPcSchemes,
+
+          influencerName,
+          influencerPhone,
+          activityType,
+
           verificationStatus: 'PENDING',
           bulkOpId,
           idempotencyKey,
