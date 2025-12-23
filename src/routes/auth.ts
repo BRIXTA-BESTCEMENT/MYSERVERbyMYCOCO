@@ -124,7 +124,7 @@ export default function setupAuthRoutes(app: Express) {
       await db.update(users)
         .set({
           fcmToken: incomingFcmToken || row.fcmToken, 
-          deviceId: incomingDeviceId || row.deviceId,  
+          deviceId: null,  
         })
         .where(eq(users.id, row.id));
         
@@ -235,7 +235,7 @@ export default function setupAuthRoutes(app: Express) {
       await db.update(users)
         .set({
           fcmToken: fcmToken,
-          deviceId: deviceId,
+          deviceId: null,
         })
         .where(eq(users.id, userId));
 

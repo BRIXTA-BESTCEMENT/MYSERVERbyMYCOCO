@@ -60,7 +60,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
             name: name || "New Contractor", // <-- MODIFIED: Use provided name
             phoneNumber: phone,
             firebaseUid,
-            deviceId: deviceId || null,
+            deviceId: null,
             fcmToken: fcmToken || null,
             kycStatus: "none",
             pointsBalance: 0,
@@ -79,7 +79,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           // Found by phone, but not UID. Link the Firebase UID to the existing account.
           const finalUpdates: Partial<typeof masonPcSide.$inferInsert> = {
             firebaseUid,
-            deviceId: deviceId || mason.deviceId,
+            deviceId: null,
             fcmToken: fcmToken || mason.fcmToken
           };
 
@@ -105,9 +105,13 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         //   });
         // }
 
-        if (deviceId && mason.deviceId !== deviceId) {
-          await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
-          mason.deviceId = deviceId;
+        // if (deviceId && mason.deviceId !== deviceId) {
+        //   await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
+        //   mason.deviceId = deviceId;
+        // }
+        if (mason.deviceId !== null) {
+          await db.update(masonPcSide).set({ deviceId: null }).where(eq(masonPcSide.id, mason.id));
+          mason.deviceId = null;
         }
       }
 
@@ -308,7 +312,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           name: name || "Dev Contractor",
           phoneNumber: phone,
           firebaseUid: `dev_${phone}`, // Create a fake UID
-          deviceId: deviceId || null,
+          deviceId: null,
           kycStatus: "none",
           pointsBalance: 0,
         }).returning();
