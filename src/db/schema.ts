@@ -107,27 +107,44 @@ export const tsoMeetings = pgTable("tso_meetings", {
   index("idx_tso_meetings_site_id").on(t.siteId),
 ]);
 
-/* ========================= permanent_journey_plans (FIXED) ========================= */
+/* ========================= permanent_journey_plan ========================= */
 export const permanentJourneyPlans = pgTable("permanent_journey_plans", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   userId: integer("user_id").notNull().references(() => users.id),
   createdById: integer("created_by_id").notNull().references(() => users.id),
 
-  // Replaced visitDealerName with a direct, reliable link to the dealers table.
-  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-
+  // Core Details
   planDate: date("plan_date").notNull(),
   areaToBeVisited: varchar("area_to_be_visited", { length: 500 }).notNull(),
+  route: varchar("route", { length: 500 }), // Added for destination
   description: varchar("description", { length: 500 }),
-  status: varchar("status", { length: 50 }).notNull(),
+  status: varchar("status", { length: 50 }).notNull().default("PENDING"),
+
+  // Numerical Plans (Excel Columns)
+  plannedNewSiteVisits: integer("planned_new_site_visits").default(0),
+  plannedFollowUpSiteVisits: integer("planned_follow_up_site_visits").default(0),
+  plannedNewDealerVisits: integer("planned_new_dealer_visits").default(0),
+  plannedInfluencerVisits: integer("planned_influencer_visits").default(0),
+
+  // Influencer / PC-Mason Details
+  influencerName: varchar("influencer_name", { length: 255 }),
+  influencerPhone: varchar("influencer_phone", { length: 20 }),
+  activityType: varchar("activity_type", { length: 255 }),
+
+  // Conversion & Schemes
+  noOfConvertedBags: integer("noof_converted_bags").default(0),
+  noOfMasonPcSchemes: integer("noof_masonpc_in_schemes").default(0),
+
+  // Diversion
+  diversionReason: varchar("diversion_reason", { length: 500 }),
+
+  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
+  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
 
   verificationStatus: varchar("verification_status", { length: 50 }),
   additionalVisitRemarks: varchar("additional_visit_remarks", { length: 500 }),
-
   bulkOpId: varchar("bulk_op_id", { length: 50 }),
   idempotencyKey: varchar("idempotency_key", { length: 120 }),
-  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
-
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [

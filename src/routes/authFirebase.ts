@@ -60,7 +60,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
             name: name || "New Contractor", // <-- MODIFIED: Use provided name
             phoneNumber: phone,
             firebaseUid,
-            deviceId: deviceId,
+            deviceId: deviceId || null,
             fcmToken: fcmToken || null,
             kycStatus: "none",
             pointsBalance: 0,
@@ -69,12 +69,12 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         } else {
           // Case B: EXISTING USER, LINKING FIREBASE FOR FIRST TIME
           // Check if they already have a device locked to their phone record
-          if (mason.deviceId && mason.deviceId !== deviceId) {
-            return res.status(403).json({
-              success: false,
-              error: "Device Unauthorized: This account is locked to another device. Please contact Admin.",
-            });
-          }
+          // if (mason.deviceId && mason.deviceId !== deviceId) {
+          //   return res.status(403).json({
+          //     success: false,
+          //     error: "Device Unauthorized: This account is locked to another device. Please contact Admin.",
+          //   });
+          //}
 
           // Found by phone, but not UID. Link the Firebase UID to the existing account.
           const finalUpdates: Partial<typeof masonPcSide.$inferInsert> = {
@@ -97,16 +97,15 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       else {
         // Case C: RETURNING USER (Found by Firebase UID)
         // If the app is old and sends undefined, we let them through to avoid the hang.
-        if (deviceId && mason.deviceId && mason.deviceId !== deviceId) {
-          return res.status(403).json({
-            success: false,
-            error: "DEVICE_LOCKED",
-            message: "This account is registered to a different device."
-          });
-        }
+        // if (deviceId && mason.deviceId && mason.deviceId !== deviceId) {
+        //   return res.status(403).json({
+        //     success: false,
+        //     error: "DEVICE_LOCKED",
+        //     message: "This account is registered to a different device."
+        //   });
+        // }
 
-        // If the DB doesn't have a deviceId yet, but the new app sent one, lock it now.
-        if (deviceId && !mason.deviceId) {
+        if (deviceId && mason.deviceId !== deviceId) {
           await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
           mason.deviceId = deviceId;
         }
@@ -226,11 +225,11 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       // Find the associated mason
       const [mason] = await db.select().from(masonPcSide).where(eq(masonPcSide.id, session.masonId)).limit(1);
       if (!mason) return res.status(401).json({ success: false, error: "Unknown user" });
-      
-      const deviceId = req.header("x-device-id");
-      if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
-        return res.status(403).json({ success: false, code: "DEVICE_LOCKED" });
-      }
+
+      // const deviceId = req.header("x-device-id");
+      // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+      //   return res.status(403).json({ success: false, code: "DEVICE_LOCKED" });
+      // }
 
       // --- SESSION IS VALID ---
       // 1. Create a new JWT

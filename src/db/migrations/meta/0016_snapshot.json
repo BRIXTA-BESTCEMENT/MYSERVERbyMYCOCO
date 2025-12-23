@@ -1,6 +1,6 @@
 {
-  "id": "3378a3c9-73cc-4bbc-99aa-faaa83235789",
-  "prevId": "31680bf3-8e86-41e1-a2ec-4d440585593b",
+  "id": "b889bede-e9a9-41f8-a38c-422d571eac41",
+  "prevId": "3378a3c9-73cc-4bbc-99aa-faaa83235789",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -3549,6 +3549,18 @@
           "primaryKey": false,
           "notNull": false
         },
+        "device_id": {
+          "name": "device_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "fcm_token": {
+          "name": "fcm_token",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "bags_lifted": {
           "name": "bags_lifted",
           "type": "integer",
@@ -3570,18 +3582,6 @@
         "referred_to_user": {
           "name": "referred_to_user",
           "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "device_id": {
-          "name": "device_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "fcm_token": {
-          "name": "fcm_token",
-          "type": "varchar(500)",
           "primaryKey": false,
           "notNull": false
         },
@@ -4056,12 +4056,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "dealer_id": {
-          "name": "dealer_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "plan_date": {
           "name": "plan_date",
           "type": "date",
@@ -4074,6 +4068,12 @@
           "primaryKey": false,
           "notNull": true
         },
+        "route": {
+          "name": "route",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "description": {
           "name": "description",
           "type": "varchar(500)",
@@ -4084,7 +4084,86 @@
           "name": "status",
           "type": "varchar(50)",
           "primaryKey": false,
-          "notNull": true
+          "notNull": true,
+          "default": "'PENDING'"
+        },
+        "planned_new_site_visits": {
+          "name": "planned_new_site_visits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "planned_follow_up_site_visits": {
+          "name": "planned_follow_up_site_visits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "planned_new_dealer_visits": {
+          "name": "planned_new_dealer_visits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "planned_influencer_visits": {
+          "name": "planned_influencer_visits",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "influencer_name": {
+          "name": "influencer_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "influencer_phone": {
+          "name": "influencer_phone",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "activity_type": {
+          "name": "activity_type",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "noof_converted_bags": {
+          "name": "noof_converted_bags",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "noof_masonpc_in_schemes": {
+          "name": "noof_masonpc_in_schemes",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "default": 0
+        },
+        "diversion_reason": {
+          "name": "diversion_reason",
+          "type": "varchar(500)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dealer_id": {
+          "name": "dealer_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "site_id": {
+          "name": "site_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
         },
         "verification_status": {
           "name": "verification_status",
@@ -4107,12 +4186,6 @@
         "idempotency_key": {
           "name": "idempotency_key",
           "type": "varchar(120)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "site_id": {
-          "name": "site_id",
-          "type": "uuid",
           "primaryKey": false,
           "notNull": false
         },
@@ -4555,8 +4628,8 @@
           "notNull": true,
           "default": "'placed'"
         },
-        "fulfillmentNotes": {
-          "name": "fulfillmentNotes",
+        "fulfillment_notes": {
+          "name": "fulfillment_notes",
           "type": "text",
           "primaryKey": false,
           "notNull": false
