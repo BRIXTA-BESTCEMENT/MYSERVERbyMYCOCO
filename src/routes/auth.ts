@@ -92,11 +92,11 @@ export default function setupAuthRoutes(app: Express) {
 
       // --- DEVICE LOCK LOGIC ---
       // If user is already locked to a different device
-      // if (row.deviceId && row.deviceId !== incomingDeviceId) {
-      //   return res.status(403).json({
-      //     error: "Device Unauthorized: This account is locked to another device. Please contact Admin."
-      //   });
-      // }
+      if (row.deviceId && row.deviceId !== incomingDeviceId) {
+        return res.status(403).json({
+          error: "Device Unauthorized: This account is locked to another device. Please contact Admin."
+        });
+      }
 
       let isAuthenticated = false;
 
@@ -124,7 +124,7 @@ export default function setupAuthRoutes(app: Express) {
       await db.update(users)
         .set({
           fcmToken: incomingFcmToken || row.fcmToken, 
-          deviceId: null,  
+          deviceId: incomingDeviceId,  
         })
         .where(eq(users.id, row.id));
         

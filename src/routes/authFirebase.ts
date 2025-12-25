@@ -1,3 +1,4 @@
+// src/routes/authFirebase.ts
 import { Express, Request, Response } from "express";
 import jwt from "jsonwebtoken";
 import { getAuth } from "firebase-admin/auth";
@@ -57,10 +58,11 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           // Mason not found by phone OR UID. Create them.
           const created = await db.insert(masonPcSide).values({
             id: crypto.randomUUID(),
-            name: name || "New Contractor", // <-- MODIFIED: Use provided name
+            name: name || "New Contractor",
             phoneNumber: phone,
             firebaseUid,
-            deviceId: null,
+            // ✅ LOCK TO DEVICE IMMEDIATELY ON SIGN UP
+            deviceId: deviceId || null,
             fcmToken: fcmToken || null,
             kycStatus: "none",
             pointsBalance: 0,
@@ -69,17 +71,19 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         } else {
           // Case B: EXISTING USER, LINKING FIREBASE FOR FIRST TIME
           // Check if they already have a device locked to their phone record
-          // if (mason.deviceId && mason.deviceId !== deviceId) {
-          //   return res.status(403).json({
-          //     success: false,
-          //     error: "Device Unauthorized: This account is locked to another device. Please contact Admin.",
-          //   });
-          //}
+          if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+            return res.status(403).json({
+              success: false,
+              error: "DEVICE_LOCKED",
+              message: "This account is locked to another device. Please contact Admin."
+            });
+          }
 
           // Found by phone, but not UID. Link the Firebase UID to the existing account.
           const finalUpdates: Partial<typeof masonPcSide.$inferInsert> = {
             firebaseUid,
-            deviceId: null,
+            // ✅ Ensure we lock the device if it wasn't locked before
+            deviceId: mason.deviceId || deviceId,
             fcmToken: fcmToken || mason.fcmToken
           };
 
@@ -95,31 +99,44 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         }
       }
       else {
-        // Case C: RETURNING USER (Found by Firebase UID)
-        // If the app is old and sends undefined, we let them through to avoid the hang.
-        // if (deviceId && mason.deviceId && mason.deviceId !== deviceId) {
-        //   return res.status(403).json({
-        //     success: false,
-        //     error: "DEVICE_LOCKED",
-        //     message: "This account is registered to a different device."
-        //   });
-        // }
+        // --- Case C: RETURNING USER (Found by Firebase UID) ---
 
-        // if (deviceId && mason.deviceId !== deviceId) {
-        //   await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
-        //   mason.deviceId = deviceId;
-        // }
-        if (mason.deviceId !== null) {
-          await db.update(masonPcSide).set({ deviceId: null }).where(eq(masonPcSide.id, mason.id));
-          mason.deviceId = null;
+        // 1. 🔒 SECURITY CHECK: Enforce Device Lock
+        // If DB has a lock, and incoming ID doesn't match -> BLOCK.
+        if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+          return res.status(403).json({
+            success: false,
+            error: "DEVICE_LOCKED",
+            message: "This account is registered to a different device."
+          });
+        }
+
+        // 2. 🔄 UPDATE LOGIC
+        const updates: Partial<typeof masonPcSide.$inferInsert> = {};
+
+        // If account has NO lock (null), lock it to this device now
+        if (!mason.deviceId && deviceId) {
+          updates.deviceId = deviceId;
+          mason.deviceId = deviceId; // Update local object for response
+        }
+
+        // Always update FCM token if fresh one provided
+        if (fcmToken && fcmToken !== mason.fcmToken) {
+          updates.fcmToken = fcmToken;
+        }
+
+        // Run update if there are changes
+        if (Object.keys(updates).length > 0) {
+          await db.update(masonPcSide)
+            .set(updates)
+            .where(eq(masonPcSide.id, mason.id));
         }
       }
 
       // 4. Create a persistent session (for "Remember Me")
-      // first delete old session if any 
       await db.delete(authSessions)
         .where(eq(authSessions.masonId, mason.id));
-      // then create new session
+
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000); // 60 days
       await db.insert(authSessions).values({
@@ -150,7 +167,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
           firebaseUid: mason.firebaseUid,
-          deviceId: mason.deviceId,
+          deviceId: mason.deviceId, // Return the active device ID
         },
       });
     } catch (e) {
@@ -215,10 +232,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       const [session] = await db.select().from(authSessions).where(eq(authSessions.sessionToken, token)).limit(1);
 
       // Check if session exists and is not expired
-      // --- MODIFIED ---
-      // Added a check for !session.expiresAt to handle the 'null' case
       if (!session || !session.expiresAt || session.expiresAt < new Date()) {
-        // --- END MODIFIED ---
         // If expired, delete it
         if (session) {
           await db.delete(authSessions).where(eq(authSessions.sessionId, session.sessionId));
@@ -230,10 +244,15 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       const [mason] = await db.select().from(masonPcSide).where(eq(masonPcSide.id, session.masonId)).limit(1);
       if (!mason) return res.status(401).json({ success: false, error: "Unknown user" });
 
-      // const deviceId = req.header("x-device-id");
-      // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
-      //   return res.status(403).json({ success: false, code: "DEVICE_LOCKED" });
-      // }
+      // ✅ DEVICE SECURITY CHECK
+      const deviceId = req.header("x-device-id");
+      if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+        return res.status(403).json({ 
+          success: false, 
+          code: "DEVICE_LOCKED",
+          message: "Session invalid for this device."
+        });
+      }
 
       // --- SESSION IS VALID ---
       // 1. Create a new JWT
@@ -300,7 +319,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
     }
 
     try {
-      const { phone, name, deviceId } = req.body;
+      const { phone, name, deviceId, fcmToken } = req.body;
       if (!phone) return res.status(400).json({ success: false, error: "Phone required" });
 
       let mason = (await db.select().from(masonPcSide).where(eq(masonPcSide.phoneNumber, phone)).limit(1))[0];
@@ -312,17 +331,26 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           name: name || "Dev Contractor",
           phoneNumber: phone,
           firebaseUid: `dev_${phone}`, // Create a fake UID
-          deviceId: null,
+          deviceId: deviceId || null,
+          fcmToken: fcmToken || null,
           kycStatus: "none",
           pointsBalance: 0,
         }).returning();
         mason = created[0];
-      } else if (deviceId) {
-        // Update device info for existing dev users
-        await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
+      } else {
+        // Update existing Dev User
+        const updates: any = {};
+        if (deviceId) updates.deviceId = deviceId;
+        if (fcmToken) updates.fcmToken = fcmToken;
+        
+        if (Object.keys(updates).length > 0) {
+           await db.update(masonPcSide).set(updates).where(eq(masonPcSide.id, mason.id));
+           // Update local obj
+           if(deviceId) mason.deviceId = deviceId;
+        }
       }
 
-      // ... (Session creation and JWT signing logic is identical to /api/auth/firebase)
+      // Create Session
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
       await db.insert(authSessions).values({
@@ -350,7 +378,8 @@ export default function setupAuthFirebaseRoutes(app: Express) {
           name: mason.name,
           kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
-          firebaseUid: mason.firebaseUid
+          firebaseUid: mason.firebaseUid,
+          deviceId: mason.deviceId
         },
       });
 
