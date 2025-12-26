@@ -1,16 +1,15 @@
-// server/src/routes/auth.ts 
-// UPDATED: NO bcrypt, YES jwt
-// This version is modified to EXACTLY match the expectations of your auth_service.dart
+// server/src/routes/auth.ts
+// UPDATED: Cross-device logout via FCM
 
 import { Request, Response, Express, NextFunction } from 'express';
 import { db } from '../db/db';
 import { users, companies } from '../db/schema';
 import { eq, or } from 'drizzle-orm';
-// --- (FIX) ---
-// Changed the import to be compatible with CommonJS modules as per the server log
 import pkg from 'jsonwebtoken';
 const { sign, verify } = pkg;
-// --- (END FIX) ---
+
+// --- NEW: Import sendSilentDataMessage from your notifications utility ---
+import { sendSilentDataMessage } from '../services/notifications'; // Adjust path as necessary (e.g., ../utils/notification or ../services/notification)
 
 // Helper function to safely convert BigInt to JSON
 function toJsonSafe(obj: any): any {
@@ -20,7 +19,6 @@ function toJsonSafe(obj: any): any {
 }
 
 // --- JWT Verification Middleware ---
-// This will protect your /api/users/:id route
 const verifyToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
@@ -34,13 +32,9 @@ const verifyToken = (req: Request, res: Response, next: NextFunction) => {
     return res.status(500).json({ error: "Server configuration error" });
   }
 
-  // --- (FIX) ---
-  // Changed 'jwt.verify' to just 'verify'
   verify(token, process.env.JWT_SECRET, (err: any, user: any) => {
-    // --- (END FIX) ---
     if (err) {
       console.error("JWT Verification Error:", err.message);
-      // Your app expects a 403 for this
       return res.status(403).json({ error: "Token is invalid or expired" });
     }
     (req as any).user = user;
@@ -68,20 +62,20 @@ export default function setupAuthRoutes(app: Express) {
         return res.status(500).json({ error: "Server configuration error" });
       }
 
-      // Pull only what we need
+      // Pull user data, including stored deviceId and fcmToken
       const [row] = await db
         .select({
           id: users.id,
           email: users.email,
           status: users.status,
-          hashedPassword: users.hashedPassword, // This column holds plain text
+          hashedPassword: users.hashedPassword,
           role: users.role,
           isTechnicalRole: users.isTechnicalRole,
           salesmanLoginId: users.salesmanLoginId,
           techLoginId: users.techLoginId,
           techHashedPassword: users.techHashedPassword,
           deviceId: users.deviceId,
-          fcmToken: users.fcmToken,
+          fcmToken: users.fcmToken, // <--- IMPORTANT: Ensure fcmToken is selected
         })
         .from(users)
         .where(or(eq(users.salesmanLoginId, loginId), eq(users.email, loginId), eq(users.techLoginId, loginId)))
@@ -90,13 +84,25 @@ export default function setupAuthRoutes(app: Express) {
       if (!row) return res.status(401).json({ error: "Invalid credentials" });
       if (row.status !== "active") return res.status(401).json({ error: "Account is not active" });
 
-      // --- DEVICE LOCK LOGIC ---
-      // If user is already locked to a different device
+      // --- CRITICAL CHANGE: Device Lock Logic for auto-logout ---
+      // If user is already logged in on a DIFFERENT device, send a logout signal to the OLD device.
+      // The new login is allowed to proceed, overriding the old device's session.
       if (row.deviceId && row.deviceId !== incomingDeviceId) {
-        return res.status(403).json({
-          error: "Device Unauthorized: This account is locked to another device. Please contact Admin."
-        });
+        if (row.fcmToken) {
+          await sendSilentDataMessage(
+            row.fcmToken,
+            {
+              action: 'logout', // Signal client-side logout
+              message: 'Your account was logged in from another device.',
+              timestamp: new Date().toISOString(),
+            },
+            `FCM logout signal sent to old device (User: ${row.id}, Old Token: ${row.fcmToken.substring(0,10)}...)`
+          );
+        } else {
+            console.log(`⚠️ Old device for User ${row.id} had no FCM token. Cannot send logout signal.`);
+        }
       }
+      // --- END CRITICAL CHANGE ---
 
       let isAuthenticated = false;
 
@@ -120,14 +126,14 @@ export default function setupAuthRoutes(app: Express) {
         return res.status(401).json({ error: "Invalid credentials" });
       }
 
-      // Only update tokens if the user actually proved who they are
+      // If authentication is successful, update the DB with the new device's FCM token and Device ID.
       await db.update(users)
         .set({
-          fcmToken: incomingFcmToken || row.fcmToken, 
-          deviceId: incomingDeviceId,  
+          fcmToken: incomingFcmToken || row.fcmToken, // Update with new, or keep existing if not provided
+          deviceId: incomingDeviceId,
         })
         .where(eq(users.id, row.id));
-        
+
       // --- Create the Token ---
       const payload = { id: row.id, email: row.email, role: row.role };
       const token = sign(
@@ -136,7 +142,7 @@ export default function setupAuthRoutes(app: Express) {
         { expiresIn: '7d' }
       );
 
-      // --- 6. SEND THE *EXACT* RESPONSE FLUTTER WANTS ---
+      // --- SEND THE *EXACT* RESPONSE FLUTTER WANTS ---
       // Your app is hard-coded to look for "token" and "userId"
       return res.json({
         token: token,
@@ -149,8 +155,7 @@ export default function setupAuthRoutes(app: Express) {
     }
   });
 
-  // --- User profile endpoint - RENAMED AND PROTECTED ---
-  // Your app calls "/api/users/:id", so this route MUST match
+  // --- User profile endpoint ---
   app.get("/api/users/:id", verifyToken, async (req: Request, res: Response) => {
     try {
       const userId = Number(req.params.id);
@@ -192,7 +197,6 @@ export default function setupAuthRoutes(app: Express) {
         return res.status(404).json({ error: "User not found" });
       }
 
-      // This is the Employee model structure
       const row = rows[0];
       const userPayload = {
         id: row.id,
@@ -214,8 +218,6 @@ export default function setupAuthRoutes(app: Express) {
           : null,
       };
 
-      // --- SEND THE *EXACT* RESPONSE FLUTTER WANTS ---
-      // Your app is hard-coded to look for a "data" key
       res.json({ data: toJsonSafe(userPayload) });
 
     } catch (err) {
@@ -235,7 +237,7 @@ export default function setupAuthRoutes(app: Express) {
       await db.update(users)
         .set({
           fcmToken: fcmToken,
-          deviceId: null,
+          deviceId: deviceId, // This endpoint seems to clear deviceId
         })
         .where(eq(users.id, userId));
 

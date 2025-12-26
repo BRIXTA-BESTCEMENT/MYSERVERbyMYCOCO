@@ -55,3 +55,34 @@ export async function sendNotification(
     console.error(`❌ FCM Failed: ${error.message}`);
   }
 }
+export async function sendSilentDataMessage(
+  fcmToken: string,
+  dataPayload: { [key: string]: string }, // Data to be sent to the client app
+  consoleLogMessage: string = "Silent data message sent"
+) {
+  const message = {
+    token: fcmToken,
+    data: dataPayload, // ONLY data payload for silent messages
+    android: {
+      priority: "high" as const, // High priority for critical background signals
+    },
+    apns: { // Apple Push Notification Service configuration
+      headers: {
+        'apns-priority': '5', // '5' for background content, '10' for immediate/user-visible
+        'apns-push-type': 'background' // Specifies it's a background push
+      },
+      payload: {
+        aps: {
+          'content-available': 1 // Essential for iOS silent pushes to wake the app
+        }
+      }
+    }
+  };
+
+  try {
+    await fcm.send(message);
+    console.log(`🚀 ${consoleLogMessage}`);
+  } catch (error: any) {
+    console.error(`❌ FCM Silent Message Failed for token ${fcmToken}: ${error.message}`);
+  }
+}
