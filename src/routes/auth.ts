@@ -1,174 +1,172 @@
 // server/src/routes/auth.ts
-// UPDATED: Cross-device logout via FCM
+// HARD DEVICE BINDING – ADMIN CONTROLLED
 
 import { Request, Response, Express, NextFunction } from 'express';
 import { db } from '../db/db';
 import { users, companies } from '../db/schema';
 import { eq, or } from 'drizzle-orm';
 import pkg from 'jsonwebtoken';
-const { sign, verify } = pkg;
 
-// --- NEW: Import sendSilentDataMessage from your notifications utility ---
-import { sendSilentDataMessage } from '../services/notifications'; // Adjust path as necessary (e.g., ../utils/notification or ../services/notification)
+const { sign, verify } = pkg;
 
 // Helper function to safely convert BigInt to JSON
 function toJsonSafe(obj: any): any {
-  return JSON.parse(JSON.stringify(obj, (_, value) =>
-    typeof value === 'bigint' ? Number(value) : value
-  ));
+  return JSON.parse(
+    JSON.stringify(obj, (_, value) =>
+      typeof value === 'bigint' ? Number(value) : value
+    )
+  );
 }
 
-// --- JWT Verification Middleware ---
+// --------------------------------------------------
+// JWT Verification Middleware
+// --------------------------------------------------
 const verifyToken = (req: Request, res: Response, next: NextFunction) => {
   const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+  const token = authHeader && authHeader.split(' ')[1];
 
-  if (token == null) {
-    return res.status(401).json({ error: "Access token is missing" });
+  if (!token) {
+    return res.status(401).json({ error: 'Access token is missing' });
   }
 
   if (!process.env.JWT_SECRET) {
-    console.error("JWT_SECRET is not defined. Cannot verify token.");
-    return res.status(500).json({ error: "Server configuration error" });
+    console.error('JWT_SECRET is not defined');
+    return res.status(500).json({ error: 'Server configuration error' });
   }
 
   verify(token, process.env.JWT_SECRET, (err: any, user: any) => {
     if (err) {
-      console.error("JWT Verification Error:", err.message);
-      return res.status(403).json({ error: "Token is invalid or expired" });
+      return res.status(403).json({ error: 'Token is invalid or expired' });
     }
     (req as any).user = user;
     next();
   });
 };
-// --- END OF MIDDLEWARE ---
 
-
+// --------------------------------------------------
+// ROUTES
+// --------------------------------------------------
 export default function setupAuthRoutes(app: Express) {
-
-  // Login endpoint - UPDATED
-  app.post("/api/auth/login", async (req: Request, res: Response) => {
+  // --------------------------------------------------
+  // LOGIN (HARD DEVICE BINDING)
+  // --------------------------------------------------
+  app.post('/api/auth/login', async (req: Request, res: Response) => {
     try {
-      const loginId = String(req.body?.loginId ?? "").trim();
-      const password = String(req.body?.password ?? "");
-      const incomingDeviceId = String(req.body?.deviceId ?? "").trim();
-      const incomingFcmToken = String(req.body?.fcmToken ?? "").trim();
+      const loginId = String(req.body?.loginId ?? '').trim();
+      const password = String(req.body?.password ?? '');
+      const incomingDeviceId = String(req.body?.deviceId ?? '').trim();
+      const incomingFcmToken = String(req.body?.fcmToken ?? '').trim();
 
-      if (!loginId || !password)
-        return res.status(400).json({ error: "Login ID, password, are required" });
-
-      if (!process.env.JWT_SECRET) {
-        console.error("JWT_SECRET is not defined in .env. Login is impossible.");
-        return res.status(500).json({ error: "Server configuration error" });
+      if (!loginId || !password) {
+        return res
+          .status(400)
+          .json({ error: 'Login ID and password are required' });
       }
 
-      // Pull user data, including stored deviceId and fcmToken
+      if (!process.env.JWT_SECRET) {
+        return res.status(500).json({ error: 'Server configuration error' });
+      }
+
+      // Fetch user
       const [row] = await db
         .select({
           id: users.id,
           email: users.email,
           status: users.status,
           hashedPassword: users.hashedPassword,
+          techHashedPassword: users.techHashedPassword,
           role: users.role,
           isTechnicalRole: users.isTechnicalRole,
           salesmanLoginId: users.salesmanLoginId,
           techLoginId: users.techLoginId,
-          techHashedPassword: users.techHashedPassword,
           deviceId: users.deviceId,
-          fcmToken: users.fcmToken, // <--- IMPORTANT: Ensure fcmToken is selected
+          fcmToken: users.fcmToken,
         })
         .from(users)
-        .where(or(eq(users.salesmanLoginId, loginId), eq(users.email, loginId), eq(users.techLoginId, loginId)))
+        .where(
+          or(
+            eq(users.salesmanLoginId, loginId),
+            eq(users.email, loginId),
+            eq(users.techLoginId, loginId)
+          )
+        )
         .limit(1);
 
-      if (!row) return res.status(401).json({ error: "Invalid credentials" });
-      if (row.status !== "active") return res.status(401).json({ error: "Account is not active" });
-
-      // --- CRITICAL CHANGE: Device Lock Logic for auto-logout ---
-      // If user is already logged in on a DIFFERENT device, send a logout signal to the OLD device.
-      // The new login is allowed to proceed, overriding the old device's session.
-      if (row.deviceId && row.deviceId !== incomingDeviceId) {
-        if (row.fcmToken) {
-          await sendSilentDataMessage(
-            row.fcmToken,
-            {
-              action: 'logout', // Signal client-side logout
-              message: 'Your account was logged in from another device.',
-              timestamp: new Date().toISOString(),
-            },
-            `FCM logout signal sent to old device (User: ${row.id}, Old Token: ${row.fcmToken.substring(0,10)}...)`
-          );
-        } else {
-            console.log(`⚠️ Old device for User ${row.id} had no FCM token. Cannot send logout signal.`);
-        }
+      if (!row) {
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
-      // --- END CRITICAL CHANGE ---
 
+      if (row.status !== 'active') {
+        return res.status(401).json({ error: 'Account is not active' });
+      }
+
+      // 🔒 HARD DEVICE LOCK (NO OVERRIDE)
+      if (row.deviceId && row.deviceId !== incomingDeviceId) {
+        return res.status(403).json({
+          code: 'DEVICE_LOCKED',
+          error:
+            'This account is locked to another device. Please contact admin.',
+        });
+      }
+
+      // Password validation
       let isAuthenticated = false;
 
-      // 1. Check Primary Login (Salesman ID or Email ID)
-      const primaryPasswordMatches = row.hashedPassword && row.hashedPassword === password;
-      if (primaryPasswordMatches) {
+      if (row.hashedPassword && row.hashedPassword === password) {
         isAuthenticated = true;
       }
 
-      // 2. Check Technical Login (Tech ID) - Only check if ID matches tech ID
-      const technicalPasswordMatches = row.techHashedPassword && row.techHashedPassword === password;
+      const techValid =
+        row.techLoginId === loginId &&
+        row.techHashedPassword === password &&
+        row.isTechnicalRole;
 
-      // Technical login is valid if the ID used was the tech ID AND passwords match AND user is flagged technical
-      const isTechLoginValid = (row.techLoginId === loginId) && technicalPasswordMatches && row.isTechnicalRole;
-
-      if (isTechLoginValid) {
+      if (techValid) {
         isAuthenticated = true;
       }
 
       if (!isAuthenticated) {
-        return res.status(401).json({ error: "Invalid credentials" });
+        return res.status(401).json({ error: 'Invalid credentials' });
       }
 
-      // If authentication is successful, update the DB with the new device's FCM token and Device ID.
-      await db.update(users)
+      // Bind device on successful login
+      await db
+        .update(users)
         .set({
-          fcmToken: incomingFcmToken || row.fcmToken, // Update with new, or keep existing if not provided
           deviceId: incomingDeviceId,
+          fcmToken: incomingFcmToken || row.fcmToken,
         })
         .where(eq(users.id, row.id));
 
-      // --- Create the Token ---
-      const payload = { id: row.id, email: row.email, role: row.role };
+      // Create JWT
       const token = sign(
-        payload,
+        { id: row.id, email: row.email, role: row.role },
         process.env.JWT_SECRET,
         { expiresIn: '7d' }
       );
 
-      // --- SEND THE *EXACT* RESPONSE FLUTTER WANTS ---
-      // Your app is hard-coded to look for "token" and "userId"
       return res.json({
-        token: token,
-        userId: row.id
+        token,
+        userId: row.id,
       });
-
     } catch (err) {
-      console.error("Login error:", err);
-      return res.status(500).json({ error: "Login failed" });
+      console.error('Login error:', err);
+      return res.status(500).json({ error: 'Login failed' });
     }
   });
 
-  // --- User profile endpoint ---
-  app.get("/api/users/:id", verifyToken, async (req: Request, res: Response) => {
+  // --------------------------------------------------
+  // USER PROFILE
+  // --------------------------------------------------
+  app.get('/api/users/:id', verifyToken, async (req: Request, res: Response) => {
     try {
       const userId = Number(req.params.id);
-      if (!userId || Number.isNaN(userId)) {
-        return res.status(400).json({ error: "Invalid user id" });
-      }
-
       const tokenUser = (req as any).user;
-      if (tokenUser.id !== userId) {
-        return res.status(403).json({ error: "Forbidden: You cannot access this user's profile" });
+
+      if (!userId || tokenUser.id !== userId) {
+        return res.status(403).json({ error: 'Forbidden' });
       }
 
-      // Manual join to get all data
       const rows = await db
         .select({
           id: users.id,
@@ -194,58 +192,44 @@ export default function setupAuthRoutes(app: Express) {
         .limit(1);
 
       if (!rows.length) {
-        return res.status(404).json({ error: "User not found" });
+        return res.status(404).json({ error: 'User not found' });
       }
 
-      const row = rows[0];
-      const userPayload = {
-        id: row.id,
-        email: row.email,
-        firstName: row.firstName ?? null,
-        lastName: row.lastName ?? null,
-        role: row.role,
-        phoneNumber: row.phoneNumber ?? null,
-        region: row.region ?? null,
-        area: row.area ?? null,
-        salesmanLoginId: row.salesmanLoginId ?? null,
-        status: row.status,
-        reportsToId: row.reportsToId ?? null,
-        isTechnicalRole: row.isTechnicalRole ?? false,
-        techLoginId: row.techLoginId ?? null,
-        noOfPJP: row.noOfPJP ?? null,
-        company: row.companyId
-          ? { id: row.companyId, companyName: row.companyName ?? "" }
-          : null,
-      };
-
-      res.json({ data: toJsonSafe(userPayload) });
-
+      res.json({ data: toJsonSafe(rows[0]) });
     } catch (err) {
-      console.error("GET /api/users error:", err);
-      res.status(500).json({ error: "Failed to load user" });
+      console.error('Profile error:', err);
+      res.status(500).json({ error: 'Failed to load user' });
     }
   });
 
-  app.put("/api/users/device", verifyToken, async (req: Request, res: Response) => {
+  // --------------------------------------------------
+  // DEVICE SYNC (ADMIN / SYSTEM USE)
+  // --------------------------------------------------
+  app.put('/api/users/device', verifyToken, async (req: Request, res: Response) => {
     try {
       const { userId, fcmToken, deviceId } = req.body;
 
-      if (!userId || !fcmToken) {
-        return res.status(400).json({ error: "User ID and FCM Token are required" });
+      if (!userId) {
+        return res.status(400).json({ error: 'User ID is required' });
       }
 
-      await db.update(users)
+      await db
+        .update(users)
         .set({
-          fcmToken: fcmToken,
-          deviceId: deviceId, // This endpoint seems to clear deviceId
+          deviceId: deviceId ?? null,
+          fcmToken: fcmToken ?? null,
         })
         .where(eq(users.id, userId));
 
-      return res.json({ success: true, message: "Device tokens synced" });
+      return res.json({
+        success: true,
+        message: 'Device binding updated',
+      });
     } catch (err) {
-      console.error("Sync error:", err);
-      return res.status(500).json({ error: "Failed to sync device" });
+      console.error('Device sync error:', err);
+      res.status(500).json({ error: 'Failed to sync device' });
     }
   });
-  console.log('✅ Authentication endpoints setup complete');
+
+  console.log('✅ Auth routes loaded (HARD DEVICE BINDING ENABLED)');
 }
