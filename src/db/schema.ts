@@ -937,6 +937,14 @@ export const siteAssociatedUsers = pgTable("_SiteAssociatedUsers", {
   index("_SiteAssociatedUsers_B_index").on(t.B),
 ]);
 
+export const schemeToRewards = pgTable("_SchemeToRewards", {
+  A: integer("A").notNull().references(() => rewards.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  B: uuid("B").notNull().references(() => schemesOffers.id, { onDelete: "cascade", onUpdate: "cascade" }),
+}, (t) => [
+  uniqueIndex("_SchemeToRewards_AB_unique").on(t.A, t.B),
+  index("_SchemeToRewards_B_index").on(t.B),
+]);
+
 // Satellite Image Tables
 export const aoi = pgTable("aoi", {
   id: uuid("id").primaryKey().defaultRandom(),

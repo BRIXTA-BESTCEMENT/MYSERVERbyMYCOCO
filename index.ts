@@ -5,6 +5,7 @@ import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 // --- Import ALL your API route setups ---
+import setupMasonStatsRoute from './src/routes/dataFetchingRoutes/masonstatscheck'
 import setupAuthRoutes from './src/routes/auth'; 
 import setupUsersRoutes from './src/routes/users'; 
 import setupCompaniesRoutes from './src/routes/companies'; 
@@ -187,6 +188,7 @@ setupSalesOrdersRoutes(app);             // /api/sales-orders/*
 setupSalesmanAttendanceRoutes(app);      // /api/salesman-attendance/*
 
 // mason pc side
+setupMasonStatsRoute(app);
 setupMasonsOnMeetingsGetRoutes(app);
 setupMasonsOnSchemeGetRoutes(app);
 setupMasonsPcSideRoutes(app);
