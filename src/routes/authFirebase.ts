@@ -6,7 +6,7 @@ import crypto from "crypto";
 import { db } from "../db/db";
 import { masonPcSide } from "../db/schema";
 import { authSessions } from "../db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and, lt } from "drizzle-orm";
 
 // 7-day expiry for the main JWT
 const JWT_TTL_SECONDS = 60 * 60 * 24 * 7;
@@ -134,8 +134,15 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       }
 
       // 4. Create a persistent session (for "Remember Me")
-      await db.delete(authSessions)
-        .where(eq(authSessions.masonId, mason.id));
+// Optional: only delete expired sessions
+await db.delete(authSessions)
+  .where(
+    and(
+      eq(authSessions.masonId, mason.id),
+      lt(authSessions.expiresAt, new Date())
+    )
+  );
+
 
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000); // 60 days
