@@ -29,7 +29,7 @@ const bagLiftApprovalSchema = z.object({
   siteKeyPersonPhone: z.string().optional().nullable(),
   verificationSiteImageUrl: z.string().optional().nullable(),
   verificationProofImageUrl: z.string().optional().nullable(),
-}).strict();
+});
 
 export default function setupBagLiftsPatchRoute(app: Express) {
 
