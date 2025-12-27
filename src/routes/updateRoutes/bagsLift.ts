@@ -15,6 +15,7 @@ const bagLiftApprovalSchema = z.object({
   status: z.enum(['approved', 'rejected', 'pending']),
   memo: z.string().max(500).optional(),
   approvedBy: z.number().int(),
+  approvedAt: z.string().optional(),
 
   // Optional Corrections
   bagCount: z.number().int().positive().optional(),
