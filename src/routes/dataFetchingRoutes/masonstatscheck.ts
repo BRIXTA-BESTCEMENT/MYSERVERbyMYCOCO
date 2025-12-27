@@ -3,17 +3,13 @@ import { db } from '../../db/db';
 import { bagLifts, masonPcSide } from '../../db/schema';
 import { eq, and, sql } from 'drizzle-orm';
 
-// ----------------------------------------------------------------------
-// GET /api/mason-stats
-// Query Params: ?masonId=... & ?siteId=...
-// Returns: { success: true, overall: number, site: number }
-// ----------------------------------------------------------------------
 export default function setupMasonStatsRoute(app: Express) {
   
   app.get('/api/mason-stats', async (req: Request, res: Response) => {
     try {
       const { masonId, siteId } = req.query;
 
+      // Validate inputs
       if (!masonId || !siteId) {
         return res.status(400).json({ 
           success: false, 
@@ -21,42 +17,35 @@ export default function setupMasonStatsRoute(app: Express) {
         });
       }
 
-      // --- CHECK 1: Mason's Overall Bags (Limit: 800) ---
-      // We look at the 'masonPcSide' table for the running total
+      // --- CHECK 1: Mason's Overall Bags ---
       const [masonRecord] = await db
-        .select({
-          totalLifted: masonPcSide.bagsLifted
-        })
+        .select({ totalLifted: masonPcSide.bagsLifted })
         .from(masonPcSide)
         .where(eq(masonPcSide.id, String(masonId)))
         .limit(1);
 
-      // Default to 0 if null
       const overallBags = masonRecord?.totalLifted || 0;
 
-
-      // --- CHECK 2: Site's Total Approved Bags (Limit: 600) ---
-      // We calculate this live by summing 'bag_lifts' where status = 'approved'
+      // --- CHECK 2: Site's Total Approved Bags ---
       const [siteStats] = await db
-        .select({
-          siteTotal: sql<number>`sum(${bagLifts.bagCount})`
-        })
+        .select({ siteTotal: sql<number>`sum(${bagLifts.bagCount})` })
         .from(bagLifts)
         .where(
           and(
             eq(bagLifts.siteId, String(siteId)),
-            eq(bagLifts.status, 'approved') // Only count APPROVED bags
+            eq(bagLifts.status, 'approved') 
           )
         );
 
-      // Cast to number (Postgres sum can return string)
       const siteBags = Number(siteStats?.siteTotal || 0);
 
-      // --- SEND RESPONSE ---
+      // ⚠️ FIX: Wrap the response in 'data' to satisfy Flutter ApiService
       res.json({
         success: true,
-        overall: overallBags,  // Checked against 800 in Flutter
-        site: siteBags         // Checked against 600 in Flutter
+        data: {            // <--- ADDED THIS WRAPPER
+          overall: overallBags, 
+          site: siteBags
+        }
       });
 
     } catch (error) {
