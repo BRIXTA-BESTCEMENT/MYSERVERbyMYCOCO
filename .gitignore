@@ -6,3 +6,4 @@ count:*
 dist
 dist/
 service-account.json
+.vscode

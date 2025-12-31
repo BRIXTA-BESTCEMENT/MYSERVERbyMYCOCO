@@ -82,7 +82,8 @@ const tvrInputSchema = z
     meetingId: nullableString,
     pjpId: nullableString,
     masonId: nullableString,
-    siteId: nullableString,   
+    siteId: nullableString,
+    journeyId: nullableString,   
     firstVisitTime: z.coerce.date().nullable().optional(),
     lastVisitTime: z.coerce.date().nullable().optional(),
     firstVisitDay: nullableString,
@@ -188,6 +189,7 @@ function createAutoCRUD(app: Express, config: {
         pjpId: input.pjpId ?? null,
         masonId: input.masonId ?? null,
         siteId: input.siteId ?? null,
+        journeyId: input.journeyId ?? null,
 
         // --- Counters ---
         firstVisitTime: input.firstVisitTime ?? null,

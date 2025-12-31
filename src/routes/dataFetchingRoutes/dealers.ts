@@ -155,10 +155,10 @@ function createAutoCRUD(app: Express, config: {
   const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
     try {
       const { limit = '50', page = '1', sortBy, sortDir, ...filters } = req.query;
-    //   console.log('DEALERS LIST HIT', {
-    //   rawQuery: req.query,
-    //   filters,
-    // });
+      //   console.log('DEALERS LIST HIT', {
+      //   rawQuery: req.query,
+      //   filters,
+      // });
       const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 50));
       const pg = Math.max(1, parseInt(String(page), 10) || 1);
       const offset = (pg - 1) * lmt;
@@ -247,6 +247,57 @@ function createAutoCRUD(app: Express, config: {
     const base = eq(table.area, String(req.params.area));
     return listHandler(req, res, base);
   });
+
+  // GET /api/dealers/discovery/nearby?lat=...&lng=...&radius=0.1
+  app.get('/api/dealers/discovery/nearby', async (req: Request, res: Response) => {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      // Default radius to 0.1 km (100 meters) if not provided
+      const radiusInKm = parseFloat(req.query.radius as string) || 0.1;
+
+      if (isNaN(lat) || isNaN(lng)) {
+        return res.status(400).json({
+          success: false,
+          error: 'Valid latitude and longitude are required.'
+        });
+      }
+
+      // Haversine distance formula implementation in Drizzle SQL
+      const distanceSql = sql`
+        (6371 * acos(
+          cos(radians(${lat})) * cos(radians(${dealers.latitude})) * cos(radians(${dealers.longitude}) - radians(${lng})) + 
+          sin(radians(${lat})) * sin(radians(${dealers.latitude}))
+        ))
+      `;
+
+      const nearbyDealers = await db.select({
+        id: dealers.id,
+        name: dealers.name,
+        address: dealers.address,
+        phoneNo: dealers.phoneNo,
+        type: dealers.type,
+        distance: distanceSql, // Calculated distance in KM
+      })
+        .from(dealers)
+        .where(sql`${distanceSql} < ${radiusInKm}`)
+        .orderBy(distanceSql)
+        .limit(10); // Return top 10 matches
+
+      res.json({
+        success: true,
+        data: nearbyDealers
+      });
+    } catch (error) {
+      console.error('Dealer Nearby Discovery Error:', error);
+      res.status(500).json({
+        success: false,
+        error: 'Discovery search failed',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
 }
 
 export default function setupDealersRoutes(app: Express) {

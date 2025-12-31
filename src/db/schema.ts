@@ -268,6 +268,7 @@ export const technicalVisitReports = pgTable("technical_visit_reports", {
   pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
   masonId: uuid("mason_id").references((): any => masonPcSide.id, { onDelete: "set null" }),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
+  journeyId: varchar("journey_id", { length: 255 }),
 
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
@@ -277,6 +278,7 @@ export const technicalVisitReports = pgTable("technical_visit_reports", {
   index("idx_technical_visit_reports_pjp_id").on(t.pjpId),
   index("idx_tvr_mason_id").on(t.masonId),
   index("idx_tvr_site_id").on(t.siteId),
+  index("idx_tvr_journey_id").on(t.journeyId),
 ]);
 
 /* ========================= dealers (extended to match Prisma) ========================= */
@@ -860,7 +862,7 @@ export const technicalSites = pgTable("technical_sites", {
 
   // SALES/TSO TRACKING FIELDS
   convertedSite: boolean("converted_site").default(false),
-  firstVistDate: date("first_visit_date"),
+  firstVisitDate: date("first_visit_date"),
   lastVisitDate: date("last_visit_date"),
   needFollowUp: boolean("need_follow_up").default(false),
   imageUrl: text("image_url"),

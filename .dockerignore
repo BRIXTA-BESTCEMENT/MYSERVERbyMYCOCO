@@ -8,6 +8,7 @@ README.md
 .gitignore
 .git
 src/db/migrations/
+.vscode
 
 # OS-specific files
 .DS_Store

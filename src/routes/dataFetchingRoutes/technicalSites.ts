@@ -2,8 +2,8 @@
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { technicalSites, insertTechnicalSiteSchema } from '../../db/schema';
-import { eq, and, desc, asc, ilike, sql, SQL, gte, lte, isNotNull, not } from 'drizzle-orm';
+import { technicalSites, insertTechnicalSiteSchema, siteAssociatedDealers, siteAssociatedMasons } from '../../db/schema';
+import { eq, and, desc, asc, ilike, sql, SQL, gte, lte, isNotNull, not, inArray } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Ensure the table type is correctly inferred for Drizzle ORM helpers
@@ -41,6 +41,26 @@ function createAutoCRUD(app: Express, config: {
     if (q.siteType) conds.push(eq(table.siteType, String(q.siteType)));
     if (q.stageOfConstruction) conds.push(eq(table.stageOfConstruction, String(q.stageOfConstruction)));
 
+    // Query the MANY-TO-MANY junction table for Dealers
+    if (q.relatedDealerID) {
+      const siteIdsWithDealer = db
+        .select({ id: siteAssociatedDealers.B })
+        .from(siteAssociatedDealers)
+        .where(eq(siteAssociatedDealers.A, String(q.relatedDealerID)));
+
+      conds.push(inArray(table.id, siteIdsWithDealer));
+    }
+
+    // Query the MANY-TO-MANY junction table for Masons
+    if (q.relatedMasonpcID) {
+      const siteIdsWithMason = db
+        .select({ id: siteAssociatedMasons.B })
+        .from(siteAssociatedMasons)
+        .where(eq(siteAssociatedMasons.A, String(q.relatedMasonpcID)));
+
+      conds.push(inArray(table.id, siteIdsWithMason));
+    }
+
     // Boolean filters (convertedSite, needFollowUp)
     const convertedSite = boolish(q.convertedSite);
     if (convertedSite !== undefined) conds.push(eq(table.convertedSite, convertedSite));
@@ -55,12 +75,8 @@ function createAutoCRUD(app: Express, config: {
       conds.push(sql`(${table.imageUrl} IS NULL OR ${table.imageUrl} = '')`);
     }
 
-    // Primary FK filters
-    if (q.relatedDealerID) conds.push(eq(table.relatedDealerID, String(q.relatedDealerID)));
-    if (q.relatedMasonpcID) conds.push(eq(table.relatedMasonpcID, String(q.relatedMasonpcID)));
-
     // Date Range Filters
-    const dateField = table.firstVistDate;
+    const dateField = table.firstVisitDate;
     if (q.startDate && q.endDate && dateField) {
       conds.push(
         and(
@@ -97,8 +113,8 @@ function createAutoCRUD(app: Express, config: {
         return direction === 'asc' ? asc(table.region) : desc(table.region);
       case 'lastVisitDate':
         return direction === 'asc' ? asc(table.lastVisitDate) : desc(table.lastVisitDate);
-      case 'firstVistDate':
-        return direction === 'asc' ? asc(table.firstVistDate) : desc(table.firstVistDate);
+      case 'firstVisitDate':
+        return direction === 'asc' ? asc(table.firstVisitDate) : desc(table.firstVisitDate);
       case 'convertedSite':
         return direction === 'asc' ? asc(table.convertedSite) : desc(table.convertedSite);
       case 'imageUrl':
@@ -134,7 +150,7 @@ function createAutoCRUD(app: Express, config: {
           ${table.siteName} ASC
         `;
       }
-      
+
       let q = db.select().from(table).$dynamic();
       if (whereCondition) {
         q = q.where(whereCondition);
@@ -203,8 +219,58 @@ function createAutoCRUD(app: Express, config: {
 
   // ===== GET BY DEALER ID (Primary Dealer) =====
   app.get(`/api/${endpoint}/dealer/:dealerId`, (req, res) => {
-    const base = eq(table.relatedDealerID, String(req.params.dealerId));
+    const base = inArray(
+      table.id,
+      db.select({ id: siteAssociatedDealers.B })
+        .from(siteAssociatedDealers)
+        .where(eq(siteAssociatedDealers.A, String(req.params.dealerId)))
+    );
+
     return listHandler(req, res, base);
+  });
+
+  // ===== GET BY MASONS ID (Primary Dealer) =====
+  app.get(`/api/${endpoint}/mason/:masonId`, (req, res) => {
+    const base = inArray(
+      table.id,
+      db.select({ id: siteAssociatedMasons.B })
+        .from(siteAssociatedMasons)
+        .where(eq(siteAssociatedMasons.A, String(req.params.masonId)))
+    );
+    return listHandler(req, res, base);
+  });
+
+  // GET nearby sites within X meters
+  app.get('/api/technical-sites/discovery/nearby', async (req: Request, res: Response) => {
+    try {
+      const lat = parseFloat(req.query.lat as string);
+      const lng = parseFloat(req.query.lng as string);
+      const radiusInKm = 0.1; // 100 meters
+
+      // Haversine distance formula in SQL
+      const distanceSql = sql`
+      (6371 * acos(
+        cos(radians(${lat})) * cos(radians(latitude)) * cos(radians(longitude) - radians(${lng})) + 
+        sin(radians(${lat})) * sin(radians(latitude))
+      ))
+    `;
+
+      const nearby = await db.select({
+        id: technicalSites.id,
+        siteName: technicalSites.siteName,
+        address: technicalSites.address,
+        distance: distanceSql,
+      })
+        .from(technicalSites)
+        .where(sql`${distanceSql} < ${radiusInKm}`)
+        .orderBy(distanceSql)
+        .limit(5);
+
+      res.json({ success: true, data: nearby });
+    } catch (error) {
+      console.error('Nearby Discovery Error:', error);
+      res.status(500).json({ success: false, error: 'Discovery failed' });
+    }
   });
 }
 
