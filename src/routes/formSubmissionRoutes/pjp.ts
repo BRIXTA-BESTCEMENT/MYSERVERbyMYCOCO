@@ -29,39 +29,39 @@ const pjpInputSchema = z.object({
   route: strOrNull,
   description: strOrNull,
   status: z.string().max(50).min(1).default('PENDING'),
-  
+
   // Numerical Plans
   plannedNewSiteVisits: numOrZero,
   plannedFollowUpSiteVisits: numOrZero,
   plannedNewDealerVisits: numOrZero,
   plannedInfluencerVisits: numOrZero,
-  
+
   // Influencer Details
   influencerName: strOrNull,
   influencerPhone: strOrNull,
   activityType: strOrNull,
-  
+
   // Conversion & Schemes
   noOfConvertedBags: numOrZero,
   noOfMasonPcSchemes: numOrZero,
-  
+
   verificationStatus: strOrNull.default('PENDING'),
   additionalVisitRemarks: strOrNull,
   idempotencyKey: z.string().max(120).optional(),
-}).strict();
+});
 
 const bulkSchema = z.object({
   userId: z.coerce.number().int().positive(),
   createdById: z.coerce.number().int().positive(),
-  dealerIds: z.array(z.string().min(1)).optional(),
-  siteIds: z.array(z.string().min(1)).optional(),
+  dealerIds: z.array(z.string().min(1)).nullable().optional().default(null), // Explicitly allow null
+  siteIds: z.array(z.string().min(1)).nullable().optional().default(null),   // Explicitly allow null
   baseDate: z.coerce.date(),
   batchSizePerDay: z.coerce.number().int().min(1).max(500).default(8),
   areaToBeVisited: z.string().max(500).min(1),
   route: strOrNull,
   description: strOrNull,
   status: z.string().max(50).default('PENDING'),
-  
+
   // Default metrics for bulk creation
   plannedNewSiteVisits: numOrZero,
   plannedFollowUpSiteVisits: numOrZero,
@@ -77,9 +77,7 @@ const bulkSchema = z.object({
 
   bulkOpId: z.string().max(50).optional(),
   idempotencyKey: z.string().max(120).optional(),
-}).strict().refine(data => data.dealerIds?.length || data.siteIds?.length, {
-  message: "Either dealerIds or siteIds must be provided",
-});
+}).passthrough();
 
 export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
   // SINGLE CREATE
@@ -94,7 +92,7 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           userId: input.userId,
           createdById: input.createdById,
           dealerId: input.dealerId ?? null,
-          siteId: input.siteId ?? null, 
+          siteId: input.siteId ?? null,
           planDate: toDateOnly(input.planDate),
           areaToBeVisited: input.areaToBeVisited,
           route: input.route,
@@ -105,17 +103,17 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           plannedFollowUpSiteVisits: input.plannedFollowUpSiteVisits,
           plannedNewDealerVisits: input.plannedNewDealerVisits,
           plannedInfluencerVisits: input.plannedInfluencerVisits,
-          
+
           // Influencer Data
           influencerName: input.influencerName,
           influencerPhone: input.influencerPhone,
           activityType: input.activityType,
-          
+
           // Conversion
           noOfConvertedBags: input.noOfConvertedBags,
           noOfMasonPcSchemes: input.noOfMasonPcSchemes,
 
-          verificationStatus: input.verificationStatus ?? 'PENDING', 
+          verificationStatus: input.verificationStatus ?? 'PENDING',
           additionalVisitRemarks: input.additionalVisitRemarks ?? null,
           idempotencyKey: input.idempotencyKey,
         })
@@ -150,7 +148,7 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
       const input = bulkSchema.parse(req.body);
 
       const {
-        userId, createdById, dealerIds, siteIds, baseDate, batchSizePerDay, 
+        userId, createdById, dealerIds, siteIds, baseDate, batchSizePerDay,
         areaToBeVisited, route, description, status,
         plannedNewSiteVisits, plannedFollowUpSiteVisits, plannedNewDealerVisits, plannedInfluencerVisits,
         noOfConvertedBags, noOfMasonPcSchemes,
@@ -159,7 +157,11 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
       } = input;
 
       // Determine which ID list to use
-      const targetIds = dealerIds && dealerIds.length > 0 ? dealerIds : (siteIds || []);
+      const targetIds = (dealerIds && dealerIds.length > 0)
+        ? dealerIds
+        : (siteIds && siteIds.length > 0)
+          ? siteIds
+          : [null];
       const isDealerBatch = dealerIds && dealerIds.length > 0;
 
       const rows = targetIds.map((id, i) => {
@@ -169,8 +171,8 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           id: randomUUID(),
           userId,
           createdById,
-          dealerId: isDealerBatch ? id : null, 
-          siteId: !isDealerBatch ? id : null,  
+          dealerId: isDealerBatch ? id : null,
+          siteId: !isDealerBatch ? id : null,
           planDate,
           areaToBeVisited,
           route,
@@ -181,7 +183,7 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           plannedFollowUpSiteVisits,
           plannedNewDealerVisits,
           plannedInfluencerVisits,
-          
+
           noOfConvertedBags,
           noOfMasonPcSchemes,
 
