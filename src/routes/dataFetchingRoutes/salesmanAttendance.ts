@@ -142,11 +142,27 @@ function createAutoCRUD(app: Express, config: {
   });
 
   // GET Today's Attendance by User
+// -------------------------------------------------------------
+  // 🔥 GET Today's Attendance by User (TIMEZONE FIXED: IST)
+  // -------------------------------------------------------------
   app.get(`/api/${endpoint}/user/:userId/today`, async (req: Request, res: Response) => {
     try {
       const { userId } = req.params;
-      const { role } = req.query; // ✅ Get role from query params
-      const today = new Date().toISOString().split('T')[0];
+      const { role } = req.query;
+
+      // 1. Get Current UTC Time from Server
+      const now = new Date();
+
+      // 2. Add 5 hours 30 minutes to manually convert to IST
+      // (5.5 hours * 60 mins * 60 secs * 1000 ms)
+      const istOffset = 5.5 * 60 * 60 * 1000;
+      const istDate = new Date(now.getTime() + istOffset);
+
+      // 3. Extract the YYYY-MM-DD string from the IST Date
+      // This ensures that even if AWS is on Jan 5th, this string is "2026-01-06"
+      const today = istDate.toISOString().split('T')[0];
+
+      console.log(`[GET Today] User: ${userId} | UTC: ${now.toISOString()} | Using IST Date: ${today}`);
 
       // --- ✅ 1. Define conditions array ---
       const conditions: SQL[] = [
@@ -194,7 +210,12 @@ export default function setupSalesmanAttendanceRoutes(app: Express) {
     tableName: 'Attendance',
     dateField: 'attendanceDate',
     autoFields: {
-      attendanceDate: () => new Date().toISOString().split('T')[0] // date type
+      attendanceDate: () => {
+         // Fix auto-create fields to also use IST (Consistency)
+         const now = new Date();
+         const istOffset = 5.5 * 60 * 60 * 1000;
+         return new Date(now.getTime() + istOffset).toISOString().split('T')[0];
+      }
     }
   });
   

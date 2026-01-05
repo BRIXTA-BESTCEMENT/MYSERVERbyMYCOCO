@@ -45,9 +45,14 @@ export default function setupAttendanceInPostRoutes(app: Express) {
         role,
       } = parsed;
 
-      // Ensure attendanceDate is Date
-      const dateObj = new Date(attendanceDate);
-      const dateStr = dateObj.toISOString().split('T')[0];
+      // ---------------------------------------------------------
+      // 🔥 FIX: FORCE SERVER TO RESPECT APP DATE (NO TIMEZONE MATH)
+      // ---------------------------------------------------------
+      // Instead of new Date(attendanceDate).toISOString()...,
+      // we just take the first 10 characters (YYYY-MM-DD).
+      const dateStr = String(attendanceDate).substring(0, 10);
+      
+      console.log(`[CheckIn] App sent: ${attendanceDate} | Server using: ${dateStr}`);
 
       // Check if user already checked in today
       const [existingAttendance] = await db

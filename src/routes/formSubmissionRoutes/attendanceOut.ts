@@ -43,8 +43,12 @@ export default function setupAttendanceOutPostRoutes(app: Express) {
         role,
       } = parsed;
 
-      const dateObj = new Date(attendanceDate);
-      const dateStr = dateObj.toISOString().split('T')[0];
+      // ---------------------------------------------------------
+      // 🔥 FIX: FORCE SERVER TO RESPECT APP DATE (NO TIMEZONE MATH)
+      // ---------------------------------------------------------
+      const dateStr = String(attendanceDate).substring(0, 10);
+      
+      console.log(`[CheckOut] App sent: ${attendanceDate} | Server using: ${dateStr}`);
 
       // Find existing attendance record for today
       const [existingAttendance] = await db
