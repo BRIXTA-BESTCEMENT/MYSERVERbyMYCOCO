@@ -508,8 +508,6 @@ export const journeys = pgTable("journeys", {
   index("idx_journeys_user_status").on(t.userId, t.status),
 ]);
 
-// JOURNEY BREADCRUMBS TABLE
-
 export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
   latitude: numeric("latitude", { precision: 10, scale: 7 }).notNull(),
