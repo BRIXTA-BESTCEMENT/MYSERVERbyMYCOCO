@@ -1,7 +1,7 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -467,6 +467,8 @@ export const geoTracking = pgTable("geo_tracking", {
   checkOutTime: timestamp("check_out_time", { withTimezone: true, precision: 6 }),
   totalDistanceTravelled: numeric("total_distance_travelled", { precision: 10, scale: 3 }),
   journeyId: varchar("journey_id", { length: 255 }),
+  linkedJourneyId: varchar("linked_journey_id", { length: 255 })
+    .references(() => journeys.id, { onDelete: "set null" }),
   isActive: boolean("is_active").notNull().default(true),
   destLat: numeric("dest_lat", { precision: 10, scale: 7 }),
   destLng: numeric("dest_lng", { precision: 10, scale: 7 }),
@@ -482,6 +484,52 @@ export const geoTracking = pgTable("geo_tracking", {
   index("idx_geo_tracking_recorded_at").on(t.recordedAt),
   index("idx_geo_tracking_site_id").on(t.siteId),
   index("idx_geo_tracking_dealer_id").on(t.dealerId),
+  index("idx_geo_linked_journey_time").on(t.linkedJourneyId, t.recordedAt),
+]);
+
+export const journeys = pgTable("journeys", {
+  id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
+  pjpId: varchar("pjp_id", { length: 255 }),
+  siteId: varchar("site_id", { length: 255 }), 
+  dealerId: varchar("dealer_id", { length: 255 }), 
+  siteName: varchar("site_name", { length: 255 }),
+  destLat: numeric("dest_lat", { precision: 10, scale: 7 }),
+  destLng: numeric("dest_lng", { precision: 10, scale: 7 }),
+  status: varchar("status", { length: 50 }).default('ACTIVE').notNull(),
+  isActive: boolean("is_active").default(true),
+  startTime: timestamp("start_time", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+  endTime: timestamp("end_time", { withTimezone: true, precision: 6 }),
+  totalDistance: numeric("total_distance", { precision: 10, scale: 3 }).default('0'),
+
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_journeys_user_status").on(t.userId, t.status),
+]);
+
+// JOURNEY BREADCRUMBS TABLE
+
+export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
+  id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
+  latitude: numeric("latitude", { precision: 10, scale: 7 }).notNull(),
+  longitude: numeric("longitude", { precision: 10, scale: 7 }).notNull(),
+  h3Index: varchar("h3_index", { length: 15 }),
+  speed: real("speed"),
+  accuracy: real("accuracy"),
+  heading: real("heading"),
+  altitude: real("altitude"),
+  batteryLevel: real("battery_level"),
+  isCharging: boolean("is_charging"),
+  networkStatus: varchar("network_status", { length: 50 }),
+  isMocked: boolean("is_mocked").default(false),
+  journeyId: varchar("journey_id", { length: 255 }).notNull().references(() => journeys.id, { onDelete: "cascade" }),
+
+  recordedAt: timestamp("recorded_at", { withTimezone: true, precision: 6 }).notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow(),
+}, (t) => [
+  index("idx_breadcrumbs_journey_time").on(t.journeyId, t.recordedAt),
+  index("idx_breadcrumbs_h3").on(t.h3Index),
 ]);
 
 /* ========================= daily_tasks ========================= */
@@ -1270,6 +1318,8 @@ export const insertSalesmanAttendanceSchema = createInsertSchema(salesmanAttenda
 export const insertSalesmanLeaveApplicationSchema = createInsertSchema(salesmanLeaveApplications);
 export const insertCompetitionReportSchema = createInsertSchema(competitionReports);
 export const insertGeoTrackingSchema = createInsertSchema(geoTracking);
+export const insertJourneysSchema = createInsertSchema(journeys);
+export const insertJourneyBreadcrumbsSchema = createInsertSchema(journeyBreadcrumbs);
 export const insertDailyTaskSchema = createInsertSchema(dailyTasks);
 export const insertDealerReportsAndScoresSchema = createInsertSchema(dealerReportsAndScores);
 export const insertRatingSchema = createInsertSchema(ratings);
