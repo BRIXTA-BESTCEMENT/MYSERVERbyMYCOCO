@@ -2,7 +2,7 @@
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { geoTracking, insertGeoTrackingSchema, journeyBreadcrumbs, journeys } from '../../db/schema';
+import { geoTracking, insertGeoTrackingSchema, journeyBreadcrumbs, journeys, journeyOps } from '../../db/schema';
 import { eq, desc } from 'drizzle-orm';
 import { z } from 'zod';
 import crypto from "crypto";
@@ -41,7 +41,6 @@ export default function setupGeoTrackingRoutes(app: Express) {
   // GET Endpoints
   // -------------------------
 
-  // 1. GET ALL JOURNEYS (History List)
   // Replaces: /api/geotracking/user/:userId
   app.get('/api/journeys/user/:userId', async (req: Request, res: Response) => {
     try {
@@ -61,7 +60,6 @@ export default function setupGeoTrackingRoutes(app: Express) {
     }
   });
 
-  // 2. GET SINGLE JOURNEY + PATH (For Map Drawing)
   // Replaces: /api/geotracking/journey/:journeyId
   app.get('/api/journeys/:journeyId', async (req: Request, res: Response) => {
     try {
@@ -89,7 +87,38 @@ export default function setupGeoTrackingRoutes(app: Express) {
     }
   });
 
-  // 3. LIVE LOCATIONS (The "Uber View")
+  app.get("/api/journeys/:journeyId/ops", async (req, res) => {
+    const { journeyId } = req.params;
+
+    const ops = await db
+      .select()
+      .from(journeyOps)
+      .where(eq(journeyOps.journeyId, journeyId))
+      .orderBy(journeyOps.serverSeq);
+
+    res.json({ success: true, data: ops });
+  });
+
+  app.get("/api/journeys/:journeyId/latest", async (req, res) => {
+    const { journeyId } = req.params;
+
+    const [latestMove] = await db
+      .select()
+      .from(journeyOps)
+      .where(eq(journeyOps.journeyId, journeyId))
+      .orderBy(desc(journeyOps.serverSeq))
+      .limit(1);
+
+    if (!latestMove || latestMove.type !== "MOVE") {
+      return res.json({ success: true, data: null });
+    }
+
+    res.json({
+      success: true,
+      data: latestMove.payload,
+    });
+  });
+
   // New Endpoint: Shows where every active driver is right now
   app.get('/api/live-locations', async (req: Request, res: Response) => {
     try {
@@ -118,7 +147,6 @@ export default function setupGeoTrackingRoutes(app: Express) {
   // POST Endpoint
   // -------------------------
 
-  // 4. START JOURNEY (Context Creation)
   app.post('/api/journeys', async (req: Request, res: Response) => {
     try {
       const parsed = createJourneySchema.safeParse(req.body);
@@ -138,7 +166,6 @@ export default function setupGeoTrackingRoutes(app: Express) {
     }
   });
 
-  // 🟢 5. STOP JOURNEY (Context Update)
   app.patch('/api/journeys/:journeyId', async (req: Request, res: Response) => {
     try {
       const { journeyId } = req.params;
@@ -161,7 +188,6 @@ export default function setupGeoTrackingRoutes(app: Express) {
     }
   });
 
-  // 🟢 6. SYNC BREADCRUMBS (Physics Ingestion)
   // This handles the "Batch Sync" when internet returns
   app.post('/api/breadcrumbs', async (req: Request, res: Response) => {
     try {

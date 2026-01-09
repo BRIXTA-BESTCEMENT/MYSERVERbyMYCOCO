@@ -141,6 +141,20 @@
       "when": 1767950730483,
       "tag": "0019_aromatic_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1767965877579,
+      "tag": "0020_sad_psynapse",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1767969334746,
+      "tag": "0021_tricky_monster_badoon",
+      "breakpoints": true
     }
   ]
 }

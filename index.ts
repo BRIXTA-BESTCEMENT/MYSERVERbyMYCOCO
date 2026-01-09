@@ -111,6 +111,7 @@ import setupTechnicalSitesUpdateRoutes from './src/routes/updateRoutes/technical
 
 // --- Import GEO TRACKING route setups ---
 import setupGeoTrackingRoutes from './src/routes/geoTrackingRoutes/geoTracking';
+import setupJourneyOpsRoutes from './src/routes/geoTrackingRoutes/journeyOps';
 
 // --- TelegramBot + AI Bot setups ---
 import setupAiService from './src/bots/aiService';
@@ -274,6 +275,7 @@ setupTechnicalSitesUpdateRoutes(app);
 
 // ---------- GEO TRACKING SETUP--------
 setupGeoTrackingRoutes(app);
+setupJourneyOpsRoutes(app);
 
 //------------ CLOUDFARE ----------------
 setupR2Upload(app);
