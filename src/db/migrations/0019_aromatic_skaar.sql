@@ -1,0 +1,1 @@
+ALTER TABLE "journey_breadcrumbs" ADD COLUMN "is_synced" boolean DEFAULT false;

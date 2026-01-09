@@ -521,6 +521,7 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   isCharging: boolean("is_charging"),
   networkStatus: varchar("network_status", { length: 50 }),
   isMocked: boolean("is_mocked").default(false),
+  isSynced: boolean("is_synced").default(false),
   journeyId: varchar("journey_id", { length: 255 }).notNull().references(() => journeys.id, { onDelete: "cascade" }),
 
   recordedAt: timestamp("recorded_at", { withTimezone: true, precision: 6 }).notNull(),
