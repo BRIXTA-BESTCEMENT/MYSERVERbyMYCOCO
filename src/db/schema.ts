@@ -1,7 +1,8 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real, bigserial
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real, 
+  bigserial, bigint
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -551,6 +552,12 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   index("idx_breadcrumbs_journey_time").on(t.journeyId, t.recordedAt),
   index("idx_breadcrumbs_h3").on(t.h3Index),
 ]);
+
+export const syncState = pgTable("sync_state", {
+  id: integer("id").primaryKey().default(1),
+  // using mode: 'number' is safer for JS if seq won't exceed 2^53
+  lastServerSeq: bigint("last_server_seq", { mode: "number" }).notNull().default(0),
+});
 
 /* ========================= daily_tasks ========================= */
 export const dailyTasks = pgTable("daily_tasks", {
@@ -1351,6 +1358,7 @@ export const insertGeoTrackingSchema = createInsertSchema(geoTracking);
 export const insertJourneyOpsSchema = createInsertSchema(journeyOps);
 export const insertJourneysSchema = createInsertSchema(journeys);
 export const insertJourneyBreadcrumbsSchema = createInsertSchema(journeyBreadcrumbs);
+export const insertSyncStateSchema = createInsertSchema(syncState);
 
 // Changed giftInventory to rewards
 export const insertRewardsSchema = createInsertSchema(rewards);
