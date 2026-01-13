@@ -20,9 +20,11 @@ interface IncomingOp {
 }
 
 export function startWebSocketServer() {
-  const wss = new WebSocketServer({ port: 3000 });
+  const port = Number(process.env.WSPORT) || 3000; 
 
-  console.log('✅ Geo-Tracking WebSocket Server running on ws://localhost:3000');
+  const wss = new WebSocketServer({ port });
+
+  console.log(`✅ Geo-Tracking WebSocket Server running on port ${port}`);
 
   wss.on('connection', async (ws: WebSocket, req) => {
     console.log('🔌 New Client Connected');
