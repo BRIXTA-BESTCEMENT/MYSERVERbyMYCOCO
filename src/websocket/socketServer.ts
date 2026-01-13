@@ -73,27 +73,46 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
         .where(eq(journeyOps.opId, op.opId));
 
       if (existing) {
-        acks.push({ opId: op.opId, status: 'ALREADY_PROCESSED' });
+        acks.push({ 
+          opId: op.opId, 
+          status: 'ALREADY_PROCESSED',
+          serverSeq: existing.serverSeq 
+        });
         continue;
       }
 
       // 2. Insert into 'journey_ops' (The Source of Truth)
-      // This table uses 'serverSeq' which auto-increments
-      await db.insert(journeyOps).values({
+      const [insertedOp] = await db.insert(journeyOps).values({
         opId: op.opId,
         journeyId: op.journeyId,
         userId: op.userId,
         type: op.type,
         payload: op.payload, // Storing full JSON payload
         createdAt: new Date(op.createdAt),
-      });
+      }).returning({ serverSeq: journeyOps.serverSeq });
 
-      // 3. Process Specific Logic based on Op Type
-      if (op.type === 'MOVE') {
-        // payload usually looks like: { lat: 12.34, lng: 56.78, ... }
+      // 3. Process Specific Logic (Read Models)
+      if (op.type === 'START') {
+        const { siteId, dealerId, siteName, destLat, destLng, pjpId } = op.payload;
+        
+        await db.insert(journeys).values({
+          id: op.journeyId,
+          userId: op.userId,
+          startTime: new Date(op.createdAt),
+          status: 'ACTIVE',
+          siteName: siteName || 'N/A Site',
+          pjpId: pjpId,
+          siteId: siteId, 
+          dealerId: dealerId,
+          destLat: destLat ? destLat.toString() : null,
+          destLng: destLng ? destLng.toString() : null,
+          isSynced: true,
+          updatedAt: new Date(),
+        });
+
+      } else if (op.type === 'MOVE') {
         const { latitude, longitude, speed, h3Index, accuracy, heading, altitude, batteryLevel } = op.payload;
         
-        // Insert into 'journey_breadcrumbs'
         await db.insert(journeyBreadcrumbs).values({
             id: crypto.randomUUID(),
             journeyId: op.journeyId,
@@ -105,12 +124,13 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
             heading: heading,
             altitude: altitude,
             batteryLevel: batteryLevel,
-            recordedAt: new Date(op.createdAt), // Use the client's timestamp
+            recordedAt: new Date(op.createdAt),
             isSynced: true
         });
+        
+        // Optional: Update total distance on Journey here if you want real-time stats
 
       } else if (op.type === 'STOP') {
-        // Update 'journeys' status to COMPLETED
         await db.update(journeys)
           .set({ 
             status: 'COMPLETED',
@@ -120,8 +140,12 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
           .where(eq(journeys.id, op.journeyId));
       }
 
-      // 4. Acknowledge success
-      acks.push({ opId: op.opId, status: 'OK' });
+      // 4. Acknowledge with the REAL serverSeq
+      acks.push({ 
+        opId: op.opId, 
+        status: 'OK', 
+        serverSeq: insertedOp.serverSeq 
+      });
 
     } catch (dbError) {
       console.error(`Failed to process op ${op.opId}:`, dbError);
@@ -129,6 +153,6 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
     }
   }
 
-  // Send ACKs back to client so they can delete from their local queue
+  // Send ACKs back
   ws.send(JSON.stringify({ type: 'ACK', payload: acks }));
 }
