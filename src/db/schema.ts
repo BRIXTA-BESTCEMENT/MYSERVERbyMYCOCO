@@ -1022,6 +1022,38 @@ export const schemeToRewards = pgTable("_SchemeToRewards", {
   index("_SchemeToRewards_B_index").on(t.B),
 ]);
 
+export const logisticsGateIO = pgTable("logistics_gate_io", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  zone: varchar("zone", { length: 255 }),
+  district: varchar("district", { length: 255 }),
+  destination: varchar("destination", { length: 255 }),
+  doOrderDate: date("doOrderDate"),
+  doOrderTime: varchar("doOrderTime", { length: 50 }),
+  gateInDate: date("gateInDate"),
+  gateInTime: varchar("gateInTime", { length: 50 }),
+  processingTime: varchar("processingTime", { length: 100 }),
+  wbInDate: date("wbInDate"),
+  wbInTime: varchar("wbInTime", { length: 50 }),
+  diffGateInTareWt: varchar("diffGateInTareWt", { length: 100 }),
+  wbOutDate: date("wbOutDate"),
+  wbOutTime: varchar("wbOutTime", { length: 50 }),
+  diffTareWtGrossWt: varchar("diffTareWtGrossWt", { length: 100 }),
+  gateOutDate: date("gateOutDate"),
+  gateOutTime: varchar("gateOutTime", { length: 50 }),
+  diffGrossWtGateOut: varchar("diffGrossWtGateOut", { length: 100 }),
+  diffGrossWtInvoiceDT: varchar("diffGrossWtInvoiceDT", { length: 100 }),
+  diffInvoiceDTGateOut: varchar("diffInvoiceDTGateOut", { length: 100 }),
+  diffGateInGateOut: varchar("diffGateInGateOut", { length: 100 }),
+
+  // Timestamps
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// --------------------------- SATELLITE STUFF -----------------------
 // Satellite Image Tables
 export const aoi = pgTable("aoi", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1070,10 +1102,6 @@ export const aoiGridCell = pgTable("aoi_grid_cell", {
     mode: "string",
   }).defaultNow().notNull(),
 });
-
-// =========================
-// 2) Sentinel scenes & grid change
-// =========================
 
 export const satelliteScene = pgTable("satellite_scene", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1174,10 +1202,6 @@ export const gridChangeScore = pgTable("grid_change_score", {
   }).defaultNow().notNull(),
 });
 
-// =========================
-// 3) High-res scenes & detected buildings
-// =========================
-
 export const highresScene = pgTable("highres_scene", {
   id: uuid("id").primaryKey().defaultRandom(),
 
@@ -1252,10 +1276,6 @@ export const detectedBuilding = pgTable("detected_building", {
     mode: "string",
   }).defaultNow().notNull(),
 });
-
-// =========================
-// 4) Construction sites & TSO visits
-// =========================
 
 export const constructionSite = pgTable("construction_site", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1392,3 +1412,6 @@ export const insertHighResScreenSchema = createInsertSchema(highresScene);
 export const insertDetectedBuildingSchema = createInsertSchema(detectedBuilding);
 export const insertConstructionSiteSchema = createInsertSchema(constructionSite);
 export const insertTsoVisitSchema = createInsertSchema(tsoVisit);
+
+// logistics
+export const insertLogisticsGateIOSchema = createInsertSchema(logisticsGateIO);

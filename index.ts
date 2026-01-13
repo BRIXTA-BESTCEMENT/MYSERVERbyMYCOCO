@@ -37,6 +37,7 @@ import setupKycSubmissionsRoutes from './src/routes/dataFetchingRoutes/kycSubmis
 import setupTechnicalSitesRoutes from './src/routes/dataFetchingRoutes/technicalSites';
 import setupSchemeSlabsGetRoutes from './src/routes/dataFetchingRoutes/schemeSlabs';
 import setupMasonSlabAchievementsGetRoutes from './src/routes/dataFetchingRoutes/masonSlabAchievements';
+import setupLogisticsGateIORoutes from './src/routes/dataFetchingRoutes/logisticsGateIO';
 
 // Data Sync UPSERT
 import setupDealerSyncRoutes from './src/routes/dataSync/dealer';
@@ -87,6 +88,7 @@ import setupPointsLedgerPostRoutes from './src/routes/dataFetchingRoutes/pointsL
 import setupTechnicalSitesPostRoutes from './src/routes/formSubmissionRoutes/technicalSites';
 import setupSchemeSlabsPostRoute from './src/routes/formSubmissionRoutes/schemeSlabs';
 import setupMasonSlabAchievementsPostRoute from './src/routes/formSubmissionRoutes/masonSlabAchievements';
+import setupLogisticsGateIOSubmissionRoute from './src/routes/formSubmissionRoutes/logisticsGateIO';
 
 
 // --- Import UPDATE (PATCH) route setups ---
@@ -108,6 +110,7 @@ import setupRewardsPatchRoute from './src/routes/updateRoutes/rewards';
 import setupRewardsRedemptionPatchRoute from './src/routes/updateRoutes/rewardsRedemption';
 import setupBagLiftsPatchRoute from './src/routes/updateRoutes/bagsLift';
 import setupTechnicalSitesUpdateRoutes from './src/routes/updateRoutes/technicalSites';
+import setupLogisticsGateIOUpdateRoutes from './src/routes/updateRoutes/logisticsGateIO';
 
 // --- Import GEO TRACKING route setups ---
 import setupGeoTrackingRoutes from './src/routes/geoTrackingRoutes/geoTracking';
@@ -116,6 +119,9 @@ import setupJourneyOpsRoutes from './src/routes/geoTrackingRoutes/journeyOps';
 // --- TelegramBot + AI Bot setups ---
 import setupAiService from './src/bots/aiService';
 //import setupTelegramService from './src/bots/telegramService';
+
+// WEBSOCKET SYSTEM
+import { startWebSocketServer } from './src/websocket/socketServer';
 
 // Initialize environment variables
 
@@ -203,6 +209,9 @@ setupTechnicalSitesRoutes(app);
 setupSchemeSlabsGetRoutes(app);
 setupMasonSlabAchievementsGetRoutes(app);
 
+//logistics
+setupLogisticsGateIORoutes(app);
+
 
 // POST Endpoints
 setupTechnicalVisitReportsPostRoutes(app); // POST /api/technical-visit-reports/*
@@ -233,6 +242,9 @@ setupPointsLedgerPostRoutes(app);
 setupTechnicalSitesPostRoutes(app);
 setupSchemeSlabsPostRoute(app);
 setupMasonSlabAchievementsPostRoute(app);
+
+// logistics
+setupLogisticsGateIOSubmissionRoute(app);
 
 // DELETE Endpoints
 setupDealersDeleteRoutes(app);           // DELETE /api/dealers/*
@@ -273,6 +285,9 @@ setupRewardsRedemptionPatchRoute(app);
 setupBagLiftsPatchRoute(app);
 setupTechnicalSitesUpdateRoutes(app);
 
+// logistics
+setupLogisticsGateIOUpdateRoutes(app);
+
 // ---------- GEO TRACKING SETUP--------
 setupGeoTrackingRoutes(app);
 setupJourneyOpsRoutes(app);
@@ -305,3 +320,6 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server is running and listening on http://0.0.0.0:${PORT}`);
 });
+
+// WEBSOCKET START
+startWebSocketServer();
