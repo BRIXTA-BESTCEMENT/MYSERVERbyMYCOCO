@@ -1,5 +1,6 @@
 // src/websocket/socketServer.ts
 import { WebSocketServer, WebSocket } from 'ws';
+import { Server } from 'http';
 import { db } from '../db/db';
 import { journeyOps, journeys, journeyBreadcrumbs, syncState } from '../db/schema'; // Import your schemas
 import { eq, desc } from 'drizzle-orm';
@@ -19,12 +20,12 @@ interface IncomingOp {
   createdAt: string;
 }
 
-export function startWebSocketServer() {
-  const port = Number(process.env.WSPORT) || 3000; 
+export function attachWebSocket(server: Server) {
+  
+  // 🔌 Attach to the EXISTING server instance
+  const wss = new WebSocketServer({ server });
 
-  const wss = new WebSocketServer({ port });
-
-  console.log(`✅ Geo-Tracking WebSocket Server running on port ${port}`);
+  console.log('✅ WebSocket attached to main HTTP server');
 
   wss.on('connection', async (ws: WebSocket, req) => {
     console.log('🔌 New Client Connected');

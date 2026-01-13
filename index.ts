@@ -121,7 +121,7 @@ import setupAiService from './src/bots/aiService';
 //import setupTelegramService from './src/bots/telegramService';
 
 // WEBSOCKET SYSTEM
-import { startWebSocketServer } from './src/websocket/socketServer';
+import { attachWebSocket } from './src/websocket/socketServer';
 
 // Initialize environment variables
 
@@ -317,9 +317,9 @@ app.use((err: Error, req: Request, res: Response, next: NextFunction) => {
 });
 
 // --- Start the Server ---
-app.listen(PORT, '0.0.0.0', () => {
+const server = app.listen(PORT, '0.0.0.0', () => {
   console.log(`✅ Server is running and listening on http://0.0.0.0:${PORT}`);
 });
 
 // WEBSOCKET START
-startWebSocketServer();
+attachWebSocket(server);
