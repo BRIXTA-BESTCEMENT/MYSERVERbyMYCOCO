@@ -22,7 +22,7 @@ interface IncomingOp {
 }
 
 export function attachWebSocket(server: Server) {
-  
+
   // 🔌 Attach to the EXISTING server instance
   const wss = new WebSocketServer({ server });
 
@@ -68,7 +68,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
       // WRAP IN TRANSACTION
       // If any part of this block fails, EVERYTHING in it is undone.
       const result = await db.transaction(async (tx) => {
-        
+
         // 1. Idempotency Check (Inside transaction for safety)
         const [existing] = await tx
           .select()
@@ -76,9 +76,9 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
           .where(eq(journeyOps.opId, op.opId));
 
         if (existing) {
-          return { 
-            status: 'ALREADY_PROCESSED', 
-            serverSeq: existing.serverSeq 
+          return {
+            status: 'ALREADY_PROCESSED',
+            serverSeq: existing.serverSeq
           };
         }
 
@@ -95,7 +95,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
         // 3. Process Specific Logic (Use 'tx' instead of 'db')
         if (op.type === 'START') {
           const { siteId, dealerId, siteName, destLat, destLng, pjpId } = op.payload;
-          
+
           await tx.insert(journeys).values({
             id: op.journeyId,
             userId: op.userId,
@@ -103,7 +103,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
             status: 'ACTIVE',
             siteName: siteName || 'N/A Site',
             pjpId: pjpId,
-            siteId: siteId, 
+            siteId: siteId,
             dealerId: dealerId,
             destLat: destLat ? destLat.toString() : null,
             destLng: destLng ? destLng.toString() : null,
@@ -111,27 +111,31 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
             updatedAt: new Date(),
           });
 
-        } else if (op.type === 'MOVE') {
-          const { latitude, longitude, speed, h3Index, accuracy, heading, altitude, batteryLevel } = op.payload;
-          
-          await tx.insert(journeyBreadcrumbs).values({
-              id: crypto.randomUUID(),
-              journeyId: op.journeyId,
-              latitude: latitude.toString(),
-              longitude: longitude.toString(),
-              h3Index: h3Index,
-              speed: speed,
-              accuracy: accuracy,
-              heading: heading,
-              altitude: altitude,
-              batteryLevel: batteryLevel,
-              recordedAt: new Date(op.createdAt),
-              isSynced: true
-          });
+        }
 
-        } else if (op.type === 'STOP') {
+        // the breadcrumbs are not being sent ---- commenting out
+        // else if (op.type === 'MOVE') {
+        //   const { latitude, longitude, speed, h3Index, accuracy, heading, altitude, batteryLevel } = op.payload;
+
+        //   await tx.insert(journeyBreadcrumbs).values({
+        //       id: crypto.randomUUID(),
+        //       journeyId: op.journeyId,
+        //       latitude: latitude.toString(),
+        //       longitude: longitude.toString(),
+        //       h3Index: h3Index,
+        //       speed: speed,
+        //       accuracy: accuracy,
+        //       heading: heading,
+        //       altitude: altitude,
+        //       batteryLevel: batteryLevel,
+        //       recordedAt: new Date(op.createdAt),
+        //       isSynced: true
+        //   });
+
+        // } 
+        else if (op.type === 'STOP') {
           await tx.update(journeys)
-            .set({ 
+            .set({
               status: 'COMPLETED',
               endTime: new Date(op.createdAt),
               updatedAt: new Date()
@@ -144,15 +148,15 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
       });
 
       // Transaction succeeded, add to ACKs
-      acks.push({ 
-        opId: op.opId, 
-        status: result.status, 
-        serverSeq: result.serverSeq 
+      acks.push({
+        opId: op.opId,
+        status: result.status,
+        serverSeq: result.serverSeq
       });
 
     } catch (dbError) {
       console.error(`Failed to process op ${op.opId}:`, dbError);
-      
+
       // Because we used a transaction, if we land here, the insert into journeyOps 
       // was ROLLED BACK. The client can safely retry!
       acks.push({ opId: op.opId, status: 'FAILED' });
