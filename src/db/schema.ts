@@ -491,7 +491,7 @@ export const geoTracking = pgTable("geo_tracking", {
 export const journeyOps = pgTable("journey_ops", {
   serverSeq: bigserial("server_seq", { mode: "number" }).primaryKey(),
   opId: uuid("op_id").notNull().unique(),
-  journeyId: varchar("journey_id", { length: 255 }).notNull().references(() => journeys.id, { onDelete: "cascade", onUpdate: "cascade" }),  
+  journeyId: varchar("journey_id", { length: 255 }).notNull(),  
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }), 
   type: text("type").notNull(), 
   payload: jsonb("payload").notNull(),
@@ -530,8 +530,8 @@ export const journeys = pgTable("journeys", {
 
 export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
-  latitude: numeric("latitude", { precision: 10, scale: 7 }).notNull(),
-  longitude: numeric("longitude", { precision: 10, scale: 7 }).notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
   h3Index: varchar("h3_index", { length: 15 }),
   speed: real("speed"),
   accuracy: real("accuracy"),

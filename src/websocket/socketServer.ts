@@ -4,6 +4,7 @@ import { Server } from 'http';
 import { db } from '../db/db';
 import { journeyOps, journeys, journeyBreadcrumbs, syncState } from '../db/schema'; // Import your schemas
 import { eq, desc } from 'drizzle-orm';
+import crypto from 'crypto';
 
 // Define the shape of the message we expect from the client
 interface WsMessage {
@@ -60,98 +61,101 @@ export function attachWebSocket(server: Server) {
   });
 }
 
-/**
- * Handles incoming operations (START, MOVE, STOP)
- * Persists to journeyOps, journeyBreadcrumbs, and updates Journeys
- */
 async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
   const acks = [];
 
   for (const op of ops) {
     try {
-      // 1. Idempotency Check: Did we already save this op?
-      const [existing] = await db
-        .select()
-        .from(journeyOps)
-        .where(eq(journeyOps.opId, op.opId));
-
-      if (existing) {
-        acks.push({ 
-          opId: op.opId, 
-          status: 'ALREADY_PROCESSED',
-          serverSeq: existing.serverSeq 
-        });
-        continue;
-      }
-
-      // 2. Insert into 'journey_ops' (The Source of Truth)
-      const [insertedOp] = await db.insert(journeyOps).values({
-        opId: op.opId,
-        journeyId: op.journeyId,
-        userId: op.userId,
-        type: op.type,
-        payload: op.payload, // Storing full JSON payload
-        createdAt: new Date(op.createdAt),
-      }).returning({ serverSeq: journeyOps.serverSeq });
-
-      // 3. Process Specific Logic (Read Models)
-      if (op.type === 'START') {
-        const { siteId, dealerId, siteName, destLat, destLng, pjpId } = op.payload;
+      // WRAP IN TRANSACTION
+      // If any part of this block fails, EVERYTHING in it is undone.
+      const result = await db.transaction(async (tx) => {
         
-        await db.insert(journeys).values({
-          id: op.journeyId,
+        // 1. Idempotency Check (Inside transaction for safety)
+        const [existing] = await tx
+          .select()
+          .from(journeyOps)
+          .where(eq(journeyOps.opId, op.opId));
+
+        if (existing) {
+          return { 
+            status: 'ALREADY_PROCESSED', 
+            serverSeq: existing.serverSeq 
+          };
+        }
+
+        // 2. Insert into 'journey_ops' (Use 'tx' instead of 'db')
+        const [insertedOp] = await tx.insert(journeyOps).values({
+          opId: op.opId,
+          journeyId: op.journeyId,
           userId: op.userId,
-          startTime: new Date(op.createdAt),
-          status: 'ACTIVE',
-          siteName: siteName || 'N/A Site',
-          pjpId: pjpId,
-          siteId: siteId, 
-          dealerId: dealerId,
-          destLat: destLat ? destLat.toString() : null,
-          destLng: destLng ? destLng.toString() : null,
-          isSynced: true,
-          updatedAt: new Date(),
-        });
+          type: op.type,
+          payload: op.payload,
+          createdAt: new Date(op.createdAt),
+        }).returning({ serverSeq: journeyOps.serverSeq });
 
-      } else if (op.type === 'MOVE') {
-        const { latitude, longitude, speed, h3Index, accuracy, heading, altitude, batteryLevel } = op.payload;
-        
-        await db.insert(journeyBreadcrumbs).values({
-            id: crypto.randomUUID(),
-            journeyId: op.journeyId,
-            latitude: latitude.toString(),
-            longitude: longitude.toString(),
-            h3Index: h3Index,
-            speed: speed,
-            accuracy: accuracy,
-            heading: heading,
-            altitude: altitude,
-            batteryLevel: batteryLevel,
-            recordedAt: new Date(op.createdAt),
-            isSynced: true
-        });
-        
-        // Optional: Update total distance on Journey here if you want real-time stats
+        // 3. Process Specific Logic (Use 'tx' instead of 'db')
+        if (op.type === 'START') {
+          const { siteId, dealerId, siteName, destLat, destLng, pjpId } = op.payload;
+          
+          await tx.insert(journeys).values({
+            id: op.journeyId,
+            userId: op.userId,
+            startTime: new Date(op.createdAt),
+            status: 'ACTIVE',
+            siteName: siteName || 'N/A Site',
+            pjpId: pjpId,
+            siteId: siteId, 
+            dealerId: dealerId,
+            destLat: destLat ? destLat.toString() : null,
+            destLng: destLng ? destLng.toString() : null,
+            isSynced: true,
+            updatedAt: new Date(),
+          });
 
-      } else if (op.type === 'STOP') {
-        await db.update(journeys)
-          .set({ 
-            status: 'COMPLETED',
-            endTime: new Date(op.createdAt),
-            updatedAt: new Date()
-          })
-          .where(eq(journeys.id, op.journeyId));
-      }
+        } else if (op.type === 'MOVE') {
+          const { latitude, longitude, speed, h3Index, accuracy, heading, altitude, batteryLevel } = op.payload;
+          
+          await tx.insert(journeyBreadcrumbs).values({
+              id: crypto.randomUUID(),
+              journeyId: op.journeyId,
+              latitude: latitude.toString(),
+              longitude: longitude.toString(),
+              h3Index: h3Index,
+              speed: speed,
+              accuracy: accuracy,
+              heading: heading,
+              altitude: altitude,
+              batteryLevel: batteryLevel,
+              recordedAt: new Date(op.createdAt),
+              isSynced: true
+          });
 
-      // 4. Acknowledge with the REAL serverSeq
+        } else if (op.type === 'STOP') {
+          await tx.update(journeys)
+            .set({ 
+              status: 'COMPLETED',
+              endTime: new Date(op.createdAt),
+              updatedAt: new Date()
+            })
+            .where(eq(journeys.id, op.journeyId));
+        }
+
+        // Return success for this specific Op
+        return { status: 'OK', serverSeq: insertedOp.serverSeq };
+      });
+
+      // Transaction succeeded, add to ACKs
       acks.push({ 
         opId: op.opId, 
-        status: 'OK', 
-        serverSeq: insertedOp.serverSeq 
+        status: result.status, 
+        serverSeq: result.serverSeq 
       });
 
     } catch (dbError) {
       console.error(`Failed to process op ${op.opId}:`, dbError);
+      
+      // Because we used a transaction, if we land here, the insert into journeyOps 
+      // was ROLLED BACK. The client can safely retry!
       acks.push({ opId: op.opId, status: 'FAILED' });
     }
   }

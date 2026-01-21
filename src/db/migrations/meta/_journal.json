@@ -169,6 +169,13 @@
       "when": 1768232307577,
       "tag": "0023_giant_sugar_man",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1768937039736,
+      "tag": "0024_broken_squirrel_girl",
+      "breakpoints": true
     }
   ]
 }
