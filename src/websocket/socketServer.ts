@@ -31,9 +31,8 @@ export function attachWebSocket(server: Server) {
   wss.on('connection', async (ws: WebSocket, req) => {
     console.log('🔌 New Client Connected');
 
-    // Optional: Parse User ID from URL (e.g., ws://localhost:3000?userId=123)
-    // const url = new URL(req.url || '', 'http://localhost');
-    // const userId = url.searchParams.get('userId');
+    // ✅ FIX: Send immediate confirmation so Flutter Client knows we are ready
+    ws.send(JSON.stringify({ type: 'CONNECTED', message: 'Server Response: OK' }));
 
     ws.on('message', async (data) => {
       try {
