@@ -134,10 +134,15 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
 
         // } 
         else if (op.type === 'STOP') {
+          // Convert distance comming in m to Km (formatted to 3 decimals)
+          const rawDistanceMeters = op.payload.totalDistance || 0.0;
+          const distanceKm = (rawDistanceMeters / 1000.0).toFixed(3);
+
           await tx.update(journeys)
             .set({
               status: 'COMPLETED',
               endTime: new Date(op.createdAt),
+              totalDistance: distanceKm.toString(),
               updatedAt: new Date()
             })
             .where(eq(journeys.id, op.journeyId));
