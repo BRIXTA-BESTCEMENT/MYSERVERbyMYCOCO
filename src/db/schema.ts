@@ -533,6 +533,7 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   latitude: doublePrecision("latitude").notNull(),
   longitude: doublePrecision("longitude").notNull(),
   h3Index: varchar("h3_index", { length: 15 }),
+  totalDistance: doublePrecision("total_distance").default(0.0).notNull(),
   speed: real("speed"),
   accuracy: real("accuracy"),
   heading: real("heading"),

@@ -1,0 +1,1 @@
+ALTER TABLE "journey_breadcrumbs" ADD COLUMN "total_distance" double precision DEFAULT 0 NOT NULL;

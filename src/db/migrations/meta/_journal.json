@@ -176,6 +176,13 @@
       "when": 1768937039736,
       "tag": "0024_broken_squirrel_girl",
       "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1769166014149,
+      "tag": "0025_panoramic_radioactive_man",
+      "breakpoints": true
     }
   ]
 }
