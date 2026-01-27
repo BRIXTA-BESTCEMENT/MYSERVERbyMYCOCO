@@ -1,7 +1,8 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real, 
+  bigserial, bigint
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import { createInsertSchema } from "drizzle-zod";
@@ -487,6 +488,22 @@ export const geoTracking = pgTable("geo_tracking", {
   index("idx_geo_linked_journey_time").on(t.linkedJourneyId, t.recordedAt),
 ]);
 
+export const journeyOps = pgTable("journey_ops", {
+  serverSeq: bigserial("server_seq", { mode: "number" }).primaryKey(),
+  opId: uuid("op_id").notNull().unique(),
+  journeyId: varchar("journey_id", { length: 255 }).notNull(),  
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }), 
+  type: text("type").notNull(), 
+  payload: jsonb("payload").notNull(),
+  
+  createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_journey_ops_journey").on(t.journeyId),
+  index("idx_journey_ops_user").on(t.userId),
+  index("idx_journey_ops_created").on(t.createdAt),
+  index("idx_journey_ops_server_seq").on(t.serverSeq),
+]);
+
 export const journeys = pgTable("journeys", {
   id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
@@ -502,6 +519,9 @@ export const journeys = pgTable("journeys", {
   endTime: timestamp("end_time", { withTimezone: true, precision: 6 }),
   totalDistance: numeric("total_distance", { precision: 10, scale: 3 }).default('0'),
 
+  // unused field - but keep it
+  isSynced: boolean("is_synced").default(false),
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -510,9 +530,10 @@ export const journeys = pgTable("journeys", {
 
 export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
-  latitude: numeric("latitude", { precision: 10, scale: 7 }).notNull(),
-  longitude: numeric("longitude", { precision: 10, scale: 7 }).notNull(),
+  latitude: doublePrecision("latitude").notNull(),
+  longitude: doublePrecision("longitude").notNull(),
   h3Index: varchar("h3_index", { length: 15 }),
+  totalDistance: doublePrecision("total_distance").default(0.0).notNull(),
   speed: real("speed"),
   accuracy: real("accuracy"),
   heading: real("heading"),
@@ -521,8 +542,10 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   isCharging: boolean("is_charging"),
   networkStatus: varchar("network_status", { length: 50 }),
   isMocked: boolean("is_mocked").default(false),
-  isSynced: boolean("is_synced").default(false),
   journeyId: varchar("journey_id", { length: 255 }).notNull().references(() => journeys.id, { onDelete: "cascade" }),
+  
+  // unused field - but keep it
+  isSynced: boolean("is_synced").default(false),
 
   recordedAt: timestamp("recorded_at", { withTimezone: true, precision: 6 }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow(),
@@ -530,6 +553,12 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   index("idx_breadcrumbs_journey_time").on(t.journeyId, t.recordedAt),
   index("idx_breadcrumbs_h3").on(t.h3Index),
 ]);
+
+export const syncState = pgTable("sync_state", {
+  id: integer("id").primaryKey().default(1),
+  // using mode: 'number' is safer for JS if seq won't exceed 2^53
+  lastServerSeq: bigint("last_server_seq", { mode: "number" }).notNull().default(0),
+});
 
 /* ========================= daily_tasks ========================= */
 export const dailyTasks = pgTable("daily_tasks", {
@@ -994,6 +1023,38 @@ export const schemeToRewards = pgTable("_SchemeToRewards", {
   index("_SchemeToRewards_B_index").on(t.B),
 ]);
 
+export const logisticsGateIO = pgTable("logistics_gate_io", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  zone: varchar("zone", { length: 255 }),
+  district: varchar("district", { length: 255 }),
+  destination: varchar("destination", { length: 255 }),
+  doOrderDate: date("doOrderDate"),
+  doOrderTime: varchar("doOrderTime", { length: 50 }),
+  gateInDate: date("gateInDate"),
+  gateInTime: varchar("gateInTime", { length: 50 }),
+  processingTime: varchar("processingTime", { length: 100 }),
+  wbInDate: date("wbInDate"),
+  wbInTime: varchar("wbInTime", { length: 50 }),
+  diffGateInTareWt: varchar("diffGateInTareWt", { length: 100 }),
+  wbOutDate: date("wbOutDate"),
+  wbOutTime: varchar("wbOutTime", { length: 50 }),
+  diffTareWtGrossWt: varchar("diffTareWtGrossWt", { length: 100 }),
+  gateOutDate: date("gateOutDate"),
+  gateOutTime: varchar("gateOutTime", { length: 50 }),
+  diffGrossWtGateOut: varchar("diffGrossWtGateOut", { length: 100 }),
+  diffGrossWtInvoiceDT: varchar("diffGrossWtInvoiceDT", { length: 100 }),
+  diffInvoiceDTGateOut: varchar("diffInvoiceDTGateOut", { length: 100 }),
+  diffGateInGateOut: varchar("diffGateInGateOut", { length: 100 }),
+
+  // Timestamps
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
+// --------------------------- SATELLITE STUFF -----------------------
 // Satellite Image Tables
 export const aoi = pgTable("aoi", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1042,10 +1103,6 @@ export const aoiGridCell = pgTable("aoi_grid_cell", {
     mode: "string",
   }).defaultNow().notNull(),
 });
-
-// =========================
-// 2) Sentinel scenes & grid change
-// =========================
 
 export const satelliteScene = pgTable("satellite_scene", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1146,10 +1203,6 @@ export const gridChangeScore = pgTable("grid_change_score", {
   }).defaultNow().notNull(),
 });
 
-// =========================
-// 3) High-res scenes & detected buildings
-// =========================
-
 export const highresScene = pgTable("highres_scene", {
   id: uuid("id").primaryKey().defaultRandom(),
 
@@ -1224,10 +1277,6 @@ export const detectedBuilding = pgTable("detected_building", {
     mode: "string",
   }).defaultNow().notNull(),
 });
-
-// =========================
-// 4) Construction sites & TSO visits
-// =========================
 
 export const constructionSite = pgTable("construction_site", {
   id: uuid("id").primaryKey().defaultRandom(),
@@ -1316,9 +1365,6 @@ export const insertDealerSchema = createInsertSchema(dealers);
 export const insertSalesmanAttendanceSchema = createInsertSchema(salesmanAttendance);
 export const insertSalesmanLeaveApplicationSchema = createInsertSchema(salesmanLeaveApplications);
 export const insertCompetitionReportSchema = createInsertSchema(competitionReports);
-export const insertGeoTrackingSchema = createInsertSchema(geoTracking);
-export const insertJourneysSchema = createInsertSchema(journeys);
-export const insertJourneyBreadcrumbsSchema = createInsertSchema(journeyBreadcrumbs);
 export const insertDailyTaskSchema = createInsertSchema(dailyTasks);
 export const insertDealerReportsAndScoresSchema = createInsertSchema(dealerReportsAndScores);
 export const insertRatingSchema = createInsertSchema(ratings);
@@ -1327,6 +1373,13 @@ export const insertBrandSchema = createInsertSchema(brands);
 export const insertDealerBrandMappingSchema = createInsertSchema(dealerBrandMapping);
 export const insertTsoMeetingSchema = createInsertSchema(tsoMeetings);
 export const insertauthSessionsSchema = createInsertSchema(authSessions);
+
+// journey + geotracking
+export const insertGeoTrackingSchema = createInsertSchema(geoTracking);
+export const insertJourneyOpsSchema = createInsertSchema(journeyOps);
+export const insertJourneysSchema = createInsertSchema(journeys);
+export const insertJourneyBreadcrumbsSchema = createInsertSchema(journeyBreadcrumbs);
+export const insertSyncStateSchema = createInsertSchema(syncState);
 
 // Changed giftInventory to rewards
 export const insertRewardsSchema = createInsertSchema(rewards);
@@ -1360,3 +1413,6 @@ export const insertHighResScreenSchema = createInsertSchema(highresScene);
 export const insertDetectedBuildingSchema = createInsertSchema(detectedBuilding);
 export const insertConstructionSiteSchema = createInsertSchema(constructionSite);
 export const insertTsoVisitSchema = createInsertSchema(tsoVisit);
+
+// logistics
+export const insertLogisticsGateIOSchema = createInsertSchema(logisticsGateIO);

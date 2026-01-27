@@ -141,6 +141,48 @@
       "when": 1767950730483,
       "tag": "0019_aromatic_skaar",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1767965877579,
+      "tag": "0020_sad_psynapse",
+      "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1767969334746,
+      "tag": "0021_tricky_monster_badoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1767987744776,
+      "tag": "0022_magenta_tarantula",
+      "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "7",
+      "when": 1768232307577,
+      "tag": "0023_giant_sugar_man",
+      "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "7",
+      "when": 1768937039736,
+      "tag": "0024_broken_squirrel_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 25,
+      "version": "7",
+      "when": 1769166014149,
+      "tag": "0025_panoramic_radioactive_man",
+      "breakpoints": true
     }
   ]
 }
