@@ -27,6 +27,11 @@ const nullableString = z
 
 const nullableBoolean = z.boolean().optional().nullable();
 
+const sanitize = (obj: any) =>
+  Object.fromEntries(
+    Object.entries(obj).map(([k, v]) => [k, v ?? null])
+  );
+
 // --- Zod schema that EXACTLY matches the DB table ---
 const tvrInputSchema = z
   .object({
@@ -72,7 +77,9 @@ const tvrInputSchema = z
     influencerPhone: nullableString,
     isSchemeEnrolled: nullableBoolean,
     influencerProductivity: nullableString,
-    influencerType: z.preprocess(toStringArray, z.array(z.string()).min(1, "influencerType requires at least one type")),
+    influencerType: z
+      .preprocess(toStringArray, z.array(z.string()))
+      .transform(arr => arr.length === 0 ? ['Dealer'] : arr),
     clientsRemarks: z.string().max(500),
     salespersonRemarks: z.string().max(500),
     promotionalActivity: nullableString,
@@ -211,7 +218,7 @@ function createAutoCRUD(app: Express, config: {
       return res.status(201).json({
         success: true,
         message: `${tableName} created successfully`,
-        data: record,
+        data: sanitize(record),
       });
     } catch (error) {
       console.error(`Create ${tableName} error:`, error);
