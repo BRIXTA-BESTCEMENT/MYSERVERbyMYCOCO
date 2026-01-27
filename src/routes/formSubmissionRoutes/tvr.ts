@@ -36,38 +36,42 @@ const tvrInputSchema = z
     visitType: z.string().max(50),
     siteNameConcernedPerson: z.string().max(255),
     phoneNo: z.string().max(20),
-    whatsappNo: nullableString, 
+    whatsappNo: nullableString,
     emailId: nullableString,
     siteAddress: nullableString,
-    marketName: nullableString, 
-    visitCategory: nullableString, 
-    customerType: nullableString,  
+    marketName: nullableString,
+    visitCategory: nullableString,
+    customerType: nullableString,
     purposeOfVisit: nullableString,
     siteVisitStage: nullableString,
-    constAreaSqFt: z.coerce.number().int().nullable().optional(), 
+    constAreaSqFt: z.coerce.number().int().nullable().optional(),
     siteVisitBrandInUse: z.preprocess(toStringArray, z.array(z.string()).min(1, "siteVisitBrandInUse requires at least one brand")),
-    currentBrandPrice: z.coerce.number().nullable().optional(), 
-    siteStock: z.coerce.number().nullable().optional(),         
-    estRequirement: z.coerce.number().nullable().optional(),    
-    supplyingDealerName: nullableString, 
-    nearbyDealerName: nullableString,    
-    associatedPartyName: nullableString, 
-    channelPartnerVisit: nullableString, 
-    isConverted: nullableBoolean, 
-    conversionType: nullableString, 
+    currentBrandPrice: z.coerce.number().nullable().optional(),
+    siteStock: z.coerce.number().nullable().optional(),
+    estRequirement: z.coerce.number().nullable().optional(),
+    supplyingDealerName: nullableString,
+    nearbyDealerName: nullableString,
+    associatedPartyName: nullableString,
+    channelPartnerVisit: nullableString,
+    isConverted: nullableBoolean,
+    conversionType: nullableString,
     conversionFromBrand: nullableString,
     conversionQuantityValue: z.coerce.number().nullable().optional(),
-    conversionQuantityUnit: nullableString,
-    isTechService: nullableBoolean, 
-    serviceDesc: nullableString,    
+    conversionQuantityUnit: z
+      .string()
+      .optional()
+      .nullable()
+      .transform(v => (v == null || v.trim() === '' ? 'Bags' : v)),
+    isTechService: nullableBoolean,
+    serviceDesc: nullableString,
     serviceType: nullableString,
     dhalaiVerificationCode: nullableString,
     isVerificationStatus: nullableString,
     qualityComplaint: nullableString,
-    influencerName: nullableString,  
-    influencerPhone: nullableString, 
-    isSchemeEnrolled: nullableBoolean, 
-    influencerProductivity: nullableString, 
+    influencerName: nullableString,
+    influencerPhone: nullableString,
+    isSchemeEnrolled: nullableBoolean,
+    influencerProductivity: nullableString,
     influencerType: z.preprocess(toStringArray, z.array(z.string()).min(1, "influencerType requires at least one type")),
     clientsRemarks: z.string().max(500),
     salespersonRemarks: z.string().max(500),
@@ -83,7 +87,7 @@ const tvrInputSchema = z
     pjpId: nullableString,
     masonId: nullableString,
     siteId: nullableString,
-    journeyId: nullableString,   
+    journeyId: nullableString,
     firstVisitTime: z.coerce.date().nullable().optional(),
     lastVisitTime: z.coerce.date().nullable().optional(),
     firstVisitDay: nullableString,
@@ -115,7 +119,7 @@ function createAutoCRUD(app: Express, config: {
         id: randomUUID(), // App-generated UUID
         userId: input.userId,
         reportDate: toDateOnly(input.reportDate), // Normalize to YYYY-MM-DD
-        
+
         // --- Core Contact ---
         siteNameConcernedPerson: input.siteNameConcernedPerson,
         phoneNo: input.phoneNo,
@@ -182,7 +186,7 @@ function createAutoCRUD(app: Express, config: {
         outTimeImageUrl: input.outTimeImageUrl ?? null,
         timeSpentinLoc: input.timeSpentinLoc ?? null,
         sitePhotoUrl: input.sitePhotoUrl ?? null,
-        
+
         // --- Meta / Legacy / Foreign Keys ---
         siteVisitType: input.siteVisitType ?? null,
         meetingId: input.meetingId ?? null,
@@ -237,6 +241,6 @@ export default function setupTechnicalVisitReportsPostRoutes(app: Express) {
     table: technicalVisitReports,
     tableName: 'Technical Visit Report',
   });
-  
+
   console.log('✅ Technical Visit Reports POST endpoints setup complete (Schema-Accurate)');
 }
