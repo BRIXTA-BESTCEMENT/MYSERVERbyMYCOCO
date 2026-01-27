@@ -50,7 +50,11 @@ const tvrInputSchema = z
     purposeOfVisit: nullableString,
     siteVisitStage: nullableString,
     constAreaSqFt: z.coerce.number().int().nullable().optional(),
-    siteVisitBrandInUse: z.preprocess(toStringArray, z.array(z.string()).min(1, "siteVisitBrandInUse requires at least one brand")),
+    siteVisitBrandInUse: z
+      .preprocess(toStringArray, z.array(z.string()))
+      .transform(arr =>
+        arr.length === 0 ? ['Other'] : arr
+      ),
     currentBrandPrice: z.coerce.number().nullable().optional(),
     siteStock: z.coerce.number().nullable().optional(),
     estRequirement: z.coerce.number().nullable().optional(),
