@@ -123,6 +123,9 @@ import setupAiService from './src/bots/aiService';
 // WEBSOCKET SYSTEM
 import { attachWebSocket } from './src/websocket/socketServer';
 
+//notunRendami
+import setupAuthCredentialRoutes from './src/routes/authCredentials';
+
 // Initialize environment variables
 
 // ADD THIS DEBUG LINE:
@@ -284,6 +287,9 @@ setupRewardsPatchRoute(app);
 setupRewardsRedemptionPatchRoute(app);
 setupBagLiftsPatchRoute(app);
 setupTechnicalSitesUpdateRoutes(app);
+
+//notunrendami
+setupAuthCredentialRoutes(app);
 
 // logistics
 setupLogisticsGateIOUpdateRoutes(app);
