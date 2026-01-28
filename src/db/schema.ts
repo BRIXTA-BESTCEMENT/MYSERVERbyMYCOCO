@@ -94,15 +94,23 @@ export const notifications = pgTable("notifications", {
 /* ========================= tso_meetings (Moved up) ========================= */
 export const tsoMeetings = pgTable("tso_meetings", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
-  type: varchar("type", { length: 100 }).notNull(), // e.g., "Head Mason Meet"
-  date: date("date").notNull(),
-  location: varchar("location", { length: 500 }).notNull(),
-  budgetAllocated: numeric("budget_allocated", { precision: 12, scale: 2 }),
+  type: varchar("type", { length: 100 }), 
+  date: date("date"),
   participantsCount: integer("participants_count"),
+  zone: varchar("zone", { length: 100 }),
+  market: varchar("market", { length: 100 }),
+  dealerName: varchar("dealer_name", { length: 255 }),
+  dealerAddress: varchar("dealer_address", { length: 500 }),
+  conductedBy: varchar("conducted_by", { length: 255 }),
+  giftType: varchar("gift_type", { length: 255 }),
+  accountJsbJud: varchar("account_jsb_jud", { length: 100 }),
+  totalExpenses: numeric("total_expenses", { precision: 12, scale: 2 }),
+  billSubmitted: boolean("bill_submitted").default(false),
   createdByUserId: integer("created_by_user_id").notNull().references(() => users.id),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
+  
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
   index("idx_tso_meetings_created_by_user_id").on(t.createdByUserId),
   index("idx_tso_meetings_site_id").on(t.siteId),
