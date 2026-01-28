@@ -1,4 +1,3 @@
-// src/routes/authCredentials.ts
 import { Express, Request, Response } from "express";
 import crypto from "crypto";
 import jwt from "jsonwebtoken";
@@ -10,7 +9,19 @@ import { eq, and } from "drizzle-orm";
 const JWT_TTL_SECONDS = 60 * 60 * 24 * 7;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 60;
 
+// Helper to generate simple password
+function generateSimplePassword(length = 6) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
 export default function setupAuthCredentialRoutes(app: Express) {
+
+  // 1. REGISTER INTEREST (User App -> Backend)
   app.post("/api/auth/register-interest", async (req: Request, res: Response) => {
     try {
       const { phoneNumber, tsoId, deviceId } = req.body;
@@ -29,24 +40,21 @@ export default function setupAuthCredentialRoutes(app: Express) {
           id: crypto.randomUUID(),
           name: "New Mason",
           phoneNumber: phoneNumber,
-          userId: parseInt(tsoId), // Assign the TSO (This links to 'users' table)
+          userId: parseInt(tsoId),
           deviceId: deviceId || null,
-          kycStatus: "pending_tso", // Special status for TSO App to see
+          kycStatus: "pending_tso",
           firebaseUid: tempUid,
           pointsBalance: 0,
         });
       } else {
-        // Update existing mason to re-assign TSO
         await db.update(masonPcSide)
           .set({ 
             userId: parseInt(tsoId),
-            deviceId: deviceId, // Lock device
+            deviceId: deviceId, 
             kycStatus: "pending_tso"
           })
           .where(eq(masonPcSide.id, mason.id));
       }
-
-      // TODO: Send Notification to TSO (tsoId) here using your notifications table
 
       return res.status(200).json({ success: true, message: "Interest registered. Waiting for TSO." });
     } catch (e: any) {
@@ -56,7 +64,6 @@ export default function setupAuthCredentialRoutes(app: Express) {
   });
 
   // 2. CREDENTIAL LOGIN (User App -> Backend)
-  // Authenticates using the TSO-generated User ID & Password
   app.post("/api/auth/credential-login", async (req: Request, res: Response) => {
     try {
       const { userId, password, deviceId } = req.body;
@@ -65,33 +72,26 @@ export default function setupAuthCredentialRoutes(app: Express) {
         return res.status(400).json({ success: false, error: "Credentials required" });
       }
 
-      // 1. Find Mason. 
-      // STRATEGY: We stored credentials in `firebaseUid` as "USERID|PASSWORD"
-      // We search for the record that exactly matches this composite string.
-      
       const compositeCredential = `${userId}|${password}`;
       
       const [mason] = await db.select()
         .from(masonPcSide)
-        .where(eq(masonPcSide.firebaseUid, compositeCredential)) // Exact match check
+        .where(eq(masonPcSide.firebaseUid, compositeCredential))
         .limit(1);
 
       if (!mason) {
         return res.status(401).json({ success: false, error: "Invalid User ID or Password" });
       }
 
-      // 2. Device Lock Check
       if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
          return res.status(403).json({ success: false, error: "DEVICE_LOCKED", message: "Account locked to another device." });
       }
       
-      // If no device locked yet, lock it now
       if (!mason.deviceId && deviceId) {
         await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
         mason.deviceId = deviceId;
       }
 
-      // 3. Generate Session & JWT (Same as your Firebase Flow)
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
 
@@ -126,6 +126,103 @@ export default function setupAuthCredentialRoutes(app: Express) {
     } catch (e: any) {
       console.error("Credential Login Error:", e);
       return res.status(500).json({ success: false, error: "Login failed" });
+    }
+  });
+
+  // ---------------------------------------------------------------------------
+  // 3. MIGRATE LEGACY USER (OTP -> Credentials + Auto Login)
+  // ---------------------------------------------------------------------------
+  app.post("/api/auth/migrate-legacy", async (req: Request, res: Response) => {
+    try {
+      const { phoneNumber, deviceId } = req.body; // ✅ Added deviceId input
+
+      if (!phoneNumber) {
+        return res.status(400).json({ success: false, error: "Phone number required" });
+      }
+
+      // 1. Find Mason by Phone
+      const [mason] = await db.select().from(masonPcSide).where(eq(masonPcSide.phoneNumber, phoneNumber)).limit(1);
+
+      if (!mason) {
+        return res.status(404).json({ success: false, error: "User not found. Please register first." });
+      }
+
+      // 2. Check/Generate Credentials
+      let userId, password;
+      const currentUid = mason.firebaseUid || "";
+
+      if (currentUid.includes("|")) {
+        // ALREADY MIGRATED: Parse existing credentials
+        [userId, password] = currentUid.split("|");
+      } else {
+        // NOT MIGRATED: Generate New Credentials
+        const cleanName = (mason.name || "USER").replace(/[^a-zA-Z]/g, '').toUpperCase();
+        const prefix = cleanName.length >= 4 ? cleanName.substring(0, 4) : cleanName.padEnd(4, 'X');
+        const phoneStr = mason.phoneNumber || "0000";
+        const suffix = phoneStr.length >= 4 ? phoneStr.substring(phoneStr.length - 4) : "0000";
+        
+        userId = `${prefix}${suffix}`;
+        password = generateSimplePassword(6);
+        const compositeCredentials = `${userId}|${password}`;
+
+        // Save credentials to DB
+        await db.update(masonPcSide)
+          .set({ firebaseUid: compositeCredentials })
+          .where(eq(masonPcSide.id, mason.id));
+      }
+
+      // 3. ✅ AUTO LOGIN LOGIC STARTS HERE
+      
+      // Update Device Lock if needed (Similar to login)
+      if (deviceId) {
+        await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
+      }
+
+      // Generate Session
+      const sessionToken = crypto.randomBytes(32).toString("hex");
+      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+
+      await db.insert(authSessions).values({
+        sessionId: crypto.randomUUID(),
+        masonId: mason.id,
+        sessionToken,
+        createdAt: new Date(),
+        expiresAt: sessionExpiresAt,
+      });
+
+      // Generate JWT
+      const jwtToken = jwt.sign(
+        { sub: mason.id, role: "mason", phone: mason.phoneNumber, kyc: mason.kycStatus },
+        process.env.JWT_SECRET!,
+        { expiresIn: JWT_TTL_SECONDS }
+      );
+
+      // 4. Return Combined Response (Credentials + Token)
+      return res.status(200).json({
+        success: true,
+        message: "Migration successful.",
+        // Credentials for the User to see/save
+        credentials: { 
+          userId, 
+          password, 
+          qrData: JSON.stringify({ u: userId, p: password }) 
+        },
+        // Token for the App to auto-login
+        jwt: jwtToken,
+        sessionToken: sessionToken,
+        mason: { 
+          id: mason.id, 
+          name: mason.name, 
+          phoneNumber: mason.phoneNumber,
+          kycStatus: mason.kycStatus,
+          pointsBalance: mason.pointsBalance,
+          deviceId: deviceId || mason.deviceId
+        }
+      });
+
+    } catch (e: any) {
+      console.error("Migration Error:", e);
+      return res.status(500).json({ success: false, error: e.message });
     }
   });
 }
