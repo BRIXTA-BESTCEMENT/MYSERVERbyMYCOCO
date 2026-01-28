@@ -11,9 +11,6 @@ const JWT_TTL_SECONDS = 60 * 60 * 24 * 7;
 const SESSION_TTL_SECONDS = 60 * 60 * 24 * 60;
 
 export default function setupAuthCredentialRoutes(app: Express) {
-
-  // 1. REGISTER INTEREST (User App -> Backend)
-  // Stores the phone number and links the TSO (userId)
   app.post("/api/auth/register-interest", async (req: Request, res: Response) => {
     try {
       const { phoneNumber, tsoId, deviceId } = req.body;
@@ -26,8 +23,6 @@ export default function setupAuthCredentialRoutes(app: Express) {
       let mason = (await db.select().from(masonPcSide).where(eq(masonPcSide.phoneNumber, phoneNumber)).limit(1))[0];
 
       if (!mason) {
-        // Create new "Pending" Mason
-        // We store a temporary marker in firebaseUid so we don't break unique constraints
         const tempUid = `PENDING:${phoneNumber}:${Date.now()}`;
         
         await db.insert(masonPcSide).values({
