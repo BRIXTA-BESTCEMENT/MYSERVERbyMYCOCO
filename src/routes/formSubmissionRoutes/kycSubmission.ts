@@ -1,24 +1,19 @@
-// server/src/routes/formSubmissionRoutes/kycSubmissions.ts
-// KYC Submissions POST endpoint for masons to submit KYC details
-
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { kycSubmissions, masonPcSide } from '../../db/schema';
+import { kycSubmissions, masonPcSide, pointsLedger } from '../../db/schema';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { eq } from 'drizzle-orm';
-import { InferSelectModel } from 'drizzle-orm'; // Import necessary type
+import { eq, sql } from 'drizzle-orm';
+import { calculateJoiningBonusPoints } from '../../utils/pointsCalcLogic';
 
-// Define the type of the inserted row for strong typing
-type KycSubmission = InferSelectModel<typeof kycSubmissions>;
+// ---------------- Schema ----------------
 
-// Zod schema for KYC submission
 const kycSubmissionSchema = z.object({
-  masonId: z.string().uuid({ message: 'A valid Mason ID (UUID) is required.' }),
-  aadhaarNumber: z.string().max(20).optional().nullable(),
-  panNumber: z.string().max(20).optional().nullable(),
-  voterIdNumber: z.string().max(20).optional().nullable(),
-  // Documents should be a JSON object of URLs/metadata
+  masonId: z.string().uuid(),
+  name: z.string().optional(),
+  aadhaarNumber: z.string().trim().max(50).optional().nullable(),
+  panNumber: z.string().trim().max(50).optional().nullable(),
+  voterIdNumber: z.string().trim().max(50).optional().nullable(),
   documents: z.object({
     aadhaarFrontUrl: z.string().url().optional(),
     aadhaarBackUrl: z.string().url().optional(),
@@ -28,68 +23,119 @@ const kycSubmissionSchema = z.object({
   remark: z.string().max(500).optional().nullable(),
 }).strict();
 
+// 🟢 HELPER: FROM OLD COMMIT
+function generateSimplePassword(length = 6) {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let result = '';
+  for (let i = 0; i < length; i++) {
+    result += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return result;
+}
+
+// ---------------- Route ----------------
 
 export default function setupKycSubmissionsPostRoute(app: Express) {
-  
+
   app.post('/api/kyc-submissions', async (req: Request, res: Response) => {
-    const tableName = 'KYC Submission';
     try {
-      // 1. Validate input
       const input = kycSubmissionSchema.parse(req.body);
-      
-      const { masonId, documents, ...rest } = input;
-      
-      // 2. Check if Mason exists
-      const [mason] = await db.select({ id: masonPcSide.id }).from(masonPcSide).where(eq(masonPcSide.id, masonId)).limit(1);
+      const { masonId, name, documents, ...rest } = input;
+
+      // 1. Fetch Mason
+      const [mason] = await db.select().from(masonPcSide).where(eq(masonPcSide.id, masonId)).limit(1);
+
       if (!mason) {
         return res.status(404).json({ success: false, error: 'Mason not found.' });
       }
 
-      // 3. Insert KYC Submission record
-      const [newRecord]: [KycSubmission] = await db.transaction(async (tx) => {
-        
-        // A. Insert submission
-        // Destructuring the result ensures 'submission' is the single object
-        const [submission] = await tx.insert(kycSubmissions)
-          .values({
+      // 2. Determine Name
+      const finalName = name && name.trim().length > 0 ? name.trim() : (mason.name || "USER");
+
+      // 🟢 3. GENERATE CREDENTIALS (COPIED FROM OLD COMMIT)
+      // ---------------------------------------------------------
+      const cleanName = finalName.replace(/[^a-zA-Z]/g, '').toUpperCase();
+      const prefix = cleanName.length >= 4 ? cleanName.substring(0, 4) : cleanName.padEnd(4, 'X');
+      const phoneStr = mason.phoneNumber || "0000";
+      const suffix = phoneStr.length >= 4 ? phoneStr.substring(phoneStr.length - 4) : "0000";
+      
+      const newUserId = `${prefix}${suffix}`;
+      const newPassword = generateSimplePassword(6);
+      const compositeCredentials = `${newUserId}|${newPassword}`; 
+      // ---------------------------------------------------------
+
+      // 4. Transaction
+      const { submission, appliedBonus } = await db.transaction(async (tx) => {
+
+        // A. Insert KYC
+        const [submission] = await tx.insert(kycSubmissions).values({
+          id: randomUUID(),
+          masonId,
+          ...rest,
+          documents: documents ?? null,
+          status: 'approved',
+          remark: rest.remark ?? null,
+        }).returning();
+
+        // B. Prepare Mason Update
+        const masonUpdates: any = {
+          kycStatus: 'approved',
+          name: finalName,
+          // 🟢 SAVE CREDENTIALS TO DB
+          firebaseUid: compositeCredentials, 
+        };
+
+        // C. Calculate Points (Your NEW Logic)
+        const joiningBonus = calculateJoiningBonusPoints();
+        let appliedBonus = 0;
+
+        if (mason.kycStatus !== 'approved' && joiningBonus > 0) {
+          appliedBonus = joiningBonus;
+          masonUpdates.pointsBalance = sql`${masonPcSide.pointsBalance} + ${joiningBonus}`;
+
+          await tx.insert(pointsLedger).values({
             id: randomUUID(),
             masonId,
-            ...rest,
-            // Convert JS object to JSON string for Postgres
-            documents: documents ? JSON.stringify(documents) : null,
-            status: 'pending', // Default status on submission
-          })
-          .returning();
-          
-        // B. Update Mason's primary kycStatus to 'pending'
+            sourceType: 'joining_bonus',
+            sourceId: submission.id,
+            points: joiningBonus,
+            memo: 'Joining Bonus on first KYC approval',
+          });
+        }
+
+        // D. Update Mason
         await tx.update(masonPcSide)
-          .set({ kycStatus: 'pending' })
+          .set(masonUpdates)
           .where(eq(masonPcSide.id, masonId));
-          
-        // FIX: Return the single row object wrapped in an array to satisfy outer destructuring.
-        return [submission];
+
+        return { submission, appliedBonus };
       });
 
-      // 4. Send success response
-      // FIX: 'newRecord' is the single row object. Access it directly.
+      // 5. Response
       return res.status(201).json({
         success: true,
-        message: `${tableName} submitted successfully and awaiting TSO approval.`,
-        data: newRecord,
+        message: appliedBonus > 0
+          ? `KYC approved. ${appliedBonus} joining points credited.`
+          : `KYC approved. No joining bonus applied.`,
+        
+        // 🟢 RETURN CREDENTIALS TO APP
+        credentials: {
+          userId: newUserId,
+          password: newPassword,
+          qrData: JSON.stringify({ u: newUserId, p: newPassword })
+        },
+        
+        data: submission,
       });
 
     } catch (err: any) {
-      console.error(`Create ${tableName} error:`, err);
+      console.error('POST KYC error:', err);
       if (err instanceof z.ZodError) {
         return res.status(400).json({ success: false, error: 'Validation failed', details: err.errors });
       }
-      return res.status(500).json({ 
-        success: false, 
-        error: `Failed to create ${tableName}`, 
-        details: err?.message ?? 'Unknown error' 
-      });
+      return res.status(500).json({ success: false, error: 'Failed to submit KYC', details: err?.message });
     }
   });
 
-  console.log('✅ KYC Submissions POST endpoint setup complete');
+  console.log('✅ KYC POST endpoint ready');
 }
