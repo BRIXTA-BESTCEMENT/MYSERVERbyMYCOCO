@@ -13,9 +13,9 @@ import { calculateJoiningBonusPoints } from '../../utils/pointsCalcLogic';
 const kycSubmissionSchema = z.object({
   masonId: z.string().uuid(),
   name: z.string().optional(),
-  aadhaarNumber: z.string().max(20).optional().nullable(),
-  panNumber: z.string().max(20).optional().nullable(),
-  voterIdNumber: z.string().max(20).optional().nullable(),
+  aadhaarNumber: z.string().trim().max(50).optional().nullable(),
+  panNumber: z.string().trim().max(50).optional().nullable(),
+  voterIdNumber: z.string().trim().max(50).optional().nullable(),
   documents: z.object({
     aadhaarFrontUrl: z.string().url().optional(),
     aadhaarBackUrl: z.string().url().optional(),
