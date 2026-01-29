@@ -21,7 +21,7 @@ function generateSimplePassword(length = 6) {
 
 export default function setupAuthCredentialRoutes(app: Express) {
 
-  // 1. REGISTER INTEREST (User App -> Backend)
+  // 1. REGISTER INTEREST (Updated: Returns ID + Preserves 'Approved' Status)
   app.post("/api/auth/register-interest", async (req: Request, res: Response) => {
     try {
       const { phoneNumber, tsoId, deviceId } = req.body;
@@ -32,12 +32,15 @@ export default function setupAuthCredentialRoutes(app: Express) {
 
       // Check if mason already exists
       let mason = (await db.select().from(masonPcSide).where(eq(masonPcSide.phoneNumber, phoneNumber)).limit(1))[0];
+      let targetMasonId; // 👈 Variable to hold the ID
 
       if (!mason) {
+        // --- SCENARIO A: NEW USER ---
         const tempUid = `PENDING:${phoneNumber}:${Date.now()}`;
-        
+        const newId = crypto.randomUUID();
+
         await db.insert(masonPcSide).values({
-          id: crypto.randomUUID(),
+          id: newId,
           name: "New Mason",
           phoneNumber: phoneNumber,
           userId: parseInt(tsoId),
@@ -46,23 +49,35 @@ export default function setupAuthCredentialRoutes(app: Express) {
           firebaseUid: tempUid,
           pointsBalance: 0,
         });
+
+        targetMasonId = newId; // 👈 Capture the new ID
       } else {
+        // --- SCENARIO B: EXISTING USER ---
+        // 🟢 SAFETY CHECK: If they are ALREADY 'approved', keep them 'approved'.
+        const newStatus = mason.kycStatus === 'approved' ? 'approved' : 'pending_tso';
+
         await db.update(masonPcSide)
-          .set({ 
+          .set({
             userId: parseInt(tsoId),
-            //deviceId: deviceId, 
-            kycStatus: "pending_tso"
+            kycStatus: newStatus // 👈 Preserves status if already approved
           })
           .where(eq(masonPcSide.id, mason.id));
+
+        targetMasonId = mason.id; // 👈 Capture the existing ID
       }
 
-      return res.status(200).json({ success: true, message: "Interest registered. Waiting for TSO." });
+      // ✅ CHANGE: Return the masonId in the response
+      return res.status(200).json({
+        success: true,
+        message: "Interest registered.",
+        masonId: targetMasonId
+      });
+
     } catch (e: any) {
       console.error("Register Interest Error:", e);
       return res.status(500).json({ success: false, error: e.message });
     }
   });
-
   // 2. CREDENTIAL LOGIN (User App -> Backend)
   app.post("/api/auth/credential-login", async (req: Request, res: Response) => {
     try {
@@ -73,7 +88,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
       }
 
       const compositeCredential = `${userId}|${password}`;
-      
+
       const [mason] = await db.select()
         .from(masonPcSide)
         .where(eq(masonPcSide.firebaseUid, compositeCredential))
@@ -86,7 +101,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
       // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
       //    return res.status(403).json({ success: false, error: "DEVICE_LOCKED", message: "Account locked to another device." });
       // }
-      
+
       // if (!mason.deviceId && deviceId) {
       //   await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
       //   mason.deviceId = deviceId;
@@ -160,7 +175,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
         const prefix = cleanName.length >= 4 ? cleanName.substring(0, 4) : cleanName.padEnd(4, 'X');
         const phoneStr = mason.phoneNumber || "0000";
         const suffix = phoneStr.length >= 4 ? phoneStr.substring(phoneStr.length - 4) : "0000";
-        
+
         userId = `${prefix}${suffix}`;
         password = generateSimplePassword(6);
         const compositeCredentials = `${userId}|${password}`;
@@ -172,7 +187,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
       }
 
       // 3. ✅ AUTO LOGIN LOGIC STARTS HERE
-      
+
       // Update Device Lock if needed (Similar to login)
       // if (deviceId) {
       //   await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
@@ -202,17 +217,17 @@ export default function setupAuthCredentialRoutes(app: Express) {
         success: true,
         message: "Migration successful.",
         // Credentials for the User to see/save
-        credentials: { 
-          userId, 
-          password, 
-          qrData: JSON.stringify({ u: userId, p: password }) 
+        credentials: {
+          userId,
+          password,
+          qrData: JSON.stringify({ u: userId, p: password })
         },
         // Token for the App to auto-login
         jwt: jwtToken,
         sessionToken: sessionToken,
-        mason: { 
-          id: mason.id, 
-          name: mason.name, 
+        mason: {
+          id: mason.id,
+          name: mason.name,
           phoneNumber: mason.phoneNumber,
           kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
