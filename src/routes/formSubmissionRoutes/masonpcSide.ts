@@ -69,7 +69,7 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
           referredToUser: validated.referredToUser ?? null,
           dealerId: validated.dealerId ?? null,
           userId: validated.userId ?? null,
-          deviceId: validated.deviceId ?? null,
+          deviceId: null,
           fcmToken: validated.fcmToken ?? null,
         })
         .returning();

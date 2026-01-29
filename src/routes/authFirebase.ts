@@ -62,7 +62,7 @@ export default function setupAuthFirebaseRoutes(app: Express) {
             phoneNumber: phone,
             firebaseUid,
             // ✅ LOCK TO DEVICE IMMEDIATELY ON SIGN UP
-            deviceId: deviceId || null,
+            deviceId: null,
             fcmToken: fcmToken || null,
             kycStatus: "none",
             pointsBalance: 0,
@@ -71,19 +71,19 @@ export default function setupAuthFirebaseRoutes(app: Express) {
         } else {
           // Case B: EXISTING USER, LINKING FIREBASE FOR FIRST TIME
           // Check if they already have a device locked to their phone record
-          if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
-            return res.status(403).json({
-              success: false,
-              error: "DEVICE_LOCKED",
-              message: "This account is locked to another device. Please contact Admin."
-            });
-          }
+          // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+          //   return res.status(403).json({
+          //     success: false,
+          //     error: "DEVICE_LOCKED",
+          //     message: "This account is locked to another device. Please contact Admin."
+          //   });
+          //}
 
           // Found by phone, but not UID. Link the Firebase UID to the existing account.
           const finalUpdates: Partial<typeof masonPcSide.$inferInsert> = {
             firebaseUid,
             // ✅ Ensure we lock the device if it wasn't locked before
-            deviceId: mason.deviceId || deviceId,
+            //deviceId: mason.deviceId || deviceId,
             fcmToken: fcmToken || mason.fcmToken
           };
 
@@ -103,22 +103,22 @@ export default function setupAuthFirebaseRoutes(app: Express) {
 
         // 1. 🔒 SECURITY CHECK: Enforce Device Lock
         // If DB has a lock, and incoming ID doesn't match -> BLOCK.
-        if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
-          return res.status(403).json({
-            success: false,
-            error: "DEVICE_LOCKED",
-            message: "This account is registered to a different device."
-          });
-        }
+        // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+        //   return res.status(403).json({
+        //     success: false,
+        //     error: "DEVICE_LOCKED",
+        //     message: "This account is registered to a different device."
+        //   });
+        // }
 
         // 2. 🔄 UPDATE LOGIC
         const updates: Partial<typeof masonPcSide.$inferInsert> = {};
 
         // If account has NO lock (null), lock it to this device now
-        if (!mason.deviceId && deviceId) {
-          updates.deviceId = deviceId;
-          mason.deviceId = deviceId; // Update local object for response
-        }
+        // if (!mason.deviceId && deviceId) {
+        //   updates.deviceId = deviceId;
+        //   mason.deviceId = deviceId; // Update local object for response
+        // }
 
         // Always update FCM token if fresh one provided
         if (fcmToken && fcmToken !== mason.fcmToken) {
@@ -252,14 +252,14 @@ await db.delete(authSessions)
       if (!mason) return res.status(401).json({ success: false, error: "Unknown user" });
 
       // ✅ DEVICE SECURITY CHECK
-      const deviceId = req.header("x-device-id");
-      if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
-        return res.status(403).json({ 
-          success: false, 
-          code: "DEVICE_LOCKED",
-          message: "Session invalid for this device."
-        });
-      }
+      //const deviceId = req.header("x-device-id");
+      // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+      //   return res.status(403).json({ 
+      //     success: false, 
+      //     code: "DEVICE_LOCKED",
+      //     message: "Session invalid for this device."
+      //   });
+      // }
 
       // --- SESSION IS VALID ---
       // 1. Create a new JWT
@@ -338,7 +338,7 @@ await db.delete(authSessions)
           name: name || "Dev Contractor",
           phoneNumber: phone,
           firebaseUid: `dev_${phone}`, // Create a fake UID
-          deviceId: deviceId || null,
+          deviceId: null,
           fcmToken: fcmToken || null,
           kycStatus: "none",
           pointsBalance: 0,
@@ -347,13 +347,13 @@ await db.delete(authSessions)
       } else {
         // Update existing Dev User
         const updates: any = {};
-        if (deviceId) updates.deviceId = deviceId;
+        //if (deviceId) updates.deviceId = deviceId;
         if (fcmToken) updates.fcmToken = fcmToken;
         
         if (Object.keys(updates).length > 0) {
            await db.update(masonPcSide).set(updates).where(eq(masonPcSide.id, mason.id));
            // Update local obj
-           if(deviceId) mason.deviceId = deviceId;
+           //if(deviceId) mason.deviceId = deviceId;
         }
       }
 

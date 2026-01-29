@@ -41,7 +41,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
           name: "New Mason",
           phoneNumber: phoneNumber,
           userId: parseInt(tsoId),
-          deviceId: deviceId || null,
+          deviceId: null,
           kycStatus: "pending_tso",
           firebaseUid: tempUid,
           pointsBalance: 0,
@@ -50,7 +50,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
         await db.update(masonPcSide)
           .set({ 
             userId: parseInt(tsoId),
-            deviceId: deviceId, 
+            //deviceId: deviceId, 
             kycStatus: "pending_tso"
           })
           .where(eq(masonPcSide.id, mason.id));
@@ -83,14 +83,14 @@ export default function setupAuthCredentialRoutes(app: Express) {
         return res.status(401).json({ success: false, error: "Invalid User ID or Password" });
       }
 
-      if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
-         return res.status(403).json({ success: false, error: "DEVICE_LOCKED", message: "Account locked to another device." });
-      }
+      // if (mason.deviceId && deviceId && mason.deviceId !== deviceId) {
+      //    return res.status(403).json({ success: false, error: "DEVICE_LOCKED", message: "Account locked to another device." });
+      // }
       
-      if (!mason.deviceId && deviceId) {
-        await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
-        mason.deviceId = deviceId;
-      }
+      // if (!mason.deviceId && deviceId) {
+      //   await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
+      //   mason.deviceId = deviceId;
+      // }
 
       const sessionToken = crypto.randomBytes(32).toString("hex");
       const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
@@ -119,7 +119,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
           phoneNumber: mason.phoneNumber,
           kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
-          deviceId: mason.deviceId
+          //deviceId: mason.deviceId
         }
       });
 
@@ -174,9 +174,9 @@ export default function setupAuthCredentialRoutes(app: Express) {
       // 3. ✅ AUTO LOGIN LOGIC STARTS HERE
       
       // Update Device Lock if needed (Similar to login)
-      if (deviceId) {
-        await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
-      }
+      // if (deviceId) {
+      //   await db.update(masonPcSide).set({ deviceId }).where(eq(masonPcSide.id, mason.id));
+      // }
 
       // Generate Session
       const sessionToken = crypto.randomBytes(32).toString("hex");
@@ -216,7 +216,7 @@ export default function setupAuthCredentialRoutes(app: Express) {
           phoneNumber: mason.phoneNumber,
           kycStatus: mason.kycStatus,
           pointsBalance: mason.pointsBalance,
-          deviceId: deviceId || mason.deviceId
+          //deviceId: deviceId || mason.deviceId
         }
       });
 
