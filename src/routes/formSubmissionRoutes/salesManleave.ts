@@ -48,7 +48,7 @@ function createAutoCRUD(app: Express, config: {
         ...executedAutoFields
       };
 
-      const [newRecord] = await db.insert(table).values(insertData).returning();
+      const [newRecord] : any = await db.insert(table).values(insertData).returning();
 
       res.status(201).json({
         success: true,
