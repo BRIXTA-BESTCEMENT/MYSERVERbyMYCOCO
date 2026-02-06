@@ -126,6 +126,9 @@ import { attachWebSocket } from './src/websocket/socketServer';
 //notunRendami
 import setupAuthCredentialRoutes from './src/routes/authCredentials';
 
+// Microsoft Email
+import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
+
 // Initialize environment variables
 
 // ADD THIS DEBUG LINE:
@@ -305,6 +308,9 @@ console.log('✅ All routes registered successfully.');
 //------------ TelegramBot + AI setup ----------------
 setupAiService(app);
 //setupTelegramService(app);
+
+// -------- Microsoft Email -------------
+setupMicrosoftEmailRoutes(app);
 
 
 // Handle 404 - Not Found for any routes not matched above
