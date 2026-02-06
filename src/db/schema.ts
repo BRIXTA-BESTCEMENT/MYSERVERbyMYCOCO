@@ -387,6 +387,27 @@ export const dealers = pgTable("dealers", {
   index("idx_dealers_parent_dealer_id").on(t.parentDealerId),
 ]);
 
+
+/* ========================= email_reports (NEW) ========================= */
+export const emailReports = pgTable("email_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  messageId: text("message_id").notNull(), // Graph mail id
+  subject: text("subject"),
+  sender: text("sender"),
+
+  fileName: text("file_name"),
+
+  payload: jsonb("payload").notNull(), // ← your Excel → JSON here
+
+  processed: boolean("processed").default(false),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_email_reports_message").on(t.messageId),
+]);
+
+
 /* ========================= salesman_attendance ========================= */
 export const salesmanAttendance = pgTable("salesman_attendance", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -1424,3 +1445,6 @@ export const insertTsoVisitSchema = createInsertSchema(tsoVisit);
 
 // logistics
 export const insertLogisticsGateIOSchema = createInsertSchema(logisticsGateIO);
+
+//emailStuff
+export const insertEmailReportSchema = createInsertSchema(emailReports);

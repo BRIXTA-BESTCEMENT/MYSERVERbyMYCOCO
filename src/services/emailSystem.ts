@@ -125,4 +125,22 @@ export class EmailSystem {
       { destinationId: destinationFolderId }
     );
   }
+
+  async getUnreadWithAttachments(limit = 10) {
+    return this.graphGet(
+      `/users/${this.mailbox}/messages?$filter=isRead eq false and hasAttachments eq true&$top=${limit}`
+    );
+  }
+  async markAsRead(messageId: string) {
+    const token = await this.getAccessToken();
+
+    await axios.patch(
+      `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/messages/${messageId}`,
+      { isRead: true },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+  }
+
 }

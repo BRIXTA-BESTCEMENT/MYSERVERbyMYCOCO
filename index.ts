@@ -129,6 +129,19 @@ import setupAuthCredentialRoutes from './src/routes/authCredentials';
 // Microsoft Email
 import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 
+//weirdEMAILWORKERthatwillPOLLevery30s
+import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+
+const emailWorker = new EmailSystemWorker();
+
+setInterval(async() =>{
+  try {
+    await emailWorker.processInboxQueue();
+  } catch (err) {
+    console.error("Email worker error:", err);
+  }
+},30000);
+
 // Initialize environment variables
 
 // ADD THIS DEBUG LINE:
