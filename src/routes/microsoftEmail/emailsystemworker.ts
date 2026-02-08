@@ -44,16 +44,28 @@ export class EmailSystemWorker {
           const sheet =
             workbook.Sheets[workbook.SheetNames[0]];
 
-          const json = XLSX.utils.sheet_to_json(sheet, {
-            defval: null,
-          });
+          const range = XLSX.utils.decode_range(sheet["!ref"]!);
+
+          const rows: (string | number | null)[][] = [];
+
+          for (let r = range.s.r; r <= range.e.r; r++) {
+            const row: (string | number | null)[] = [];
+
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const cell = sheet[XLSX.utils.encode_cell({ r, c })];
+              row.push(cell ? cell.v : null); // EXACT value from Excel
+            }
+
+            rows.push(row);
+          }
+
 
           await db.insert(emailReports).values({
             messageId: mail.id,
             subject: mail.subject,
             sender: mail.from?.emailAddress?.address ?? null,
             fileName: file.name,
-            payload: json,
+            payload: rows,
             processed: true,
           });
 
