@@ -1,7 +1,7 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real, 
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real,
   bigserial, bigint
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -80,11 +80,11 @@ export const notifications = pgTable("notifications", {
   recipientUserId: integer("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
-  
+
   // These two fields allow you to find and DELETE the specific notification later
-  type: varchar("type", { length: 50 }).notNull(), 
-  referenceId: varchar("reference_id", { length: 255 }), 
-  
+  type: varchar("type", { length: 50 }).notNull(),
+  referenceId: varchar("reference_id", { length: 255 }),
+
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -94,7 +94,7 @@ export const notifications = pgTable("notifications", {
 /* ========================= tso_meetings (Moved up) ========================= */
 export const tsoMeetings = pgTable("tso_meetings", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
-  type: varchar("type", { length: 100 }), 
+  type: varchar("type", { length: 100 }),
   date: date("date"),
   participantsCount: integer("participants_count"),
   zone: varchar("zone", { length: 100 }),
@@ -108,7 +108,7 @@ export const tsoMeetings = pgTable("tso_meetings", {
   billSubmitted: boolean("bill_submitted").default(false),
   createdByUserId: integer("created_by_user_id").notNull().references(() => users.id),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
@@ -520,11 +520,11 @@ export const geoTracking = pgTable("geo_tracking", {
 export const journeyOps = pgTable("journey_ops", {
   serverSeq: bigserial("server_seq", { mode: "number" }).primaryKey(),
   opId: uuid("op_id").notNull().unique(),
-  journeyId: varchar("journey_id", { length: 255 }).notNull(),  
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }), 
-  type: text("type").notNull(), 
+  journeyId: varchar("journey_id", { length: 255 }).notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  type: text("type").notNull(),
   payload: jsonb("payload").notNull(),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
   index("idx_journey_ops_journey").on(t.journeyId),
@@ -537,8 +537,8 @@ export const journeys = pgTable("journeys", {
   id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   pjpId: varchar("pjp_id", { length: 255 }),
-  siteId: varchar("site_id", { length: 255 }), 
-  dealerId: varchar("dealer_id", { length: 255 }), 
+  siteId: varchar("site_id", { length: 255 }),
+  dealerId: varchar("dealer_id", { length: 255 }),
   siteName: varchar("site_name", { length: 255 }),
   destLat: numeric("dest_lat", { precision: 10, scale: 7 }),
   destLng: numeric("dest_lng", { precision: 10, scale: 7 }),
@@ -572,7 +572,7 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   networkStatus: varchar("network_status", { length: 50 }),
   isMocked: boolean("is_mocked").default(false),
   journeyId: varchar("journey_id", { length: 255 }).notNull().references(() => journeys.id, { onDelete: "cascade" }),
-  
+
   // unused field - but keep it
   isSynced: boolean("is_synced").default(false),
 
@@ -600,10 +600,13 @@ export const dailyTasks = pgTable("daily_tasks", {
   siteName: varchar("site_name", { length: 255 }),
   description: varchar("description", { length: 500 }),
   status: varchar("status", { length: 50 }).notNull().default("Assigned"),
+  dealerName: varchar("dealer_name", { length: 255 }),
+  dealerCategory: varchar("dealer_category", { length: 50 }),
+  pjpCycle: varchar("pjp_cycle", { length: 50 }),
   pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (t) => [
   index("idx_daily_tasks_user_id").on(t.userId),
   index("idx_daily_tasks_assigned_by_user_id").on(t.assignedByUserId),
