@@ -55,6 +55,7 @@ import setupRatingsDeleteRoutes from './src/routes/deleteRoutes/ratings';
 import setupSalesOrdersDeleteRoutes from './src/routes/deleteRoutes/salesOrder';
 import setupDealerReportsAndScoresDeleteRoutes from './src/routes/deleteRoutes/dealerReportsAndScores';
 import setupTsoMeetingsDeleteRoutes from './src/routes/deleteRoutes/tsoMeetings';
+import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/collectionReports';
 
 //firebase stuff 
 import './src/firebase/admin';
@@ -184,7 +185,8 @@ app.get('/api', (req: Request, res: Response) => {
 // --- Modular Route Setup ---
 console.log('🔌 Registering API routes...');
 
-
+//colection reprts from MAIL NIGGA
+setupCollectionReportsRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
