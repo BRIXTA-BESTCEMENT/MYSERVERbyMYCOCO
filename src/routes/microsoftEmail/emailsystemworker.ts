@@ -4,10 +4,17 @@ import {
   emailReports,
   dailyTasks,
   collectionReports,
+  projectionReports,
+  projectionVsActualReports,
 } from "../../db/schema";
 import { eq, and } from "drizzle-orm";
 import { EmailSystem } from "../../services/emailSystem";
 import { randomUUID } from "crypto";
+
+type SheetCandidate = {
+  name: string;
+  rows: (string | number | null)[][];
+};
 
 export class EmailSystemWorker {
   private emailSystem = new EmailSystem();
@@ -60,74 +67,122 @@ export class EmailSystemWorker {
           const workbook = XLSX.read(buffer, { type: "buffer" });
 
           /* -----------------------------------------
-             SMART SHEET SELECTOR (The Fix)
-             Don't assume Sheet 0. Scan for the Real Table.
+             SMART SHEET SELECTOR (FINAL FORM)
+             Strategy: Collect ALL valid sheets → Use LAST one.
           ----------------------------------------- */
-          let rows: (string | number | null)[][] | null = null;
+          const validSheets: SheetCandidate[] = [];
 
           for (const name of workbook.SheetNames) {
             const sheet = workbook.Sheets[name];
-            
-            // Native extraction: handles merged cells, nulls, formatting
+
+            // Native extraction
             const candidateRows = XLSX.utils.sheet_to_json(sheet, {
-              header: 1,      
-              raw: false,     
-              defval: null,   
+              header: 1,
+              raw: false,
+              defval: null,
             }) as (string | number | null)[][];
+
+            if (!candidateRows.length) continue;
 
             // Heuristic: Does this sheet look like what we want?
             let looksLikeTarget = false;
 
+            // Flatten first 10 rows for fast signature checking
+            const signature = candidateRows
+              .slice(0, 10)
+              .map((r) => r.map((c) => String(c ?? "").toUpperCase()).join(" "))
+              .join(" ");
+
             if (subject.includes("COLLECTION")) {
-              // FOR COLLECTIONS: Ignore Pivot Tables (Sheet 0). Look for Real Headers.
-              looksLikeTarget = candidateRows.some(r => {
-                const line = r.map(c => String(c ?? "").toUpperCase()).join(" ");
-                return (
-                  line.includes("VOUCHER") && 
-                  line.includes("DATE") && 
-                  line.includes("PARTY")
-                );
-              });
+              // FOR COLLECTIONS: VOUCHER, DATE, PARTY
+              looksLikeTarget =
+                signature.includes("VOUCHER") &&
+                signature.includes("DATE") &&
+                signature.includes("PARTY");
+
             } else if (subject.includes("PJP")) {
-              // FOR PJP: Look for User ID
-              looksLikeTarget = candidateRows.some(r => {
-                const line = r.map(c => String(c ?? "").toUpperCase()).join(" ");
-                return line.includes("USER ID");
-              });
+              // FOR PJP: USER ID
+              looksLikeTarget = signature.includes("USER ID");
+
+            } else if (subject.includes("PROJECTION VS ACTUAL")) {
+              // FOR PROJ VS ACTUAL: ZONE, ACTUAL, PROJECTION
+              looksLikeTarget =
+                signature.includes("ZONE") &&
+                signature.includes("ACTUAL") &&
+                signature.includes("PROJECTION");
+
+            } else if (subject.includes("PROJECTION")) {
+              // FOR PROJECTION PLAN: ZONE, DEALER, AMOUNT
+              looksLikeTarget =
+                signature.includes("ZONE") &&
+                signature.includes("DEALER") &&
+                signature.includes("AMOUNT");
+
             } else {
-              // STANDARD REPORT: Default to first non-empty sheet
+              // STANDARD REPORT
               looksLikeTarget = candidateRows.length > 0;
             }
 
             if (looksLikeTarget) {
-              console.log(`[EmailWorker] Using sheet: ${name}`);
-              rows = candidateRows;
-              break; // Stop looking, we found the data
+              console.log(`[EmailWorker] Valid sheet candidate found: ${name}`);
+              validSheets.push({ name, rows: candidateRows });
             }
           }
 
-          if (!rows) {
-            console.error(`[EmailWorker] No valid data sheet found in ${file.name}. Aborting.`);
+          if (!validSheets.length) {
+            console.error(
+              `[EmailWorker] No valid data sheet found in ${file.name}. Aborting.`
+            );
             continue;
           }
 
           /* -----------------------------------------
-             ROUTE LOGIC
+             SELECT AUTHORITY: LAST VALID SHEET
+          ----------------------------------------- */
+          const { name: chosenName, rows } =
+            validSheets[validSheets.length - 1];
+          console.log(
+            `[EmailWorker] Using LAST sheet as source of truth → ${chosenName}`
+          );
+
+          /* -----------------------------------------
+             ROUTE LOGIC (ORDER MATTERS!)
           ----------------------------------------- */
           if (subject.includes("PJP")) {
             console.log("[EmailWorker] PJP Detected → Using Direct IDs");
             await this.processPjpRows(rows);
 
-          } else if (subject.includes("COLLECTION") && subject.includes("JUD")) {
+          } else if (
+            subject.includes("COLLECTION") &&
+            subject.includes("JUD")
+          ) {
             console.log("[EmailWorker] Collection (JUD) Detected");
             await this.processCollectionRows(rows, "JUD", {
               messageId: mail.id,
               fileName: file.name,
             });
 
-          } else if (subject.includes("COLLECTION") && subject.includes("JSB")) {
+          } else if (
+            subject.includes("COLLECTION") &&
+            subject.includes("JSB")
+          ) {
             console.log("[EmailWorker] Collection (JSB) Detected");
             await this.processCollectionRows(rows, "JSB", {
+              messageId: mail.id,
+              fileName: file.name,
+            });
+
+          } else if (subject.includes("PROJECTION VS ACTUAL")) {
+            // 🚨 MUST CHECK THIS BEFORE 'PROJECTION'
+            console.log("[EmailWorker] Projection vs Actual Report Detected");
+            await this.processProjectionVsActualRows(rows, {
+              messageId: mail.id,
+              fileName: file.name,
+            });
+
+          } else if (subject.includes("PROJECTION")) {
+            console.log("[EmailWorker] Projection Plan Detected");
+            await this.processProjectionRows(rows, {
               messageId: mail.id,
               fileName: file.name,
             });
@@ -147,7 +202,6 @@ export class EmailSystemWorker {
 
         // 3. Mark as read
         await this.emailSystem.markAsRead(mail.id);
-
       } catch (e) {
         console.error(`[EmailWorker] FAILED on mail ${mail.id}:`, e);
       }
@@ -188,7 +242,9 @@ export class EmailSystemWorker {
       const userId = Number(userIdRaw);
 
       if (!userIdRaw || Number.isNaN(userId)) {
-        console.warn(`[PJP] Row ${i}: Invalid/Missing USER ID (${userIdRaw}). Skipping.`);
+        console.warn(
+          `[PJP] Row ${i}: Invalid/Missing USER ID (${userIdRaw}). Skipping.`
+        );
         continue;
       }
 
@@ -197,14 +253,14 @@ export class EmailSystemWorker {
 
       try {
         let dateObj = new Date();
-        if (typeof dateRaw === 'number') {
+        if (typeof dateRaw === "number") {
           dateObj = new Date(Math.round((dateRaw - 25569) * 86400 * 1000));
         } else if (dateRaw) {
           dateObj = new Date(String(dateRaw));
         }
-        taskDateStr = dateObj.toISOString().split('T')[0];
+        taskDateStr = dateObj.toISOString().split("T")[0];
       } catch (err) {
-        taskDateStr = new Date().toISOString().split('T')[0];
+        taskDateStr = new Date().toISOString().split("T")[0];
       }
 
       tasks.push({
@@ -232,7 +288,7 @@ export class EmailSystemWorker {
   }
 
   /* =========================================================
-     HELPER: COLLECTIONS (DELETE + INSERT)
+     HELPER: COLLECTIONS
   ========================================================= */
 
   private async processCollectionRows(
@@ -242,21 +298,11 @@ export class EmailSystemWorker {
   ) {
     if (rows.length < 2) return;
 
-    /* -----------------------------------------
-       DEBUG: SEE WHAT EXCEL GAVE US
-    ----------------------------------------- */
-    console.log("[COLLECTION] Raw Data Preview:", rows.slice(0, 6));
-
-    /* -----------------------------------------
-       1. Find REAL header row (Multi-Keyword Scan)
-       Checks if row contains VOUCHER, DATE, and PARTY
-    ----------------------------------------- */
-    const headerIndex = rows.findIndex(r => {
-      // Flatten row to a single string for fuzzy matching
+    // Find Header
+    const headerIndex = rows.findIndex((r) => {
       const line = r
-        .map(c => String(c ?? "").toUpperCase().trim())
+        .map((c) => String(c ?? "").toUpperCase().trim())
         .join(" ");
-
       return (
         line.includes("VOUCHER") &&
         line.includes("DATE") &&
@@ -265,28 +311,17 @@ export class EmailSystemWorker {
     });
 
     if (headerIndex === -1) {
-      console.error("[COLLECTION] Header not found (checked for VOUCHER+DATE+PARTY). Aborting.");
+      console.error("[COLLECTION] Header not found. Aborting.");
       return;
     }
 
-    /* -----------------------------------------
-       2. Normalize headers (Aggressive Cleaning)
-    ----------------------------------------- */
-    const headers = rows[headerIndex].map(h =>
-      String(h)
-        .trim()
-        .toUpperCase()
-        .replace(/[^A-Z0-9 ]/g, "") // Kill dots, slashes, noise
-        .replace(/\s+/g, " ")       // Normalize spaces
-        .trim()
+    // Normalize Headers
+    const headers = rows[headerIndex].map((h) =>
+      String(h).trim().toUpperCase().replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim()
     );
-
     const idx: Record<string, number> = {};
     headers.forEach((h, i) => (idx[h] = i));
 
-    /* -----------------------------------------
-       3. Helpers
-    ----------------------------------------- */
     const get = (row: any[], col: string): string | null => {
       const i = idx[col];
       if (i === undefined) return null;
@@ -294,10 +329,7 @@ export class EmailSystemWorker {
       return v != null ? String(v).trim() : null;
     };
 
-    const parseAmount = (v: any): number => {
-      if (!v) return 0;
-      return Number(String(v).replace(/,/g, ""));
-    };
+    const parseAmount = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
 
     const parseDate = (raw: any): string => {
       try {
@@ -313,12 +345,8 @@ export class EmailSystemWorker {
       }
     };
 
-    /* -----------------------------------------
-       4. Get report date FIRST & DELETE OLD
-    ----------------------------------------- */
+    // Get Date
     let reportDate: string | null = null;
-
-    // Take first valid date from sheet
     for (let i = headerIndex + 1; i < rows.length; i++) {
       const rawDate = get(rows[i], "DATE");
       if (rawDate) {
@@ -332,7 +360,7 @@ export class EmailSystemWorker {
       return;
     }
 
-    // NUKE PREVIOUS DATA FOR THIS DAY + INSTITUTION
+    // Nuke Old
     await db
       .delete(collectionReports)
       .where(
@@ -341,16 +369,10 @@ export class EmailSystemWorker {
           eq(collectionReports.voucherDate, reportDate)
         )
       );
+    console.log(`[COLLECTION-${institution}] Cleared old data for ${reportDate}`);
 
-    console.log(
-      `[COLLECTION-${institution}] Cleared old data for ${reportDate}`
-    );
-
-    /* -----------------------------------------
-       5. Build records
-    ----------------------------------------- */
+    // Build
     const records: any[] = [];
-
     for (let i = headerIndex + 1; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
@@ -360,35 +382,236 @@ export class EmailSystemWorker {
 
       records.push({
         id: randomUUID(),
-
-        institution, // JUD or JSB
-
+        institution,
         voucherNo,
         voucherDate: parseDate(get(row, "DATE")),
-
         partyName: get(row, "PARTY NAME"),
         zone: get(row, "ZONE"),
         district: get(row, "DISTRICT"),
         salesPromoterName: get(row, "SALES PROMOTER"),
-
         bankAccount: get(row, "BANK ACCOUNT"),
         amount: parseAmount(get(row, "AMOUNT")),
-
         remarks: get(row, "REMARKS"),
+        sourceMessageId: meta.messageId,
+        sourceFileName: meta.fileName,
+      });
+    }
+
+    if (records.length) {
+      await db.insert(collectionReports).values(records);
+      console.log(`[COLLECTION-${institution}] Inserted ${records.length} rows`);
+    }
+  }
+
+  /* =========================================================
+     HELPER: PROJECTIONS (PLANNING) - FIXED FOR 2-ROW HEADER
+  ========================================================= */
+
+  private async processProjectionRows(
+    rows: (string | number | null)[][],
+    meta: { messageId: string; fileName?: string }
+  ) {
+    if (rows.length < 2) return;
+
+    // 1. Find the START of the header (Look for ZONE)
+    const headerIndex = rows.findIndex(r =>
+      r.some(c => String(c ?? "").toUpperCase().includes("ZONE"))
+    );
+
+    if (headerIndex === -1) {
+      console.error("[PROJECTION] ZONE header not found. Aborting.");
+      return;
+    }
+
+    // 2. Merge Row N and N+1 to create Effective Headers
+    // Example: "ORDER" (top) + "DEALER" (bottom) -> "ORDER DEALER"
+    const top = rows[headerIndex] ?? [];
+    const bottom = rows[headerIndex + 1] ?? [];
+
+    const headers = top.map((_, i) => {
+      const t = String(top[i] ?? "").trim().toUpperCase();
+      const b = String(bottom[i] ?? "").trim().toUpperCase();
+      return (t + " " + b).replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+    });
+
+    const idx: Record<string, number> = {};
+    headers.forEach((h, i) => (idx[h] = i));
+
+    const get = (row: any[], ...keys: string[]) => {
+      // Find the first column header that contains the key
+      for (const key of keys) {
+        const colHeader = Object.keys(idx).find(h => h.includes(key));
+        if (colHeader) {
+          return String(row[idx[colHeader]] ?? "").trim();
+        }
+      }
+      return null;
+    };
+
+    const parseNum = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
+    const today = new Date().toISOString().split("T")[0];
+
+    // 3. Clear Snapshot
+    await db
+      .delete(projectionReports)
+      .where(eq(projectionReports.reportDate, today));
+
+    console.log(`[PROJECTION] Cleared existing data for ${today}`);
+
+    // 4. Extract
+    const records: any[] = [];
+    // Start scanning 2 rows after header start
+    for (let i = headerIndex + 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.length) continue;
+
+      const zone = get(row, "ZONE");
+      if (!zone) continue;
+
+      records.push({
+        id: randomUUID(),
+        institution: "JSB",
+        reportDate: today,
+        zone,
+
+        // Fuzzy match handles "ORDER PROJECTION DEALER" or just "DEALER"
+        orderDealerName: get(row, "ORDER DEALER", "DEALER"),
+        orderQtyMt: parseNum(get(row, "QNTY", "MT")),
+
+        collectionDealerName: get(row, "COLLECTION DEALER", "DEALER"),
+        collectionAmount: parseNum(get(row, "AMOUNT")),
 
         sourceMessageId: meta.messageId,
         sourceFileName: meta.fileName,
       });
     }
 
-    /* -----------------------------------------
-       6. Insert
-    ----------------------------------------- */
     if (records.length) {
-      await db.insert(collectionReports).values(records);
-      console.log(`[COLLECTION-${institution}] Inserted ${records.length} rows`);
+      await db.insert(projectionReports).values(records);
+      console.log(`[PROJECTION] Inserted ${records.length} rows`);
+    }
+  }
+
+  /* =========================================================
+     HELPER: PROJECTION VS ACTUAL - FIXED
+     (Includes Deduplication to Fix Unique Constraint)
+  ========================================================= */
+
+  private async processProjectionVsActualRows(
+    rows: (string | number | null)[][],
+    meta: { messageId: string; fileName?: string }
+  ) {
+    if (rows.length < 2) return;
+
+    // 1. Find the START of the header (Look for ZONE)
+    const headerIndex = rows.findIndex((r) =>
+      r.some((c) => String(c ?? "").toUpperCase().includes("ZONE"))
+    );
+
+    if (headerIndex === -1) {
+      console.error("[PROJ-VS-ACTUAL] ZONE header not found. Aborting.");
+      return;
+    }
+
+    // 2. Merge Row N and N+1
+    const top = rows[headerIndex] ?? [];
+    const bottom = rows[headerIndex + 1] ?? [];
+
+    const headers = top.map((_, i) => {
+      const t = String(top[i] ?? "").trim().toUpperCase();
+      const b = String(bottom[i] ?? "").trim().toUpperCase();
+      return (t + " " + b).replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+    });
+
+    const idx: Record<string, number> = {};
+    headers.forEach((h, i) => (idx[h] = i));
+
+    const get = (row: any[], ...keys: string[]) => {
+      for (const key of keys) {
+        const colHeader = Object.keys(idx).find((h) => h.includes(key));
+        if (colHeader) return String(row[idx[colHeader]] ?? "").trim();
+      }
+      return null;
+    };
+
+    const num = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
+    const reportDate = new Date().toISOString().split("T")[0];
+
+    // 3. Clear Snapshot
+    await db
+      .delete(projectionVsActualReports)
+      .where(eq(projectionVsActualReports.reportDate, reportDate));
+
+    console.log(`[PROJ-VS-ACTUAL] Cleared snapshot for ${reportDate}`);
+
+    // 4. Extract with Deduplication Map
+    const uniqueRecords = new Map<string, any>();
+
+    for (let i = headerIndex + 2; i < rows.length; i++) {
+      const row = rows[i];
+      if (!row.length) continue;
+
+      const zone = get(row, "ZONE");
+      if (!zone) continue;
+
+      // Relaxed Dealer Check: If missing, it's a Zone Total
+      let dealer = get(row, "DEALER");
+      if (!dealer) {
+        dealer = `TOTAL - ${zone}`;
+      }
+
+      const orderProj = num(get(row, "ORDER PROJECTION", "YESTERDAY ORDER"));
+      const actualOrder = num(get(row, "ACTUAL ORDER"));
+      const doDone = num(get(row, "DO DONE"));
+      const collProj = num(get(row, "COLLECTION PROJECTION", "YESTERDAY COLLECTION"));
+      const actualColl = num(get(row, "ACTUAL COLLECTION"));
+
+      // Filter completely empty "spacer" rows that happen to have a Zone
+      if (
+        orderProj === 0 && actualOrder === 0 && doDone === 0 &&
+        collProj === 0 && actualColl === 0
+      ) {
+        continue; 
+      }
+
+      const record = {
+        id: randomUUID(),
+        reportDate,
+        institution: "JSB",
+        zone,
+        dealerName: dealer,
+        orderProjectionMt: orderProj,
+        actualOrderReceivedMt: actualOrder,
+        doDoneMt: doDone,
+        projectionVsActualOrderMt: orderProj - actualOrder,
+        actualOrderVsDoMt: actualOrder - doDone,
+        collectionProjection: collProj,
+        actualCollection: actualColl,
+        shortFall: collProj - actualColl,
+        percent: collProj ? Number(((actualColl / collProj) * 100).toFixed(2)) : 0,
+        sourceMessageId: meta.messageId,
+        sourceFileName: meta.fileName,
+      };
+
+      // Composite Key for Deduplication: ZONE + DEALER
+      // If the Excel has "Total" row and then another "Empty" row for same zone,
+      // they both map to "TOTAL - {Zone}". We keep the last one (or first one).
+      // Since this is a snapshot, overwriting is generally safer than inserting duplicates.
+      const key = `${zone}|${dealer}`;
+      
+      if (uniqueRecords.has(key)) {
+         // console.warn(`[PROJ-VS-ACTUAL] Deduping ${key} - Keeping latest.`);
+      }
+      uniqueRecords.set(key, record);
+    }
+
+    const finalRecords = Array.from(uniqueRecords.values());
+
+    if (finalRecords.length) {
+      await db.insert(projectionVsActualReports).values(finalRecords);
+      console.log(`[PROJ-VS-ACTUAL] Inserted ${finalRecords.length} rows`);
     } else {
-      console.log(`[COLLECTION-${institution}] No valid rows`);
+      console.log("[PROJ-VS-ACTUAL] No valid rows found");
     }
   }
 }

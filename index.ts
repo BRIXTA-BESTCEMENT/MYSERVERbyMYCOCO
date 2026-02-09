@@ -132,6 +132,8 @@ import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 
 //weirdEMAILWORKERthatwillPOLLevery30s
 import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
+import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
 
 const emailWorker = new EmailSystemWorker();
 
@@ -187,6 +189,10 @@ console.log('🔌 Registering API routes...');
 
 //colection reprts from MAIL NIGGA
 setupCollectionReportsRoutes(app);
+
+//YEAHEHE
+setupProjectionVsActualRoutes(app);
+setupProjectionRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
