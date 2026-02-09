@@ -190,6 +190,13 @@
       "when": 1769618792374,
       "tag": "0026_gray_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1770663192476,
+      "tag": "0027_quiet_lester",
+      "breakpoints": true
     }
   ]
 }
