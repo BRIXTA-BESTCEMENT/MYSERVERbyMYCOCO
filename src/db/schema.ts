@@ -683,7 +683,7 @@ export const collectionReports = pgTable("collection_reports", {
   zone: varchar("zone", { length: 100 }),
   district: varchar("district", { length: 100 }),
   dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-  salesPromoterUserId: integer("sales_promoter_user_id").references(() => users.id, { onDelete: "set null" }),
+  salesPromoterUserId: integer("sales_promoter_user_id"),
   sourceMessageId: text("source_message_id"),
   sourceFileName: text("source_file_name"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
