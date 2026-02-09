@@ -691,7 +691,6 @@ export const collectionReports = pgTable("collection_reports", {
   index("idx_collection_institution").on(t.institution),
   index("idx_collection_date").on(t.voucherDate),
   index("idx_collection_dealer").on(t.dealerId),
-  index("idx_collection_user").on(t.salesPromoterUserId),
   index("idx_collection_voucher").on(t.voucherNo),
 ]);
 
