@@ -56,10 +56,15 @@ export const users = pgTable("users", {
   salesmanLoginId: varchar("salesman_login_id", { length: 255 }).unique(),
   hashedPassword: text("hashed_password"),
 
-  // --- ADDED FOR TECHNICAL ROLE (PRISMA SYNC) ---
+  // --- TECHNICAL ROLE ---
   isTechnicalRole: boolean("is_technical_role").default(false),
   techLoginId: varchar("tech_login_id", { length: 255 }).unique(),
   techHashedPassword: text("tech_hash_password"),
+
+  // --- ADMIN APP FIELDS ---
+  isAdminAppUser: boolean("is_admin_app_user").default(false).notNull(),
+  adminAppLoginId: varchar("admin_app_login_id", { length: 255 }).unique(),
+  adminAppHashedPassword: text("admin_app_hashed_password"),
 
   deviceId: varchar("device_id", { length: 255 }).unique(),
   fcmToken: varchar("fcm_token", { length: 500 }),
@@ -662,6 +667,32 @@ export const dealerBrandMapping = pgTable("dealer_brand_mapping", {
 
 }, (t) => [
   uniqueIndex("dealer_brand_mapping_dealer_id_brand_id_unique").on(t.dealerId, t.brandId),
+]);
+
+//EMAIL COLLECTION REPORT WITH FOREIGN KEY
+export const collectionReports = pgTable("collection_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  institution: varchar("institution", { length: 10 }).notNull(),
+  voucherNo: varchar("voucher_no", { length: 100 }).notNull(),
+  voucherDate: date("voucher_date").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  bankAccount: varchar("bank_account", { length: 255 }),
+  remarks: varchar("remarks", { length: 500 }),
+  partyName: varchar("party_name", { length: 255 }).notNull(),
+  salesPromoterName: varchar("sales_promoter_name", { length: 255 }),
+  zone: varchar("zone", { length: 100 }),
+  district: varchar("district", { length: 100 }),
+  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
+  salesPromoterUserId: integer("sales_promoter_user_id").references(() => users.id, { onDelete: "set null" }),
+  sourceMessageId: text("source_message_id"),
+  sourceFileName: text("source_file_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_collection_institution").on(t.institution),
+  index("idx_collection_date").on(t.voucherDate),
+  index("idx_collection_dealer").on(t.dealerId),
+  index("idx_collection_user").on(t.salesPromoterUserId),
+  index("idx_collection_voucher").on(t.voucherNo),
 ]);
 
 /* ========================= rewards (Renamed from gift_inventory to align with sample) ========================= */
@@ -1451,3 +1482,4 @@ export const insertLogisticsGateIOSchema = createInsertSchema(logisticsGateIO);
 
 //emailStuff
 export const insertEmailReportSchema = createInsertSchema(emailReports);
+export const insertCollectionReportSchema = createInsertSchema(collectionReports);

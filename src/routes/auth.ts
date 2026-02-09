@@ -73,21 +73,31 @@ export default function setupAuthRoutes(app: Express) {
           id: users.id,
           email: users.email,
           status: users.status,
-          hashedPassword: users.hashedPassword,
-          techHashedPassword: users.techHashedPassword,
           role: users.role,
-          isTechnicalRole: users.isTechnicalRole,
-          salesmanLoginId: users.salesmanLoginId,
-          techLoginId: users.techLoginId,
           deviceId: users.deviceId,
           fcmToken: users.fcmToken,
+          
+          // Salesman Credentials
+          salesmanLoginId: users.salesmanLoginId,
+          hashedPassword: users.hashedPassword,
+          
+          // Tech Credentials
+          isTechnicalRole: users.isTechnicalRole,
+          techLoginId: users.techLoginId,
+          techHashedPassword: users.techHashedPassword,
+
+          // Admin App Credentials 
+          isAdminAppUser: users.isAdminAppUser,
+          adminAppLoginId: users.adminAppLoginId,
+          adminAppHashedPassword: users.adminAppHashedPassword,
         })
         .from(users)
         .where(
           or(
             eq(users.salesmanLoginId, loginId),
             eq(users.email, loginId),
-            eq(users.techLoginId, loginId)
+            eq(users.techLoginId, loginId),
+            eq(users.adminAppLoginId, loginId) 
           )
         )
         .limit(1);
@@ -110,18 +120,29 @@ export default function setupAuthRoutes(app: Express) {
       }
 
       // Password validation
+      // Password Validation (Check all 3 possibilities)
       let isAuthenticated = false;
 
-      if (row.hashedPassword && row.hashedPassword === password) {
+      // A. Salesman Check
+      if (row.hashedPassword && row.hashedPassword === password && row.salesmanLoginId === loginId) {
         isAuthenticated = true;
       }
 
-      const techValid =
-        row.techLoginId === loginId &&
-        row.techHashedPassword === password &&
-        row.isTechnicalRole;
+      // B. Technical Check
+      else if (
+        row.isTechnicalRole && 
+        row.techLoginId === loginId && 
+        row.techHashedPassword === password
+      ) {
+        isAuthenticated = true;
+      }
 
-      if (techValid) {
+      // C. Admin App Check 
+      else if (
+        row.isAdminAppUser &&
+        row.adminAppLoginId === loginId &&
+        row.adminAppHashedPassword === password
+      ) {
         isAuthenticated = true;
       }
 
@@ -182,9 +203,11 @@ export default function setupAuthRoutes(app: Express) {
           salesmanLoginId: users.salesmanLoginId,
           status: users.status,
           reportsToId: users.reportsToId,
+          noOfPJP: users.noOfPJP,
           isTechnicalRole: users.isTechnicalRole,
           techLoginId: users.techLoginId,
-          noOfPJP: users.noOfPJP,
+          isAdminAppUser: users.isAdminAppUser,
+          adminAppLoginId: users.adminAppLoginId,
         })
         .from(users)
         .leftJoin(companies, eq(companies.id, users.companyId))
