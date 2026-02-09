@@ -692,7 +692,7 @@ export const collectionReports = pgTable("collection_reports", {
   index("idx_collection_date").on(t.voucherDate),
   index("idx_collection_dealer").on(t.dealerId),
   index("idx_collection_voucher").on(t.voucherNo),
-]);
+]); 
 
 /* ========================= rewards (Renamed from gift_inventory to align with sample) ========================= */
 export const rewards = pgTable("rewards", {
