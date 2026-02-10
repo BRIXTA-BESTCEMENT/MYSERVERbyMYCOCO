@@ -7,7 +7,7 @@ import {
   projectionReports,
   projectionVsActualReports,
 } from "../../db/schema";
-import { eq, and } from "drizzle-orm";
+import { eq, and, sql } from "drizzle-orm";
 import { EmailSystem } from "../../services/emailSystem";
 import { randomUUID } from "crypto";
 
@@ -18,6 +18,25 @@ type SheetCandidate = {
 
 export class EmailSystemWorker {
   private emailSystem = new EmailSystem();
+
+  /* =========================================================
+     HELPER: DETECT DERIVED / TOTAL ROWS
+  ========================================================= */
+  private isDerivedRow(...values: (string | null | undefined)[]): boolean {
+    const text = values
+      .filter(Boolean)
+      .join(" ")
+      .toUpperCase();
+
+    if (!text) return true;
+
+    return (
+      text.includes("TOTAL") ||
+      text.includes("GRAND") ||
+      text.includes("SUBTOTAL") ||
+      text.includes("SUMMARY")
+    );
+  }
 
   /* =========================================================
      MAIN WORKER
@@ -56,6 +75,13 @@ export class EmailSystemWorker {
         ----------------------------------------- */
         const attachments = await this.emailSystem.getAttachments(mail.id);
         const subject = mail.subject?.toUpperCase() ?? "";
+
+        // Detect Institution Context ONCE
+        const institutionContext = subject.includes("JSB")
+          ? "JSB"
+          : subject.includes("JUD")
+            ? "JUD"
+            : null;
 
         for (const file of attachments.value ?? []) {
           // Filter for Excel/CSV only
@@ -152,40 +178,39 @@ export class EmailSystemWorker {
             console.log("[EmailWorker] PJP Detected → Using Direct IDs");
             await this.processPjpRows(rows);
 
-          } else if (
-            subject.includes("COLLECTION") &&
-            subject.includes("JUD")
-          ) {
-            console.log("[EmailWorker] Collection (JUD) Detected");
-            await this.processCollectionRows(rows, "JUD", {
-              messageId: mail.id,
-              fileName: file.name,
-            });
-
-          } else if (
-            subject.includes("COLLECTION") &&
-            subject.includes("JSB")
-          ) {
-            console.log("[EmailWorker] Collection (JSB) Detected");
-            await this.processCollectionRows(rows, "JSB", {
-              messageId: mail.id,
-              fileName: file.name,
-            });
+          } else if (subject.includes("COLLECTION")) {
+            console.log("[EmailWorker] Collection Report Detected");
+            await this.processCollectionRows(
+              rows,
+              institutionContext,
+              {
+                messageId: mail.id,
+                fileName: file.name,
+              }
+            );
 
           } else if (subject.includes("PROJECTION VS ACTUAL")) {
             // 🚨 MUST CHECK THIS BEFORE 'PROJECTION'
             console.log("[EmailWorker] Projection vs Actual Report Detected");
-            await this.processProjectionVsActualRows(rows, {
-              messageId: mail.id,
-              fileName: file.name,
-            });
+            await this.processProjectionVsActualRows(
+              rows,
+              {
+                messageId: mail.id,
+                fileName: file.name,
+              },
+              institutionContext
+            );
 
           } else if (subject.includes("PROJECTION")) {
             console.log("[EmailWorker] Projection Plan Detected");
-            await this.processProjectionRows(rows, {
-              messageId: mail.id,
-              fileName: file.name,
-            });
+            await this.processProjectionRows(
+              rows,
+              {
+                messageId: mail.id,
+                fileName: file.name,
+              },
+              institutionContext
+            );
 
           } else {
             console.log("[EmailWorker] Standard Report → Archiving raw data");
@@ -209,13 +234,39 @@ export class EmailSystemWorker {
   }
 
   /* =========================================================
+     HELPER: EXTRACT REPORT DATE (Scan Sheet Content)
+  ========================================================= */
+  private extractReportDate(rows: (string | number | null)[][]): string {
+    // scan first 5 rows for a date-like cell
+    for (let r = 0; r < Math.min(5, rows.length); r++) {
+      for (const cell of rows[r]) {
+        const text = String(cell ?? "").trim();
+
+        // YYYY-MM-DD
+        const iso = text.match(/\d{4}-\d{2}-\d{2}/);
+        if (iso) return iso[0];
+
+        // DD/MM/YYYY or DD-MM-YYYY
+        const dmy = text.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+        if (dmy) {
+          const [_, dd, mm, yyyy] = dmy;
+          return `${yyyy}-${mm}-${dd}`;
+        }
+      }
+    }
+
+    // fallback ONLY if file truly has no date
+    return new Date().toISOString().split("T")[0];
+  }
+
+  /* =========================================================
      HELPER: PJP → DAILY TASKS (ID BASED)
   ========================================================= */
 
   private async processPjpRows(rows: (string | number | null)[][]) {
     if (rows.length < 2) return;
 
-    // 1. Normalize Headers
+    // Normalize Headers
     const headers = rows[0].map((h) => String(h).trim().toUpperCase());
     const idx: Record<string, number> = {};
     headers.forEach((h, i) => (idx[h] = i));
@@ -242,9 +293,6 @@ export class EmailSystemWorker {
       const userId = Number(userIdRaw);
 
       if (!userIdRaw || Number.isNaN(userId)) {
-        console.warn(
-          `[PJP] Row ${i}: Invalid/Missing USER ID (${userIdRaw}). Skipping.`
-        );
         continue;
       }
 
@@ -282,21 +330,39 @@ export class EmailSystemWorker {
     if (tasks.length > 0) {
       await db.insert(dailyTasks).values(tasks);
       console.log(`[PJP] Successfully created ${tasks.length} tasks.`);
-    } else {
-      console.log("[PJP] No valid tasks found to insert.");
     }
   }
 
   /* =========================================================
-     HELPER: COLLECTIONS
+     HELPER: COLLECTIONS (APPEND ONLY)
   ========================================================= */
 
   private async processCollectionRows(
     rows: (string | number | null)[][],
-    institution: "JUD" | "JSB",
+    institution: string | null,
     meta: { messageId: string; fileName?: string }
   ) {
     if (rows.length < 2) return;
+
+    /* ----------------------------------------------------
+       STEP 0: INSTITUTION AUTO-DETECT (TRIPLE CHECK)
+    ---------------------------------------------------- */
+    let detectedInst = institution;
+
+    if (!detectedInst) {
+      const fileName = (meta.fileName || "").toUpperCase();
+      const titleRow = rows[0]?.join(" ").toUpperCase() || "";
+
+      // Check Filename first (High confidence)
+      if (fileName.includes("JSB")) detectedInst = "JSB";
+      else if (fileName.includes("JUD")) detectedInst = "JUD";
+
+      // Check Title Row inside Excel (Highest confidence)
+      else if (titleRow.includes("JSB")) detectedInst = "JSB";
+      else if (titleRow.includes("JUD")) detectedInst = "JUD";
+    }
+
+    const safeInstitution = detectedInst ?? null;
 
     // Find Header
     const headerIndex = rows.findIndex((r) => {
@@ -331,47 +397,34 @@ export class EmailSystemWorker {
 
     const parseAmount = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
 
+    // SAFE DATE PARSING (DD/MM/YYYY or DD-MM-YYYY)
     const parseDate = (raw: any): string => {
       try {
-        let d = new Date();
+        // Excel serial
         if (typeof raw === "number") {
-          d = new Date(Math.round((raw - 25569) * 86400 * 1000));
-        } else if (raw) {
-          d = new Date(String(raw));
+          const d = new Date(Math.round((raw - 25569) * 86400 * 1000));
+          return d.toISOString().split("T")[0];
         }
+
+        const str = String(raw ?? "").trim();
+
+        // DD/MM/YYYY or DD-MM-YYYY
+        const dmy = str.match(/(\d{2})[\/-](\d{2})[\/-](\d{4})/);
+        if (dmy) {
+          const [_, dd, mm, yyyy] = dmy;
+          return `${yyyy}-${mm}-${dd}`;
+        }
+
+        // ISO or safe fallback
+        const d = new Date(str);
         return d.toISOString().split("T")[0];
+
       } catch {
         return new Date().toISOString().split("T")[0];
       }
     };
 
-    // Get Date
-    let reportDate: string | null = null;
-    for (let i = headerIndex + 1; i < rows.length; i++) {
-      const rawDate = get(rows[i], "DATE");
-      if (rawDate) {
-        reportDate = parseDate(rawDate);
-        break;
-      }
-    }
-
-    if (!reportDate) {
-      console.log("[COLLECTION] No report date found. Aborting.");
-      return;
-    }
-
-    // Nuke Old
-    await db
-      .delete(collectionReports)
-      .where(
-        and(
-          eq(collectionReports.institution, institution),
-          eq(collectionReports.voucherDate, reportDate)
-        )
-      );
-    console.log(`[COLLECTION-${institution}] Cleared old data for ${reportDate}`);
-
-    // Build
+    // Build (No Delete Logic - Just Append)
     const records: any[] = [];
     for (let i = headerIndex + 1; i < rows.length; i++) {
       const row = rows[i];
@@ -382,7 +435,7 @@ export class EmailSystemWorker {
 
       records.push({
         id: randomUUID(),
-        institution,
+        institution: safeInstitution,
         voucherNo,
         voucherDate: parseDate(get(row, "DATE")),
         partyName: get(row, "PARTY NAME"),
@@ -399,21 +452,29 @@ export class EmailSystemWorker {
 
     if (records.length) {
       await db.insert(collectionReports).values(records);
-      console.log(`[COLLECTION-${institution}] Inserted ${records.length} rows`);
+      console.log(`[COLLECTION] Appended ${records.length} rows for ${safeInstitution}`);
     }
   }
 
   /* =========================================================
-     HELPER: PROJECTIONS (PLANNING) - FIXED FOR 2-ROW HEADER
+     HELPER: PROJECTIONS (PLANNING) - APPEND ONLY
   ========================================================= */
 
   private async processProjectionRows(
     rows: (string | number | null)[][],
-    meta: { messageId: string; fileName?: string }
+    meta: { messageId: string; fileName?: string },
+    institution: string | null
   ) {
     if (rows.length < 2) return;
 
-    // 1. Find the START of the header (Look for ZONE)
+    /* ------------------------------------------------------
+       1. EXTRACT REPORT DATE (From Sheet Content)
+    ------------------------------------------------------ */
+    const reportDate = this.extractReportDate(rows);
+
+    /* ------------------------------------------------------
+       2. FIND HEADER START
+    ------------------------------------------------------ */
     const headerIndex = rows.findIndex(r =>
       r.some(c => String(c ?? "").toUpperCase().includes("ZONE"))
     );
@@ -423,8 +484,9 @@ export class EmailSystemWorker {
       return;
     }
 
-    // 2. Merge Row N and N+1 to create Effective Headers
-    // Example: "ORDER" (top) + "DEALER" (bottom) -> "ORDER DEALER"
+    /* ------------------------------------------------------
+       3. MERGE TWO HEADER ROWS & MAP COLUMNS
+    ------------------------------------------------------ */
     const top = rows[headerIndex] ?? [];
     const bottom = rows[headerIndex + 1] ?? [];
 
@@ -437,50 +499,54 @@ export class EmailSystemWorker {
     const idx: Record<string, number> = {};
     headers.forEach((h, i) => (idx[h] = i));
 
-    const get = (row: any[], ...keys: string[]) => {
-      // Find the first column header that contains the key
-      for (const key of keys) {
-        const colHeader = Object.keys(idx).find(h => h.includes(key));
-        if (colHeader) {
-          return String(row[idx[colHeader]] ?? "").trim();
-        }
-      }
-      return null;
-    };
+    // Explicit Column Resolution (No Fuzzy Guessing)
+    const findCol = (keyword: string) =>
+      Object.entries(idx).find(([h]) => h.includes(keyword))?.[1];
 
-    const parseNum = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
-    const today = new Date().toISOString().split("T")[0];
+    const zoneCol = findCol("ZONE");
 
-    // 3. Clear Snapshot
-    await db
-      .delete(projectionReports)
-      .where(eq(projectionReports.reportDate, today));
+    // Prioritize specific column names to avoid "DEALER" ambiguity
+    const orderDealerCol = findCol("ORDER PROJECTION") ?? findCol("ORDER DEALER");
+    const orderQtyCol = findCol("QNTY") ?? findCol("MT");
 
-    console.log(`[PROJECTION] Cleared existing data for ${today}`);
+    const collDealerCol = findCol("COLLECTION PROJECTION") ?? findCol("COLLECTION DEALER");
+    const collAmtCol = findCol("AMOUNT");
 
-    // 4. Extract
+    if (zoneCol === undefined) {
+      console.error("[PROJECTION] ZONE column missing.");
+      return;
+    }
+
+    const num = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
+
+    /* ------------------------------------------------------
+       4. BUILD RECORDS (APPEND ONLY)
+    ------------------------------------------------------ */
     const records: any[] = [];
-    // Start scanning 2 rows after header start
+
     for (let i = headerIndex + 2; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
 
-      const zone = get(row, "ZONE");
+      const zone = String(row[zoneCol] ?? "").trim();
       if (!zone) continue;
+
+      const orderDealer = orderDealerCol !== undefined ? String(row[orderDealerCol] ?? "").trim() : "";
+      const collDealer = collDealerCol !== undefined ? String(row[collDealerCol] ?? "").trim() : "";
+
+      // 🛑 HARD FILTER: SKIP TOTALS / SUMMARIES / BLANKS
+      if (this.isDerivedRow(zone, orderDealer, collDealer)) continue;
+      if (!orderDealer && !collDealer) continue;
 
       records.push({
         id: randomUUID(),
-        institution: "JSB",
-        reportDate: today,
+        institution: institution ?? null,
+        reportDate,
         zone,
-
-        // Fuzzy match handles "ORDER PROJECTION DEALER" or just "DEALER"
-        orderDealerName: get(row, "ORDER DEALER", "DEALER"),
-        orderQtyMt: parseNum(get(row, "QNTY", "MT")),
-
-        collectionDealerName: get(row, "COLLECTION DEALER", "DEALER"),
-        collectionAmount: parseNum(get(row, "AMOUNT")),
-
+        orderDealerName: orderDealer || null,
+        orderQtyMt: orderQtyCol !== undefined ? num(row[orderQtyCol]) : 0,
+        collectionDealerName: collDealer || null,
+        collectionAmount: collAmtCol !== undefined ? num(row[collAmtCol]) : 0,
         sourceMessageId: meta.messageId,
         sourceFileName: meta.fileName,
       });
@@ -488,24 +554,30 @@ export class EmailSystemWorker {
 
     if (records.length) {
       await db.insert(projectionReports).values(records);
-      console.log(`[PROJECTION] Inserted ${records.length} rows`);
+      console.log(`[PROJECTION] Appended ${records.length} rows`);
     }
   }
 
   /* =========================================================
-     HELPER: PROJECTION VS ACTUAL - FIXED
-     (Includes Deduplication to Fix Unique Constraint)
+     HELPER: PROJECTION VS ACTUAL (UPSERT STRATEGY)
   ========================================================= */
-
   private async processProjectionVsActualRows(
     rows: (string | number | null)[][],
-    meta: { messageId: string; fileName?: string }
+    meta: { messageId: string; fileName?: string },
+    institution: string | null
   ) {
     if (rows.length < 2) return;
 
-    // 1. Find the START of the header (Look for ZONE)
-    const headerIndex = rows.findIndex((r) =>
-      r.some((c) => String(c ?? "").toUpperCase().includes("ZONE"))
+    /* ------------------------------------------------------
+       1. EXTRACT REPORT DATE
+    ------------------------------------------------------ */
+    const reportDate = this.extractReportDate(rows);
+
+    /* ------------------------------------------------------
+       2. FIND HEADER START
+    ------------------------------------------------------ */
+    const headerIndex = rows.findIndex(r =>
+      r.some(c => String(c ?? "").toUpperCase().includes("ZONE"))
     );
 
     if (headerIndex === -1) {
@@ -513,71 +585,114 @@ export class EmailSystemWorker {
       return;
     }
 
-    // 2. Merge Row N and N+1
+    /* ------------------------------------------------------
+       3. MERGE TWO HEADER ROWS & MAP COLUMNS
+    ------------------------------------------------------ */
     const top = rows[headerIndex] ?? [];
     const bottom = rows[headerIndex + 1] ?? [];
 
     const headers = top.map((_, i) => {
       const t = String(top[i] ?? "").trim().toUpperCase();
       const b = String(bottom[i] ?? "").trim().toUpperCase();
-      return (t + " " + b).replace(/[^A-Z0-9 ]/g, "").replace(/\s+/g, " ").trim();
+      return (t + " " + b)
+        .replace(/[^A-Z0-9 ]/g, "")
+        .replace(/\s+/g, " ")
+        .trim();
     });
 
     const idx: Record<string, number> = {};
     headers.forEach((h, i) => (idx[h] = i));
 
-    const get = (row: any[], ...keys: string[]) => {
-      for (const key of keys) {
-        const colHeader = Object.keys(idx).find((h) => h.includes(key));
-        if (colHeader) return String(row[idx[colHeader]] ?? "").trim();
-      }
-      return null;
-    };
+    const findCol = (keyword: string) =>
+      Object.entries(idx).find(([h]) => h.includes(keyword))?.[1];
 
-    const num = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
-    const reportDate = new Date().toISOString().split("T")[0];
+    const zoneCol = findCol("ZONE");
 
-    // 3. Clear Snapshot
-    await db
-      .delete(projectionVsActualReports)
-      .where(eq(projectionVsActualReports.reportDate, reportDate));
+    const orderProjCol =
+      findCol("ORDER PROJECTION") ?? findCol("YESTERDAY ORDER");
+    const actualOrderCol = findCol("ACTUAL ORDER");
+    const doDoneCol = findCol("DO DONE");
 
-    console.log(`[PROJ-VS-ACTUAL] Cleared snapshot for ${reportDate}`);
+    const collProjCol =
+      findCol("COLLECTION PROJECTION") ?? findCol("YESTERDAY COLLECTION");
+    const actualCollCol = findCol("ACTUAL COLLECTION");
 
-    // 4. Extract with Deduplication Map
+    // ⚠️ This report DOES NOT have a dedicated DEALER column
+    const dealerCol = findCol("DEALER");
+
+    if (zoneCol === undefined) {
+      console.error("[PROJ-VS-ACTUAL] ZONE column missing.");
+      return;
+    }
+
+    const num = (v: any) =>
+      Number(String(v ?? "0").replace(/,/g, ""));
+
+    /* ------------------------------------------------------
+       4. BUILD RECORDS (ZONE INHERITANCE FIX)
+    ------------------------------------------------------ */
     const uniqueRecords = new Map<string, any>();
+    let currentZone = "";
 
     for (let i = headerIndex + 2; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
 
-      const zone = get(row, "ZONE");
-      if (!zone) continue;
+      /* ---- ZONE: inherit from above ---- */
+      const rawZone = String(row[zoneCol] ?? "").trim();
+      if (rawZone) currentZone = rawZone;
+      if (!currentZone) continue;
 
-      // Relaxed Dealer Check: If missing, it's a Zone Total
-      let dealer = get(row, "DEALER");
-      if (!dealer) {
-        dealer = `TOTAL - ${zone}`;
+      const zone = currentZone;
+
+      /* ---- DEALER: inferred from order projection column ---- */
+      let dealer = "";
+
+      if (dealerCol !== undefined) {
+        dealer = String(row[dealerCol] ?? "").trim();
+      } else if (orderProjCol !== undefined) {
+        dealer = String(row[orderProjCol - 1] ?? "").trim();
       }
 
-      const orderProj = num(get(row, "ORDER PROJECTION", "YESTERDAY ORDER"));
-      const actualOrder = num(get(row, "ACTUAL ORDER"));
-      const doDone = num(get(row, "DO DONE"));
-      const collProj = num(get(row, "COLLECTION PROJECTION", "YESTERDAY COLLECTION"));
-      const actualColl = num(get(row, "ACTUAL COLLECTION"));
+      if (!dealer) continue;
 
-      // Filter completely empty "spacer" rows that happen to have a Zone
+      // 🛑 Skip ONLY true totals
+      const textCheck = `${zone} ${dealer}`.toUpperCase();
       if (
-        orderProj === 0 && actualOrder === 0 && doDone === 0 &&
-        collProj === 0 && actualColl === 0
+        textCheck.includes("TOTAL") ||
+        textCheck.includes("GRAND") ||
+        textCheck.includes("SUBTOTAL") ||
+        textCheck.includes("SUMMARY")
       ) {
-        continue; 
+        continue;
+      }
+
+      const orderProj =
+        orderProjCol !== undefined ? num(row[orderProjCol]) : 0;
+      const actualOrder =
+        actualOrderCol !== undefined ? num(row[actualOrderCol]) : 0;
+      const doDone =
+        doDoneCol !== undefined ? num(row[doDoneCol]) : 0;
+      const collProj =
+        collProjCol !== undefined ? num(row[collProjCol]) : 0;
+      const actualColl =
+        actualCollCol !== undefined ? num(row[actualCollCol]) : 0;
+
+      // Skip empty spacer rows
+      if (
+        orderProj === 0 &&
+        actualOrder === 0 &&
+        doDone === 0 &&
+        collProj === 0 &&
+        actualColl === 0
+      ) {
+        continue;
       }
 
       const record = {
         id: randomUUID(),
         reportDate,
-        institution: "JSB",
+        institution: institution ?? null,
         zone,
         dealerName: dealer,
         orderProjectionMt: orderProj,
@@ -588,30 +703,50 @@ export class EmailSystemWorker {
         collectionProjection: collProj,
         actualCollection: actualColl,
         shortFall: collProj - actualColl,
-        percent: collProj ? Number(((actualColl / collProj) * 100).toFixed(2)) : 0,
+        percent: collProj
+          ? Number(((actualColl / collProj) * 100).toFixed(2))
+          : 0,
         sourceMessageId: meta.messageId,
         sourceFileName: meta.fileName,
       };
 
-      // Composite Key for Deduplication: ZONE + DEALER
-      // If the Excel has "Total" row and then another "Empty" row for same zone,
-      // they both map to "TOTAL - {Zone}". We keep the last one (or first one).
-      // Since this is a snapshot, overwriting is generally safer than inserting duplicates.
-      const key = `${zone}|${dealer}`;
-      
-      if (uniqueRecords.has(key)) {
-         // console.warn(`[PROJ-VS-ACTUAL] Deduping ${key} - Keeping latest.`);
-      }
-      uniqueRecords.set(key, record);
+      uniqueRecords.set(`${zone}|${dealer}`, record);
     }
 
     const finalRecords = Array.from(uniqueRecords.values());
 
-    if (finalRecords.length) {
-      await db.insert(projectionVsActualReports).values(finalRecords);
-      console.log(`[PROJ-VS-ACTUAL] Inserted ${finalRecords.length} rows`);
-    } else {
+    if (!finalRecords.length) {
       console.log("[PROJ-VS-ACTUAL] No valid rows found");
+      return;
     }
+
+    await db
+      .insert(projectionVsActualReports)
+      .values(finalRecords)
+      .onConflictDoUpdate({
+        target: [
+          projectionVsActualReports.reportDate,
+          projectionVsActualReports.dealerName,
+          projectionVsActualReports.institution,
+        ],
+        set: {
+          orderProjectionMt: sql`excluded.order_projection_mt`,
+          actualOrderReceivedMt: sql`excluded.actual_order_received_mt`,
+          doDoneMt: sql`excluded.do_done_mt`,
+          projectionVsActualOrderMt: sql`excluded.projection_vs_actual_order_mt`,
+          actualOrderVsDoMt: sql`excluded.actual_order_vs_do_mt`,
+          collectionProjection: sql`excluded.collection_projection`,
+          actualCollection: sql`excluded.actual_collection`,
+          shortFall: sql`excluded.short_fall`,
+          percent: sql`excluded.percent`,
+          sourceMessageId: sql`excluded.source_message_id`,
+          sourceFileName: sql`excluded.source_file_name`,
+        },
+      });
+
+    console.log(
+      `[PROJ-VS-ACTUAL] Upserted ${finalRecords.length} rows (History Preserved)`
+    );
   }
+
 }

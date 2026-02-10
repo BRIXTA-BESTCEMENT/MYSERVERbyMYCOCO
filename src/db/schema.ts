@@ -672,7 +672,7 @@ export const dealerBrandMapping = pgTable("dealer_brand_mapping", {
 //EMAIL COLLECTION REPORT WITH FOREIGN KEY
 export const collectionReports = pgTable("collection_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
-  institution: varchar("institution", { length: 10 }).notNull(),
+  institution: varchar("institution", { length: 10 }),
   voucherNo: varchar("voucher_no", { length: 100 }).notNull(),
   voucherDate: date("voucher_date").notNull(),
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
@@ -698,7 +698,7 @@ export const collectionReports = pgTable("collection_reports", {
 export const projectionVsActualReports = pgTable("projection_vs_actual_reports",{
     id: uuid("id").primaryKey().defaultRandom(),
     reportDate: date("report_date").notNull(), 
-    institution: varchar("institution", { length: 10 }).notNull(), 
+    institution: varchar("institution", { length: 10 }), 
     zone: varchar("zone", { length: 120 }).notNull(),
     dealerName: varchar("dealer_name", { length: 255 }).notNull(),
     orderProjectionMt: numeric("order_projection_mt", {precision: 12,scale: 2,}),
@@ -725,7 +725,7 @@ export const projectionVsActualReports = pgTable("projection_vs_actual_reports",
 // SALES & COLLECTION PROJECTION (Planning Data)
 export const projectionReports = pgTable("projection_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
-  institution: varchar("institution", { length: 10 }).notNull(),
+  institution: varchar("institution", { length: 10 }),
   reportDate: date("report_date").notNull(),
   zone: varchar("zone", { length: 100 }).notNull(),
   orderDealerName: varchar("order_dealer_name", { length: 255 }),
