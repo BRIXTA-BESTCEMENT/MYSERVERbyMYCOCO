@@ -190,6 +190,27 @@
       "when": 1769618792374,
       "tag": "0026_gray_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "7",
+      "when": 1770663192476,
+      "tag": "0027_quiet_lester",
+      "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "7",
+      "when": 1770663791554,
+      "tag": "0028_grey_lord_hawal",
+      "breakpoints": true
+    },
+    {
+      "idx": 29,
+      "version": "7",
+      "when": 1770663877356,
+      "tag": "0029_nervous_misty_knight",
+      "breakpoints": true
     }
   ]
 }

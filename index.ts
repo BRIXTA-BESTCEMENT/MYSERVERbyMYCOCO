@@ -55,6 +55,7 @@ import setupRatingsDeleteRoutes from './src/routes/deleteRoutes/ratings';
 import setupSalesOrdersDeleteRoutes from './src/routes/deleteRoutes/salesOrder';
 import setupDealerReportsAndScoresDeleteRoutes from './src/routes/deleteRoutes/dealerReportsAndScores';
 import setupTsoMeetingsDeleteRoutes from './src/routes/deleteRoutes/tsoMeetings';
+import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/collectionReports';
 
 //firebase stuff 
 import './src/firebase/admin';
@@ -126,6 +127,24 @@ import { attachWebSocket } from './src/websocket/socketServer';
 //notunRendami
 import setupAuthCredentialRoutes from './src/routes/authCredentials';
 
+// Microsoft Email
+import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
+
+//weirdEMAILWORKERthatwillPOLLevery30s
+import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
+import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
+
+const emailWorker = new EmailSystemWorker();
+
+setInterval(async() =>{
+  try {
+    await emailWorker.processInboxQueue();
+  } catch (err) {
+    console.error("Email worker error:", err);
+  }
+},30000);
+
 // Initialize environment variables
 
 // ADD THIS DEBUG LINE:
@@ -168,7 +187,12 @@ app.get('/api', (req: Request, res: Response) => {
 // --- Modular Route Setup ---
 console.log('🔌 Registering API routes...');
 
+//colection reprts from MAIL NIGGA
+setupCollectionReportsRoutes(app);
 
+//YEAHEHE
+setupProjectionVsActualRoutes(app);
+setupProjectionRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
@@ -305,6 +329,9 @@ console.log('✅ All routes registered successfully.');
 //------------ TelegramBot + AI setup ----------------
 setupAiService(app);
 //setupTelegramService(app);
+
+// -------- Microsoft Email -------------
+setupMicrosoftEmailRoutes(app);
 
 
 // Handle 404 - Not Found for any routes not matched above

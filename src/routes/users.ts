@@ -40,6 +40,8 @@ const userPublicSelect = {
   noOfPJP: users.noOfPJP,
   isTechnicalRole: users.isTechnicalRole,
   techLoginId: users.techLoginId,
+  isAdminAppUser: users.isAdminAppUser,
+  adminAppLoginId: users.adminAppLoginId,
 };
 
 function parseBooleanQuery(value?: string | string[] | undefined): boolean | undefined {

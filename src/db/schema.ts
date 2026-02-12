@@ -1,7 +1,7 @@
 // server/src/db/schema.ts
 import {
   pgTable, serial, integer, varchar, text, boolean, timestamp, date, numeric,
-  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real, 
+  uniqueIndex, index, jsonb, uuid, primaryKey, unique, doublePrecision, real,
   bigserial, bigint
 } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
@@ -56,10 +56,15 @@ export const users = pgTable("users", {
   salesmanLoginId: varchar("salesman_login_id", { length: 255 }).unique(),
   hashedPassword: text("hashed_password"),
 
-  // --- ADDED FOR TECHNICAL ROLE (PRISMA SYNC) ---
+  // --- TECHNICAL ROLE ---
   isTechnicalRole: boolean("is_technical_role").default(false),
   techLoginId: varchar("tech_login_id", { length: 255 }).unique(),
   techHashedPassword: text("tech_hash_password"),
+
+  // --- ADMIN APP FIELDS ---
+  isAdminAppUser: boolean("is_admin_app_user").default(false).notNull(),
+  adminAppLoginId: varchar("admin_app_login_id", { length: 255 }).unique(),
+  adminAppHashedPassword: text("admin_app_hashed_password"),
 
   deviceId: varchar("device_id", { length: 255 }).unique(),
   fcmToken: varchar("fcm_token", { length: 500 }),
@@ -80,11 +85,11 @@ export const notifications = pgTable("notifications", {
   recipientUserId: integer("recipient_user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   title: varchar("title", { length: 255 }).notNull(),
   body: text("body").notNull(),
-  
+
   // These two fields allow you to find and DELETE the specific notification later
-  type: varchar("type", { length: 50 }).notNull(), 
-  referenceId: varchar("reference_id", { length: 255 }), 
-  
+  type: varchar("type", { length: 50 }).notNull(),
+  referenceId: varchar("reference_id", { length: 255 }),
+
   isRead: boolean("is_read").default(false).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
@@ -94,7 +99,7 @@ export const notifications = pgTable("notifications", {
 /* ========================= tso_meetings (Moved up) ========================= */
 export const tsoMeetings = pgTable("tso_meetings", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
-  type: varchar("type", { length: 100 }), 
+  type: varchar("type", { length: 100 }),
   date: date("date"),
   participantsCount: integer("participants_count"),
   zone: varchar("zone", { length: 100 }),
@@ -108,7 +113,7 @@ export const tsoMeetings = pgTable("tso_meetings", {
   billSubmitted: boolean("bill_submitted").default(false),
   createdByUserId: integer("created_by_user_id").notNull().references(() => users.id),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().$onUpdate(() => new Date()),
 }, (t) => [
@@ -387,6 +392,27 @@ export const dealers = pgTable("dealers", {
   index("idx_dealers_parent_dealer_id").on(t.parentDealerId),
 ]);
 
+
+/* ========================= email_reports (NEW) ========================= */
+export const emailReports = pgTable("email_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+
+  messageId: text("message_id").notNull(), // Graph mail id
+  subject: text("subject"),
+  sender: text("sender"),
+
+  fileName: text("file_name"),
+
+  payload: jsonb("payload").notNull(), // ← your Excel → JSON here
+
+  processed: boolean("processed").default(false),
+
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_email_reports_message").on(t.messageId),
+]);
+
+
 /* ========================= salesman_attendance ========================= */
 export const salesmanAttendance = pgTable("salesman_attendance", {
   id: varchar("id", { length: 255 }).primaryKey().$defaultFn(() => crypto.randomUUID()),
@@ -499,11 +525,11 @@ export const geoTracking = pgTable("geo_tracking", {
 export const journeyOps = pgTable("journey_ops", {
   serverSeq: bigserial("server_seq", { mode: "number" }).primaryKey(),
   opId: uuid("op_id").notNull().unique(),
-  journeyId: varchar("journey_id", { length: 255 }).notNull(),  
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }), 
-  type: text("type").notNull(), 
+  journeyId: varchar("journey_id", { length: 255 }).notNull(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade", onUpdate: "cascade" }),
+  type: text("type").notNull(),
   payload: jsonb("payload").notNull(),
-  
+
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
 }, (t) => [
   index("idx_journey_ops_journey").on(t.journeyId),
@@ -516,8 +542,8 @@ export const journeys = pgTable("journeys", {
   id: varchar("id", { length: 255 }).primaryKey(), // Client-side UUID
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   pjpId: varchar("pjp_id", { length: 255 }),
-  siteId: varchar("site_id", { length: 255 }), 
-  dealerId: varchar("dealer_id", { length: 255 }), 
+  siteId: varchar("site_id", { length: 255 }),
+  dealerId: varchar("dealer_id", { length: 255 }),
   siteName: varchar("site_name", { length: 255 }),
   destLat: numeric("dest_lat", { precision: 10, scale: 7 }),
   destLng: numeric("dest_lng", { precision: 10, scale: 7 }),
@@ -551,7 +577,7 @@ export const journeyBreadcrumbs = pgTable("journey_breadcrumbs", {
   networkStatus: varchar("network_status", { length: 50 }),
   isMocked: boolean("is_mocked").default(false),
   journeyId: varchar("journey_id", { length: 255 }).notNull().references(() => journeys.id, { onDelete: "cascade" }),
-  
+
   // unused field - but keep it
   isSynced: boolean("is_synced").default(false),
 
@@ -579,10 +605,13 @@ export const dailyTasks = pgTable("daily_tasks", {
   siteName: varchar("site_name", { length: 255 }),
   description: varchar("description", { length: 500 }),
   status: varchar("status", { length: 50 }).notNull().default("Assigned"),
+  dealerName: varchar("dealer_name", { length: 255 }),
+  dealerCategory: varchar("dealer_category", { length: 50 }),
+  pjpCycle: varchar("pjp_cycle", { length: 50 }),
   pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull().$onUpdate(() => new Date()),
 }, (t) => [
   index("idx_daily_tasks_user_id").on(t.userId),
   index("idx_daily_tasks_assigned_by_user_id").on(t.assignedByUserId),
@@ -638,6 +667,81 @@ export const dealerBrandMapping = pgTable("dealer_brand_mapping", {
 
 }, (t) => [
   uniqueIndex("dealer_brand_mapping_dealer_id_brand_id_unique").on(t.dealerId, t.brandId),
+]);
+
+//EMAIL COLLECTION REPORT WITH FOREIGN KEY
+export const collectionReports = pgTable("collection_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  institution: varchar("institution", { length: 10 }),
+  voucherNo: varchar("voucher_no", { length: 100 }).notNull(),
+  voucherDate: date("voucher_date").notNull(),
+  amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
+  bankAccount: varchar("bank_account", { length: 255 }),
+  remarks: varchar("remarks", { length: 500 }),
+  partyName: varchar("party_name", { length: 255 }).notNull(),
+  salesPromoterName: varchar("sales_promoter_name", { length: 255 }),
+  zone: varchar("zone", { length: 100 }),
+  district: varchar("district", { length: 100 }),
+  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
+  salesPromoterUserId: integer("sales_promoter_user_id"),
+  sourceMessageId: text("source_message_id"),
+  sourceFileName: text("source_file_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_collection_institution").on(t.institution),
+  index("idx_collection_date").on(t.voucherDate),
+  index("idx_collection_dealer").on(t.dealerId),
+  index("idx_collection_voucher").on(t.voucherNo),
+]);
+
+// SALES & COLLECTION PROJECTION VS ACTUAL SNAPSHOT
+export const projectionVsActualReports = pgTable("projection_vs_actual_reports",{
+    id: uuid("id").primaryKey().defaultRandom(),
+    reportDate: date("report_date").notNull(), 
+    institution: varchar("institution", { length: 10 }), 
+    zone: varchar("zone", { length: 120 }).notNull(),
+    dealerName: varchar("dealer_name", { length: 255 }).notNull(),
+    orderProjectionMt: numeric("order_projection_mt", {precision: 12,scale: 2,}),
+    actualOrderReceivedMt: numeric("actual_order_received_mt", {precision: 12,scale: 2,}),
+    doDoneMt: numeric("do_done_mt", {precision: 12,scale: 2,}),
+    projectionVsActualOrderMt: numeric("projection_vs_actual_order_mt", {precision: 12,scale: 2,}),
+    actualOrderVsDoMt: numeric("actual_order_vs_do_mt", {precision: 12,scale: 2,}),
+    collectionProjection: numeric("collection_projection", {precision: 14,scale: 2,}),
+    actualCollection: numeric("actual_collection", {precision: 14,scale: 2,}),
+    shortFall: numeric("short_fall", {precision: 14,scale: 2,}),
+    percent: numeric("percent", {precision: 6,scale: 2,}),
+    sourceMessageId: text("source_message_id"),
+    sourceFileName: text("source_file_name"),
+    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  },
+  (t) => [
+    index("idx_proj_actual_date").on(t.reportDate),
+    index("idx_proj_actual_zone").on(t.zone),
+    index("idx_proj_actual_dealer").on(t.dealerName),
+    index("idx_proj_actual_institution").on(t.institution),
+    uniqueIndex("uniq_proj_actual_snapshot").on(t.reportDate,t.dealerName,t.institution),
+]);
+
+// SALES & COLLECTION PROJECTION (Planning Data)
+export const projectionReports = pgTable("projection_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  institution: varchar("institution", { length: 10 }),
+  reportDate: date("report_date").notNull(),
+  zone: varchar("zone", { length: 100 }).notNull(),
+  orderDealerName: varchar("order_dealer_name", { length: 255 }),
+  orderQtyMt: numeric("order_qty_mt", { precision: 10, scale: 2 }),
+  collectionDealerName: varchar("collection_dealer_name", { length: 255 }),
+  collectionAmount: numeric("collection_amount", { precision: 14, scale: 2 }),
+  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
+  salesPromoterUserId: integer("sales_promoter_user_id"),
+  sourceMessageId: text("source_message_id"),
+  sourceFileName: text("source_file_name"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_projection_date").on(t.reportDate),
+  index("idx_projection_zone").on(t.zone),
+  index("idx_projection_institution").on(t.institution),
+  index("idx_projection_dealer").on(t.dealerId),
 ]);
 
 /* ========================= rewards (Renamed from gift_inventory to align with sample) ========================= */
@@ -1424,3 +1528,9 @@ export const insertTsoVisitSchema = createInsertSchema(tsoVisit);
 
 // logistics
 export const insertLogisticsGateIOSchema = createInsertSchema(logisticsGateIO);
+
+//emailStuff
+export const insertEmailReportSchema = createInsertSchema(emailReports);
+export const insertCollectionReportSchema = createInsertSchema(collectionReports);
+export const insertProjectionVsActualReportsSchema = createInsertSchema(projectionVsActualReports);
+export const insertProjectionReportsSchema = createInsertSchema(projectionReports);
