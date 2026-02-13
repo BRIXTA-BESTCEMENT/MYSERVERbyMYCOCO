@@ -211,6 +211,13 @@
       "when": 1770663877356,
       "tag": "0029_nervous_misty_knight",
       "breakpoints": true
+    },
+    {
+      "idx": 30,
+      "version": "7",
+      "when": 1770976479929,
+      "tag": "0030_lush_the_watchers",
+      "breakpoints": true
     }
   ]
 }

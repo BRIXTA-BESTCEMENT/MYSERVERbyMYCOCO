@@ -392,6 +392,29 @@ export const dealers = pgTable("dealers", {
   index("idx_dealers_parent_dealer_id").on(t.parentDealerId),
 ]);
 
+export const verifiedDealers = pgTable("verified_dealers", {
+  id: serial("id").primaryKey(),
+  dealerCode: varchar("dealer_code", { length: 255 }),
+  dealerCategory: varchar("dealer_category", { length: 255 }),
+  isSubdealer: boolean("is_subdealer"),
+  dealerPartyName: varchar("dealer_party_name", { length: 255 }),
+  zone: varchar("zone", { length: 255 }),
+  area: varchar("area", { length: 255 }),
+  contactNo1: varchar("contact_no1", { length: 20 }),
+  contactNo2: varchar("contact_no2", { length: 20 }),
+  email: varchar("email", { length: 255 }),
+  address: text("address"),
+  pinCode: varchar("pin_code", { length: 20 }),
+  relatedSpName: varchar("related_sp_name", { length: 255 }),
+  ownerProprietorName: varchar("owner_proprietor_name", { length: 255 }),
+  natureOfFirm: varchar("nature_of_firm", { length: 255 }),
+  gstNo: varchar("gst_no", { length: 50 }),
+  panNo: varchar("pan_no", { length: 50 }),
+
+  // Foreign Keys 
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
+});
 
 /* ========================= email_reports (NEW) ========================= */
 export const emailReports = pgTable("email_reports", {
@@ -658,12 +681,10 @@ export const dealerBrandMapping = pgTable("dealer_brand_mapping", {
   dealerId: varchar("dealer_id", { length: 255 }).notNull().references(() => dealers.id),
   brandId: integer("brand_id").notNull().references(() => brands.id),
   capacityMT: numeric("capacity_mt", { precision: 12, scale: 2 }).notNull(),
-
-  // --- ADDED FOR PRISMA PARITY ---
   bestCapacityMT: numeric("best_capacity_mt", { precision: 12, scale: 2 }),
   brandGrowthCapacityPercent: numeric("brand_growth_capacity_percent", { precision: 5, scale: 2 }),
   userId: integer("user_id").references(() => users.id),
-  // -----------------------------
+  verifiedDealerId: integer("verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
 
 }, (t) => [
   uniqueIndex("dealer_brand_mapping_dealer_id_brand_id_unique").on(t.dealerId, t.brandId),
@@ -692,6 +713,35 @@ export const collectionReports = pgTable("collection_reports", {
   index("idx_collection_date").on(t.voucherDate),
   index("idx_collection_dealer").on(t.dealerId),
   index("idx_collection_voucher").on(t.voucherNo),
+]);
+
+export const outstandingReports = pgTable("outstanding_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  securityDepositAmt: numeric("security_deposit_amt", { precision: 14, scale: 2 }),
+  pendingAmt: numeric("pending_amt", { precision: 14, scale: 2 }),
+  lessThan10Days: numeric("less_than_10_days", { precision: 14, scale: 2 }),
+  days10To15: numeric("10_to_15_days", { precision: 14, scale: 2 }),
+  days15To21: numeric("15_to_21_days", { precision: 14, scale: 2 }),
+  days21To30: numeric("21_to_30_days", { precision: 14, scale: 2 }),
+  days30To45: numeric("30_to_45_days", { precision: 14, scale: 2 }),
+  days45To60: numeric("45_to_60_days", { precision: 14, scale: 2 }),
+  days60To75: numeric("60_to_75_days", { precision: 14, scale: 2 }),
+  days75To90: numeric("75_to_90_days", { precision: 14, scale: 2 }),
+  greaterThan90Days: numeric("greater_than_90_days", { precision: 14, scale: 2 }),
+  isOverdue: boolean("is_overdue").default(false),
+  isAccountJsbJud: boolean("is_account_jsb_jud").default(false),
+
+  // Foreign Keys
+  verifiedDealerId: integer("verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
+  collectionReportId: uuid("collection_report_id").references(() => collectionReports.id, { onDelete: "set null" }),
+  dvrId: varchar("dvr_id", { length: 255 }).references(() => dailyVisitReports.id, { onDelete: "set null" }),
+
+  createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
+}, (t) => [
+  index("idx_outstanding_verified_dealer").on(t.verifiedDealerId),
+  index("idx_outstanding_collection_report").on(t.collectionReportId),
+  index("idx_outstanding_dvr").on(t.dvrId),
 ]);
 
 // SALES & COLLECTION PROJECTION VS ACTUAL SNAPSHOT
