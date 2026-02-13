@@ -1,12 +1,12 @@
-// src/routes/dataFetchingRoutes/logisticsGateIO.ts
+// src/routes/dataFetchingRoutes/logisticsIO.ts
 import { Express, Request, Response } from "express";
 import { db } from '../../db/db';
-import { logisticsGateIO } from "../../db/schema";
+import { logisticsIO } from "../../db/schema";
 import { desc, eq, ilike, and, sql, gte, lte, or } from "drizzle-orm";
 
-export default function setupLogisticsGateIORoutes(app: Express) {
+export default function setupLogisticsIORoutes(app: Express) {
   
-  app.get("/api/logistics-gate-io", async (req: Request, res: Response) => {
+  app.get("/api/logistics-io", async (req: Request, res: Response) => {
     try {
       const { 
         page = 1, 
@@ -24,15 +24,17 @@ export default function setupLogisticsGateIORoutes(app: Express) {
 
       const conditions = [];
 
-      // 1. Search Logic (Zone, District, Destination, ID)
+      // 1. Search Logic (Zone, District, Destination, ID, Party Name, Vehicle Number)
       if (search) {
         const searchTerm = `%${search}%`;
         conditions.push(
           or(
-            ilike(logisticsGateIO.zone, searchTerm),
-            ilike(logisticsGateIO.district, searchTerm),
-            ilike(logisticsGateIO.destination, searchTerm),
-            ilike(logisticsGateIO.id, searchTerm)
+            ilike(logisticsIO.zone, searchTerm),
+            ilike(logisticsIO.district, searchTerm),
+            ilike(logisticsIO.destination, searchTerm),
+            ilike(logisticsIO.id, searchTerm),
+            ilike(logisticsIO.partyName, searchTerm),      // Added new field to search
+            ilike(logisticsIO.vehicleNumber, searchTerm)   // Added new field to search
           )
         );
       }
@@ -47,33 +49,33 @@ export default function setupLogisticsGateIORoutes(app: Express) {
 
         conditions.push(
           and(
-            gte(logisticsGateIO.createdAt, start),
-            lte(logisticsGateIO.createdAt, end)
+            gte(logisticsIO.createdAt, start),
+            lte(logisticsIO.createdAt, end)
           )
         );
       }
 
       // 3. Specific Column Filters
       if (zone) {
-        conditions.push(eq(logisticsGateIO.zone, zone as string));
+        conditions.push(eq(logisticsIO.zone, zone as string));
       }
       
       if (district) {
-        conditions.push(eq(logisticsGateIO.district, district as string));
+        conditions.push(eq(logisticsIO.district, district as string));
       }
 
       // 4. Execute Queries (Data + Count)
       const dataQuery = db
         .select()
-        .from(logisticsGateIO)
+        .from(logisticsIO)
         .where(and(...conditions))
         .limit(limitNumber)
         .offset(offset)
-        .orderBy(desc(logisticsGateIO.createdAt));
+        .orderBy(desc(logisticsIO.createdAt));
 
       const countQuery = db
         .select({ count: sql<number>`count(*)` })
-        .from(logisticsGateIO)
+        .from(logisticsIO)
         .where(and(...conditions));
 
       const [data, totalCountResult] = await Promise.all([

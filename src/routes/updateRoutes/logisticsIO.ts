@@ -1,12 +1,12 @@
-// server/src/routes/updateRoutes/logisticsGateIO.ts
+// server/src/routes/updateRoutes/logisticsIO.ts
 import { Express, Request, Response } from "express";
 import { db } from "../../db/db";
-import { logisticsGateIO } from "../../db/schema";
+import { logisticsIO } from "../../db/schema";
 import { eq } from "drizzle-orm";
 
-export default function setupLogisticsGateIOUpdateRoutes(app: Express) {
+export default function setupLogisticsIOUpdateRoutes(app: Express) {
   
-  // FIX 1: Helper returns "YYYY-MM-DD" string (or undefined/null)
+  // Helper returns "YYYY-MM-DD" string (or undefined/null)
   const formatDateString = (dateString: any) => {
     if (dateString === undefined) return undefined; 
     if (dateString === null) return null; 
@@ -40,6 +40,15 @@ export default function setupLogisticsGateIOUpdateRoutes(app: Express) {
         diffGrossWtInvoiceDT,
         diffInvoiceDTGateOut,
         diffGateInGateOut,
+        purpose,
+        typeOfMaterials,
+        vehicleNumber,
+        storeDate,
+        storeTime,
+        noOfInvoice,
+        partyName,
+        invoiceNos,
+        billNos,
       } = req.body;
 
       if (!id) {
@@ -49,8 +58,8 @@ export default function setupLogisticsGateIOUpdateRoutes(app: Express) {
       // Check if record exists
       const existingRecord = await db
         .select()
-        .from(logisticsGateIO)
-        .where(eq(logisticsGateIO.id, id));
+        .from(logisticsIO)
+        .where(eq(logisticsIO.id, id));
 
       if (existingRecord.length === 0) {
         return res.status(404).json({ error: "Logistics record not found" });
@@ -63,12 +72,13 @@ export default function setupLogisticsGateIOUpdateRoutes(app: Express) {
       if (district !== undefined) updateData.district = district;
       if (destination !== undefined) updateData.destination = destination;
       
-      // FIX 2: Use formatDateString for dates
+      // Dates
       if (doOrderDate !== undefined) updateData.doOrderDate = formatDateString(doOrderDate);
       if (gateInDate !== undefined) updateData.gateInDate = formatDateString(gateInDate);
       if (wbInDate !== undefined) updateData.wbInDate = formatDateString(wbInDate);
       if (wbOutDate !== undefined) updateData.wbOutDate = formatDateString(wbOutDate);
       if (gateOutDate !== undefined) updateData.gateOutDate = formatDateString(gateOutDate);
+      if (storeDate !== undefined) updateData.storeDate = formatDateString(storeDate); // New
 
       // Times & Strings
       if (doOrderTime !== undefined) updateData.doOrderTime = doOrderTime;
@@ -84,14 +94,24 @@ export default function setupLogisticsGateIOUpdateRoutes(app: Express) {
       if (diffInvoiceDTGateOut !== undefined) updateData.diffInvoiceDTGateOut = diffInvoiceDTGateOut;
       if (diffGateInGateOut !== undefined) updateData.diffGateInGateOut = diffGateInGateOut;
 
-      // FIX 3: Always update 'updatedAt' manually
+      // --- New Fields ---
+      if (purpose !== undefined) updateData.purpose = purpose;
+      if (typeOfMaterials !== undefined) updateData.typeOfMaterials = typeOfMaterials;
+      if (vehicleNumber !== undefined) updateData.vehicleNumber = vehicleNumber;
+      if (storeTime !== undefined) updateData.storeTime = storeTime;
+      if (noOfInvoice !== undefined) updateData.noOfInvoice = noOfInvoice;
+      if (partyName !== undefined) updateData.partyName = partyName;
+      if (invoiceNos !== undefined) updateData.invoiceNos = Array.isArray(invoiceNos) ? invoiceNos : [];
+      if (billNos !== undefined) updateData.billNos = Array.isArray(billNos) ? billNos : [];
+
+      // Always update 'updatedAt' manually
       updateData.updatedAt = new Date();
 
       // Perform Update
       const [updatedRecord] = await db
-        .update(logisticsGateIO)
+        .update(logisticsIO)
         .set(updateData)
-        .where(eq(logisticsGateIO.id, id))
+        .where(eq(logisticsIO.id, id))
         .returning();
 
       res.status(200).json({
@@ -110,8 +130,8 @@ export default function setupLogisticsGateIOUpdateRoutes(app: Express) {
   };
 
   // PUT Route (Full or Partial Update)
-  app.put("/api/logistics-gate-io/:id", handleUpdate);
+  app.put("/api/logistics-io/:id", handleUpdate);
 
   // PATCH Route (Partial Update)
-  app.patch("/api/logistics-gate-io/:id", handleUpdate);
+  app.patch("/api/logistics-io/:id", handleUpdate);
 }

@@ -37,7 +37,7 @@ import setupKycSubmissionsRoutes from './src/routes/dataFetchingRoutes/kycSubmis
 import setupTechnicalSitesRoutes from './src/routes/dataFetchingRoutes/technicalSites';
 import setupSchemeSlabsGetRoutes from './src/routes/dataFetchingRoutes/schemeSlabs';
 import setupMasonSlabAchievementsGetRoutes from './src/routes/dataFetchingRoutes/masonSlabAchievements';
-import setupLogisticsGateIORoutes from './src/routes/dataFetchingRoutes/logisticsGateIO';
+import setupLogisticsIORoutes from './src/routes/dataFetchingRoutes/logisticsIO';
 
 // Data Sync UPSERT
 import setupDealerSyncRoutes from './src/routes/dataSync/dealer';
@@ -89,7 +89,7 @@ import setupPointsLedgerPostRoutes from './src/routes/dataFetchingRoutes/pointsL
 import setupTechnicalSitesPostRoutes from './src/routes/formSubmissionRoutes/technicalSites';
 import setupSchemeSlabsPostRoute from './src/routes/formSubmissionRoutes/schemeSlabs';
 import setupMasonSlabAchievementsPostRoute from './src/routes/formSubmissionRoutes/masonSlabAchievements';
-import setupLogisticsGateIOSubmissionRoute from './src/routes/formSubmissionRoutes/logisticsGateIO';
+import setupLogisticsIOSubmissionRoute from './src/routes/formSubmissionRoutes/logisticsIO';
 
 
 // --- Import UPDATE (PATCH) route setups ---
@@ -111,7 +111,7 @@ import setupRewardsPatchRoute from './src/routes/updateRoutes/rewards';
 import setupRewardsRedemptionPatchRoute from './src/routes/updateRoutes/rewardsRedemption';
 import setupBagLiftsPatchRoute from './src/routes/updateRoutes/bagsLift';
 import setupTechnicalSitesUpdateRoutes from './src/routes/updateRoutes/technicalSites';
-import setupLogisticsGateIOUpdateRoutes from './src/routes/updateRoutes/logisticsGateIO';
+import setupLogisticsIOUpdateRoutes from './src/routes/updateRoutes/logisticsIO';
 
 // --- Import GEO TRACKING route setups ---
 import setupGeoTrackingRoutes from './src/routes/geoTrackingRoutes/geoTracking';
@@ -237,7 +237,7 @@ setupSchemeSlabsGetRoutes(app);
 setupMasonSlabAchievementsGetRoutes(app);
 
 //logistics
-setupLogisticsGateIORoutes(app);
+setupLogisticsIORoutes(app);
 
 
 // POST Endpoints
@@ -271,7 +271,7 @@ setupSchemeSlabsPostRoute(app);
 setupMasonSlabAchievementsPostRoute(app);
 
 // logistics
-setupLogisticsGateIOSubmissionRoute(app);
+setupLogisticsIOSubmissionRoute(app);
 
 // DELETE Endpoints
 setupDealersDeleteRoutes(app);           // DELETE /api/dealers/*
@@ -316,7 +316,7 @@ setupTechnicalSitesUpdateRoutes(app);
 setupAuthCredentialRoutes(app);
 
 // logistics
-setupLogisticsGateIOUpdateRoutes(app);
+setupLogisticsIOUpdateRoutes(app);
 
 // ---------- GEO TRACKING SETUP--------
 setupGeoTrackingRoutes(app);

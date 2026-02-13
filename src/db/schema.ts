@@ -1185,7 +1185,7 @@ export const schemeToRewards = pgTable("_SchemeToRewards", {
   index("_SchemeToRewards_B_index").on(t.B),
 ]);
 
-export const logisticsGateIO = pgTable("logistics_gate_io", {
+export const logisticsIO = pgTable("logistics_io", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   zone: varchar("zone", { length: 255 }),
   district: varchar("district", { length: 255 }),
@@ -1207,8 +1207,16 @@ export const logisticsGateIO = pgTable("logistics_gate_io", {
   diffGrossWtInvoiceDT: varchar("diffGrossWtInvoiceDT", { length: 100 }),
   diffInvoiceDTGateOut: varchar("diffInvoiceDTGateOut", { length: 100 }),
   diffGateInGateOut: varchar("diffGateInGateOut", { length: 100 }),
+  purpose: varchar("purpose", { length: 255 }),
+  typeOfMaterials: varchar("type_of_materials", { length: 255 }),
+  vehicleNumber: varchar("vehicle_number", { length: 100 }),
+  storeDate: date("store_date"),
+  storeTime: varchar("store_time", { length: 50 }),
+  noOfInvoice: integer("no_of_invoice"),
+  partyName: varchar("party_name", { length: 255 }),
+  invoiceNos: text("invoice_nos").array(), 
+  billNos: text("bill_nos").array(),       
 
-  // Timestamps
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { mode: "date" })
     .defaultNow()
@@ -1577,7 +1585,7 @@ export const insertConstructionSiteSchema = createInsertSchema(constructionSite)
 export const insertTsoVisitSchema = createInsertSchema(tsoVisit);
 
 // logistics
-export const insertLogisticsGateIOSchema = createInsertSchema(logisticsGateIO);
+export const insertLogisticsIOSchema = createInsertSchema(logisticsIO);
 
 //emailStuff
 export const insertEmailReportSchema = createInsertSchema(emailReports);

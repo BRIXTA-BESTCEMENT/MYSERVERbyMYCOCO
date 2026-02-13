@@ -1,12 +1,12 @@
-// server/src/routes/formSubmissionRoutes/logisticsGateIO.ts
+// server/src/routes/formSubmissionRoutes/logisticsIO.ts
 import { Express, Request, Response } from "express";
 import { db } from '../../db/db';
-import { logisticsGateIO } from "../../db/schema";
-import { randomUUID } from "crypto"; // Import Node's built-in UUID generator
+import { logisticsIO } from "../../db/schema";
+import { randomUUID } from "crypto";
 
-export default function setupLogisticsGateIOSubmissionRoute(app: Express) {
+export default function setupLogisticsIOSubmissionRoute(app: Express) {
 
-  app.post("/api/logistics-gate-io", async (req: Request, res: Response) => {
+  app.post("/api/logistics-io", async (req: Request, res: Response) => {
     try {
       const {
         zone,
@@ -29,6 +29,16 @@ export default function setupLogisticsGateIOSubmissionRoute(app: Express) {
         diffGrossWtInvoiceDT,
         diffInvoiceDTGateOut,
         diffGateInGateOut,
+        // --- New Fields ---
+        purpose,
+        typeOfMaterials,
+        vehicleNumber,
+        storeDate,
+        storeTime,
+        noOfInvoice,
+        partyName,
+        invoiceNos,
+        billNos,
       } = req.body;
 
       // Helper function to handle empty strings or nulls for Date fields
@@ -41,44 +51,43 @@ export default function setupLogisticsGateIOSubmissionRoute(app: Express) {
       const now = new Date();
 
       const insertData = {
-        id: randomUUID(), // FIX: Manually generate UUID to satisfy Not-Null constraint
+        id: randomUUID(),
         zone,
         district,
         destination,
-        
-        // FIX: Apply the parseDate function to convert Strings to Date objects
         doOrderDate: parseDate(doOrderDate),
         doOrderTime,
-        
         gateInDate: parseDate(gateInDate),
         gateInTime,
-        
         processingTime,
-        
         wbInDate: parseDate(wbInDate),
         wbInTime,
-        
         diffGateInTareWt,
-        
         wbOutDate: parseDate(wbOutDate),
         wbOutTime,
-        
         diffTareWtGrossWt,
-        
         gateOutDate: parseDate(gateOutDate),
         gateOutTime,
-        
         diffGrossWtGateOut,
         diffGrossWtInvoiceDT,
         diffInvoiceDTGateOut,
         diffGateInGateOut,
+        purpose,
+        typeOfMaterials,
+        vehicleNumber,
+        storeDate: parseDate(storeDate),
+        storeTime,
+        noOfInvoice,
+        partyName,
+        invoiceNos: Array.isArray(invoiceNos) ? invoiceNos : [], 
+        billNos: Array.isArray(billNos) ? billNos : [],          
 
         createdAt: now,
         updatedAt: now,
-      } satisfies typeof logisticsGateIO.$inferInsert;
+      } satisfies typeof logisticsIO.$inferInsert;
       
       const [newEntry] = await db
-        .insert(logisticsGateIO)
+        .insert(logisticsIO)
         .values(insertData)
         .returning();
 
