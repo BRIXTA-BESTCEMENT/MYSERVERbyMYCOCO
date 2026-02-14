@@ -1,4 +1,3 @@
-// src/routes/microsiftEmail/emailsystemworker.ts
 import XLSX from "xlsx";
 import { db } from "../../db/db";
 import {
@@ -17,9 +16,19 @@ type SheetCandidate = {
   rows: (string | number | null)[][];
 };
 
+enum WorkerState {
+  IDLE = "IDLE",
+  RUNNING = "RUNNING",
+  SLEEPING = "SLEEPING",
+  STOPPED = "STOPPED",
+}
+
 export class EmailSystemWorker {
   private emailSystem = new EmailSystem();
   private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
+  private state: WorkerState = WorkerState.IDLE;
+  private shouldStop = false;
+  private sleepTimer: NodeJS.Timeout | null = null;
 
   /* =========================================================
      HELPER: DETECT DERIVED / TOTAL ROWS
@@ -40,25 +49,105 @@ export class EmailSystemWorker {
     );
   }
 
+  /*====================================================
+
+  sleep
+  ====================================================*/
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => {
+      this.sleepTimer = setTimeout(() => {
+        this.sleepTimer = null;
+        resolve();
+      }, ms);
+    });
+  }
+
+  private wakeUp() {
+    if (this.sleepTimer) {
+      clearTimeout(this.sleepTimer);
+      this.sleepTimer = null;
+    }
+  }
+
+
+  async Start() {
+    if (this.state == WorkerState.RUNNING) return;
+    console.log("SOLISEE KELA..AROMBHO HOI GOL XET..");
+    this.shouldStop = false;
+    this.state = WorkerState.RUNNING;
+
+    while (!this.shouldStop) {
+      try {
+        const didWork = await this.processInboxQueue();
+
+        if (didWork) {
+          // Immediately check again until inbox drained
+          continue;
+        }
+        this.state = WorkerState.SLEEPING;
+        console.log("INBOX KHAALI surorbachaa....");
+
+        await this.sleep(15000); // configurable later
+
+        this.state = WorkerState.RUNNING;
+
+
+
+      } catch (e) {
+        console.error("sudi gol.. ERROR TU dekhaabo etiya...", e);
+
+        // Exponential backoff lite
+        this.state = WorkerState.SLEEPING;
+        await this.sleep(30000);
+        this.state = WorkerState.RUNNING;
+      }
+    }
+
+    this.state = WorkerState.STOPPED;
+    console.log("SOB BONDHO...nosole kela..")
+
+  }
+  async stop() {
+    console.log("[EmailWorker] Stop requested...");
+    this.shouldStop = true;
+    this.wakeUp(); // interrupt sleep immediately
+  }
+
+  public triggerWake() {
+    if (this.state === WorkerState.SLEEPING) {
+      console.log("[EmailWorker] External wake trigger received.");
+      this.wakeUp();
+    }
+  }
+
   /* =========================================================
      MAIN WORKER
   ========================================================= */
-
-  async processInboxQueue() {
+  async processInboxQueue(): Promise<boolean> {
     console.log("[EmailWorker] Checking inbox...");
+
+    let processedAny = false;
 
     // 1. Fetch unread mails with attachments
     const mails = await this.emailSystem.getUnreadWithAttachments();
-    const list = mails.value ?? [];
+    const list = Array.isArray(mails?.value) ? mails.value : [];
+
+    if (!list.length) {
+      console.log("[EmailWorker] Inbox empty.");
+      return false;
+    }
 
     console.log(`[EmailWorker] Found ${list.length} mails`);
 
     for (const mail of list) {
       try {
-        console.log(`[EmailWorker] Processing: ${mail.subject}`);
+        if (!mail?.id) continue;
+
+        console.log(`[EmailWorker] Processing: ${mail.subject ?? "(no subject)"}`);
 
         /* -----------------------------------------
-           Check for Duplicates (Idempotency)
+           Idempotency Check
         ----------------------------------------- */
         const existing = await db
           .select()
@@ -68,7 +157,6 @@ export class EmailSystemWorker {
 
         if (existing.length) {
           console.log(`[EmailWorker] Skipping duplicate: ${mail.id}`);
-          // Even if duplicate, we move it to processed to clear the queue
           await this.emailSystem.markAsRead(mail.id);
           if (this.processedFolderId) {
             await this.emailSystem.moveMail(mail.id, this.processedFolderId);
@@ -80,146 +168,139 @@ export class EmailSystemWorker {
            Get Attachments
         ----------------------------------------- */
         const attachments = await this.emailSystem.getAttachments(mail.id);
+        const files = Array.isArray(attachments?.value)
+          ? attachments.value
+          : [];
+
+        if (!files.length) {
+          console.warn(`[EmailWorker] Mail ${mail.id} has no attachments.`);
+          continue;
+        }
+
         const subject = mail.subject?.toUpperCase() ?? "";
 
-        // Detect Institution Context ONCE
-        const institutionContext = subject.includes("JSB")
-          ? "JSB"
-          : subject.includes("JUD")
-            ? "JUD"
-            : null;
+        const institutionContext =
+          subject.includes("JSB")
+            ? "JSB"
+            : subject.includes("JUD")
+              ? "JUD"
+              : null;
 
-        for (const file of attachments.value ?? []) {
-          // Filter for Excel/CSV only
-          if (!file.name?.match(/\.(xlsx|xls|csv)$/i)) continue;
+        for (const file of files) {
+          if (!file?.name) continue;
+
+          if (!file.name.match(/\.(xlsx|xls|csv)$/i)) continue;
+
+          if (!file.contentBytes) {
+            console.warn(`[EmailWorker] Attachment ${file.name} has no content.`);
+            continue;
+          }
 
           console.log(`[EmailWorker] Parsing ${file.name}`);
 
           const buffer = Buffer.from(file.contentBytes, "base64");
+
+          if (!buffer || !buffer.length) {
+            console.warn(`[EmailWorker] Empty buffer for ${file.name}`);
+            continue;
+          }
+
           const workbook = XLSX.read(buffer, { type: "buffer" });
 
-          /* -----------------------------------------
-             SMART SHEET SELECTOR (FINAL FORM)
-             Strategy: Collect ALL valid sheets → Use LAST one.
-          ----------------------------------------- */
+          if (!workbook.SheetNames?.length) {
+            console.warn(`[EmailWorker] Workbook ${file.name} has no sheets.`);
+            continue;
+          }
+
           const validSheets: SheetCandidate[] = [];
 
           for (const name of workbook.SheetNames) {
             const sheet = workbook.Sheets[name];
 
-            // Native extraction
             const candidateRows = XLSX.utils.sheet_to_json(sheet, {
               header: 1,
               raw: false,
               defval: null,
             }) as (string | number | null)[][];
 
-            if (!candidateRows.length) continue;
+            if (!candidateRows?.length) continue;
 
-            // Heuristic: Does this sheet look like what we want?
             let looksLikeTarget = false;
 
-            // Flatten first 10 rows for fast signature checking
             const signature = candidateRows
               .slice(0, 10)
-              .map((r) => r.map((c) => String(c ?? "").toUpperCase()).join(" "))
+              .map((r) =>
+                r.map((c) => String(c ?? "").toUpperCase()).join(" ")
+              )
               .join(" ");
 
             if (subject.includes("COLLECTION")) {
-              // FOR COLLECTIONS: VOUCHER, DATE, PARTY
               looksLikeTarget =
                 signature.includes("VOUCHER") &&
                 signature.includes("DATE") &&
                 signature.includes("PARTY");
 
             } else if (subject.includes("PJP")) {
-              // FOR PJP: USER ID
               looksLikeTarget = signature.includes("USER ID");
 
             } else if (subject.includes("PROJECTION VS ACTUAL")) {
-              // FOR PROJ VS ACTUAL: ZONE, ACTUAL, PROJECTION
               looksLikeTarget =
                 signature.includes("ZONE") &&
                 signature.includes("ACTUAL") &&
                 signature.includes("PROJECTION");
 
             } else if (subject.includes("PROJECTION")) {
-              // FOR PROJECTION PLAN: ZONE, DEALER, AMOUNT
               looksLikeTarget =
                 signature.includes("ZONE") &&
                 signature.includes("DEALER") &&
                 signature.includes("AMOUNT");
 
             } else {
-              // STANDARD REPORT
               looksLikeTarget = candidateRows.length > 0;
             }
 
             if (looksLikeTarget) {
-              console.log(`[EmailWorker] Valid sheet candidate found: ${name}`);
               validSheets.push({ name, rows: candidateRows });
             }
           }
 
           if (!validSheets.length) {
             console.error(
-              `[EmailWorker] No valid data sheet found in ${file.name}. Aborting.`
+              `[EmailWorker] No valid sheet found in ${file.name}`
             );
             continue;
           }
 
-          /* -----------------------------------------
-             SELECT AUTHORITY: LAST VALID SHEET
-          ----------------------------------------- */
-          const { name: chosenName, rows } =
-            validSheets[validSheets.length - 1];
-          console.log(
-            `[EmailWorker] Using LAST sheet as source of truth → ${chosenName}`
-          );
+          const { rows } = validSheets[validSheets.length - 1];
 
           /* -----------------------------------------
-             ROUTE LOGIC (ORDER MATTERS!)
+             ROUTING (UNCHANGED)
           ----------------------------------------- */
           if (subject.includes("PJP")) {
-            console.log("[EmailWorker] PJP Detected → Using Direct IDs");
             await this.processPjpRows(rows);
 
           } else if (subject.includes("COLLECTION")) {
-            console.log("[EmailWorker] Collection Report Detected");
             await this.processCollectionRows(
               rows,
               institutionContext,
-              {
-                messageId: mail.id,
-                fileName: file.name,
-              }
+              { messageId: mail.id, fileName: file.name }
             );
 
           } else if (subject.includes("PROJECTION VS ACTUAL")) {
-            // 🚨 MUST CHECK THIS BEFORE 'PROJECTION'
-            console.log("[EmailWorker] Projection vs Actual Report Detected");
             await this.processProjectionVsActualRows(
               rows,
-              {
-                messageId: mail.id,
-                fileName: file.name,
-              },
+              { messageId: mail.id, fileName: file.name },
               institutionContext
             );
 
           } else if (subject.includes("PROJECTION")) {
-            console.log("[EmailWorker] Projection Plan Detected");
             await this.processProjectionRows(
               rows,
-              {
-                messageId: mail.id,
-                fileName: file.name,
-              },
+              { messageId: mail.id, fileName: file.name },
               institutionContext
             );
 
           } else {
-            console.log("[EmailWorker] Standard Report → Archiving raw data");
             await db.insert(emailReports).values({
               messageId: mail.id,
               subject: mail.subject,
@@ -229,23 +310,34 @@ export class EmailSystemWorker {
               processed: true,
             });
           }
+
+          processedAny = true;
         }
 
-        // 3. Mark as read & Move to Processed Folder
         await this.emailSystem.markAsRead(mail.id);
-        
+
         if (this.processedFolderId) {
-            await this.emailSystem.moveMail(mail.id, this.processedFolderId);
-            console.log(`[EmailWorker] Successfully moved ${mail.id} to Processed folder.`);
-        } else {
-            console.warn("[EmailWorker] PROCESSED_FOLDER_ID not set. Mail remains in Inbox (Read).");
+          await this.emailSystem.moveMail(mail.id, this.processedFolderId);
         }
 
-      } catch (e) {
-        console.error(`[EmailWorker] FAILED on mail ${mail.id}:`, e);
+      } catch (e: any) {
+        console.error(
+          `[EmailWorker] Mail ${mail?.id ?? "unknown"} detonated mid-flight.`,
+          {
+            errorMessage: e?.message,
+            stackTop: e?.stack?.split("\n")?.[0],
+            timestamp: new Date().toISOString(),
+          }
+        );
+
+        // isolate failure, continue processing others
+        continue;
       }
     }
+
+    return processedAny;
   }
+
 
   /* =========================================================
      HELPER: EXTRACT REPORT DATE (Scan Sheet Content)

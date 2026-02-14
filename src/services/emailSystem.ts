@@ -130,9 +130,22 @@ export class EmailSystem {
     // UPDATED: Explicitly target the INBOX folder
     const token = await this.getAccessToken();
     const res = await axios.get(
-      `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/mailFolders/inbox/messages?$filter=isRead eq false and hasAttachments eq true&$top=${limit}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/mailFolders/inbox/messages` +
+      `?$filter=hasAttachments eq true` +
+      `&$top=${limit}`,
+      {
+        headers: { Authorization: `Bearer ${token}` }
+      }
     );
+    // const res = await axios.get(
+    //   `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/mailFolders/inbox/messages` +
+    //   `?$filter=hasAttachments eq true` +
+    //   `&$top=${limit}` +
+    //   `&$orderby=receivedDateTime asc`,
+    //   {
+    //     headers: { Authorization: `Bearer ${token}` }
+    //   }
+    // );
     return res.data;
   }
   async markAsRead(messageId: string) {

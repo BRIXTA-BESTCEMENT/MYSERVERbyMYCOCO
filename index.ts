@@ -137,15 +137,11 @@ import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
 
-const emailWorker = new EmailSystemWorker();
+const worker = new EmailSystemWorker();
 
-setInterval(async() =>{
-  try {
-    await emailWorker.processInboxQueue();
-  } catch (err) {
-    console.error("Email worker error:", err);
-  }
-},30000);
+worker.Start().catch((e) => {
+  console.error("Worker crashed unexpectedly:", e);
+});
 
 // Initialize environment variables
 
