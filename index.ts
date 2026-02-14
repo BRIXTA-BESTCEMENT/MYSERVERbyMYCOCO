@@ -38,6 +38,9 @@ import setupTechnicalSitesRoutes from './src/routes/dataFetchingRoutes/technical
 import setupSchemeSlabsGetRoutes from './src/routes/dataFetchingRoutes/schemeSlabs';
 import setupMasonSlabAchievementsGetRoutes from './src/routes/dataFetchingRoutes/masonSlabAchievements';
 import setupLogisticsIORoutes from './src/routes/dataFetchingRoutes/logisticsIO';
+import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/collectionReports';
+import setupOutstandingReportsGetRoutes from './src/routes/dataFetchingRoutes/outstandingReports';
+import setupVerifiedDealersGetRoutes from './src/routes/dataFetchingRoutes/verifiedDealers';
 
 // Data Sync UPSERT
 import setupDealerSyncRoutes from './src/routes/dataSync/dealer';
@@ -55,7 +58,6 @@ import setupRatingsDeleteRoutes from './src/routes/deleteRoutes/ratings';
 import setupSalesOrdersDeleteRoutes from './src/routes/deleteRoutes/salesOrder';
 import setupDealerReportsAndScoresDeleteRoutes from './src/routes/deleteRoutes/dealerReportsAndScores';
 import setupTsoMeetingsDeleteRoutes from './src/routes/deleteRoutes/tsoMeetings';
-import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/collectionReports';
 
 //firebase stuff 
 import './src/firebase/admin';
@@ -189,6 +191,8 @@ console.log('🔌 Registering API routes...');
 
 //colection reprts from MAIL NIGGA
 setupCollectionReportsRoutes(app);
+setupOutstandingReportsGetRoutes(app);
+setupVerifiedDealersGetRoutes(app);
 
 //YEAHEHE
 setupProjectionVsActualRoutes(app);

@@ -1,3 +1,4 @@
+// src/routes/microsiftEmail/emailsystemworker.ts
 import XLSX from "xlsx";
 import { db } from "../../db/db";
 import {
@@ -18,6 +19,7 @@ type SheetCandidate = {
 
 export class EmailSystemWorker {
   private emailSystem = new EmailSystem();
+  private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
 
   /* =========================================================
      HELPER: DETECT DERIVED / TOTAL ROWS
@@ -66,7 +68,11 @@ export class EmailSystemWorker {
 
         if (existing.length) {
           console.log(`[EmailWorker] Skipping duplicate: ${mail.id}`);
+          // Even if duplicate, we move it to processed to clear the queue
           await this.emailSystem.markAsRead(mail.id);
+          if (this.processedFolderId) {
+            await this.emailSystem.moveMail(mail.id, this.processedFolderId);
+          }
           continue;
         }
 
@@ -225,8 +231,16 @@ export class EmailSystemWorker {
           }
         }
 
-        // 3. Mark as read
+        // 3. Mark as read & Move to Processed Folder
         await this.emailSystem.markAsRead(mail.id);
+        
+        if (this.processedFolderId) {
+            await this.emailSystem.moveMail(mail.id, this.processedFolderId);
+            console.log(`[EmailWorker] Successfully moved ${mail.id} to Processed folder.`);
+        } else {
+            console.warn("[EmailWorker] PROCESSED_FOLDER_ID not set. Mail remains in Inbox (Read).");
+        }
+
       } catch (e) {
         console.error(`[EmailWorker] FAILED on mail ${mail.id}:`, e);
       }
@@ -748,5 +762,4 @@ export class EmailSystemWorker {
       `[PROJ-VS-ACTUAL] Upserted ${finalRecords.length} rows (History Preserved)`
     );
   }
-
 }

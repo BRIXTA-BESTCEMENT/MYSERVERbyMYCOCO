@@ -1589,6 +1589,8 @@ export const insertLogisticsIOSchema = createInsertSchema(logisticsIO);
 
 //emailStuff
 export const insertEmailReportSchema = createInsertSchema(emailReports);
-export const insertCollectionReportSchema = createInsertSchema(collectionReports);
+export const insertCollectionReportsSchema = createInsertSchema(collectionReports);
+export const insertOutstandingReportsSchema = createInsertSchema(outstandingReports);
+export const insertVerifiedDealersSchema = createInsertSchema(verifiedDealers);
 export const insertProjectionVsActualReportsSchema = createInsertSchema(projectionVsActualReports);
 export const insertProjectionReportsSchema = createInsertSchema(projectionReports);

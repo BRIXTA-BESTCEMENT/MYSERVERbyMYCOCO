@@ -127,9 +127,13 @@ export class EmailSystem {
   }
 
   async getUnreadWithAttachments(limit = 10) {
-    return this.graphGet(
-      `/users/${this.mailbox}/messages?$filter=isRead eq false and hasAttachments eq true&$top=${limit}`
+    // UPDATED: Explicitly target the INBOX folder
+    const token = await this.getAccessToken();
+    const res = await axios.get(
+      `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/mailFolders/inbox/messages?$filter=isRead eq false and hasAttachments eq true&$top=${limit}`,
+      { headers: { Authorization: `Bearer ${token}` } }
     );
+    return res.data;
   }
   async markAsRead(messageId: string) {
     const token = await this.getAccessToken();
