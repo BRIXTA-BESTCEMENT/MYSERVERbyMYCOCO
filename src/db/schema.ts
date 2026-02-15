@@ -622,6 +622,7 @@ export const dailyTasks = pgTable("daily_tasks", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
   userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
   assignedByUserId: integer("assigned_by_user_id").notNull().references(() => users.id, { onDelete: "no action" }),
+  relatedVerifiedDealerId: integer("related_verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
   taskDate: date("task_date").notNull(),
   visitType: varchar("visit_type", { length: 50 }).notNull(),
   relatedDealerId: varchar("related_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),

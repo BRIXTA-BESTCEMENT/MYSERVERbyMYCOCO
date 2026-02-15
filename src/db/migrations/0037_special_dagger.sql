@@ -1,0 +1,2 @@
+ALTER TABLE "daily_tasks" ADD COLUMN "related_verified_dealer_id" integer;--> statement-breakpoint
+ALTER TABLE "daily_tasks" ADD CONSTRAINT "daily_tasks_related_verified_dealer_id_verified_dealers_id_fk" FOREIGN KEY ("related_verified_dealer_id") REFERENCES "public"."verified_dealers"("id") ON DELETE set null ON UPDATE no action;
