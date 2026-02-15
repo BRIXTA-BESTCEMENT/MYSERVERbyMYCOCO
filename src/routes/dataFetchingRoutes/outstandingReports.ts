@@ -2,7 +2,7 @@
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { outstandingReports, verifiedDealers, } from '../../db/schema'; 
-import { eq, and, desc, asc, SQL, getTableColumns } from 'drizzle-orm';
+import { eq, and, desc, asc, SQL, getTableColumns, gte, lte } from 'drizzle-orm';
 
 export default function setupOutstandingReportsGetRoutes(app: Express) {
     const endpoint = 'outstanding-reports';
@@ -47,6 +47,16 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             conds.push(eq(outstandingReports.isAccountJsbJud, isAccountJsbJud));
         }
 
+        if (q.reportDate) {
+            conds.push(eq(outstandingReports.reportDate, String(q.reportDate)));
+        }
+
+        const fromDate = q.fromDate as string | undefined;
+        const toDate = q.toDate as string | undefined;
+
+        if (fromDate) conds.push(gte(outstandingReports.reportDate, fromDate));
+        if (toDate) conds.push(lte(outstandingReports.reportDate, toDate));
+
         if (conds.length === 0) return undefined;
         return conds.length === 1 ? conds[0] : and(...conds);
     };
@@ -59,6 +69,8 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
                 return direction === 'asc' ? asc(outstandingReports.securityDepositAmt) : desc(outstandingReports.securityDepositAmt);
             case 'pendingAmt':
                 return direction === 'asc' ? asc(outstandingReports.pendingAmt) : desc(outstandingReports.pendingAmt);
+            case 'reportDate':
+                return direction === 'asc' ? asc(outstandingReports.reportDate) : desc(outstandingReports.reportDate);
             case 'createdAt':
             default:
                 return desc(outstandingReports.createdAt);
