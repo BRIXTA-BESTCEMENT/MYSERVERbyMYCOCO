@@ -693,7 +693,7 @@ export const dealerBrandMapping = pgTable("dealer_brand_mapping", {
 //EMAIL COLLECTION REPORT WITH FOREIGN KEY
 export const collectionReports = pgTable("collection_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
-  institution: varchar("institution", { length: 10 }),
+  institution: varchar("institution", { length: 10 }).notNull(),
   voucherNo: varchar("voucher_no", { length: 100 }).notNull(),
   voucherDate: date("voucher_date").notNull(),
   amount: numeric("amount", { precision: 14, scale: 2 }).notNull(),
@@ -703,20 +703,25 @@ export const collectionReports = pgTable("collection_reports", {
   salesPromoterName: varchar("sales_promoter_name", { length: 255 }),
   zone: varchar("zone", { length: 100 }),
   district: varchar("district", { length: 100 }),
-  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
   salesPromoterUserId: integer("sales_promoter_user_id"),
   sourceMessageId: text("source_message_id"),
   sourceFileName: text("source_file_name"),
+  verifiedDealerId: integer("verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_collection_institution").on(t.institution),
   index("idx_collection_date").on(t.voucherDate),
-  index("idx_collection_dealer").on(t.dealerId),
+  index("idx_collection_verified_dealer").on(t.verifiedDealerId),
+  index("idx_collection_user").on(t.userId),
   index("idx_collection_voucher").on(t.voucherNo),
+  uniqueIndex("uniq_collection_voucher_inst")
+    .on(t.voucherNo, t.institution),
 ]);
 
 export const outstandingReports = pgTable("outstanding_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
+  reportDate: date("report_date"),
   securityDepositAmt: numeric("security_deposit_amt", { precision: 14, scale: 2 }),
   pendingAmt: numeric("pending_amt", { precision: 14, scale: 2 }),
   lessThan10Days: numeric("less_than_10_days", { precision: 14, scale: 2 }),
@@ -730,68 +735,78 @@ export const outstandingReports = pgTable("outstanding_reports", {
   greaterThan90Days: numeric("greater_than_90_days", { precision: 14, scale: 2 }),
   isOverdue: boolean("is_overdue").default(false),
   isAccountJsbJud: boolean("is_account_jsb_jud").default(false),
-
-  // Foreign Keys
   verifiedDealerId: integer("verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
   collectionReportId: uuid("collection_report_id").references(() => collectionReports.id, { onDelete: "set null" }),
   dvrId: varchar("dvr_id", { length: 255 }).references(() => dailyVisitReports.id, { onDelete: "set null" }),
-
   createdAt: timestamp("created_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'date' }).defaultNow().notNull(),
 }, (t) => [
   index("idx_outstanding_verified_dealer").on(t.verifiedDealerId),
   index("idx_outstanding_collection_report").on(t.collectionReportId),
   index("idx_outstanding_dvr").on(t.dvrId),
+  unique("unique_outstanding_entry").on(t.reportDate, t.verifiedDealerId, t.isAccountJsbJud),
 ]);
 
 // SALES & COLLECTION PROJECTION VS ACTUAL SNAPSHOT
-export const projectionVsActualReports = pgTable("projection_vs_actual_reports",{
-    id: uuid("id").primaryKey().defaultRandom(),
-    reportDate: date("report_date").notNull(), 
-    institution: varchar("institution", { length: 10 }), 
-    zone: varchar("zone", { length: 120 }).notNull(),
-    dealerName: varchar("dealer_name", { length: 255 }).notNull(),
-    orderProjectionMt: numeric("order_projection_mt", {precision: 12,scale: 2,}),
-    actualOrderReceivedMt: numeric("actual_order_received_mt", {precision: 12,scale: 2,}),
-    doDoneMt: numeric("do_done_mt", {precision: 12,scale: 2,}),
-    projectionVsActualOrderMt: numeric("projection_vs_actual_order_mt", {precision: 12,scale: 2,}),
-    actualOrderVsDoMt: numeric("actual_order_vs_do_mt", {precision: 12,scale: 2,}),
-    collectionProjection: numeric("collection_projection", {precision: 14,scale: 2,}),
-    actualCollection: numeric("actual_collection", {precision: 14,scale: 2,}),
-    shortFall: numeric("short_fall", {precision: 14,scale: 2,}),
-    percent: numeric("percent", {precision: 6,scale: 2,}),
-    sourceMessageId: text("source_message_id"),
-    sourceFileName: text("source_file_name"),
-    createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
-  },
+export const projectionVsActualReports = pgTable("projection_vs_actual_reports", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  reportDate: date("report_date").notNull(),
+  institution: varchar("institution", { length: 10 }).notNull(),
+  zone: varchar("zone", { length: 120 }).notNull(),
+  dealerName: varchar("dealer_name", { length: 255 }).notNull(),
+  orderProjectionMt: numeric("order_projection_mt", { precision: 12, scale: 2, }),
+  actualOrderReceivedMt: numeric("actual_order_received_mt", { precision: 12, scale: 2, }),
+  doDoneMt: numeric("do_done_mt", { precision: 12, scale: 2, }),
+  projectionVsActualOrderMt: numeric("projection_vs_actual_order_mt", { precision: 12, scale: 2, }),
+  actualOrderVsDoMt: numeric("actual_order_vs_do_mt", { precision: 12, scale: 2, }),
+  collectionProjection: numeric("collection_projection", { precision: 14, scale: 2, }),
+  actualCollection: numeric("actual_collection", { precision: 14, scale: 2, }),
+  shortFall: numeric("short_fall", { precision: 14, scale: 2, }),
+  percent: numeric("percent", { precision: 6, scale: 2, }),
+  sourceMessageId: text("source_message_id"),
+  sourceFileName: text("source_file_name"),
+  verifiedDealerId: integer("verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+},
   (t) => [
     index("idx_proj_actual_date").on(t.reportDate),
     index("idx_proj_actual_zone").on(t.zone),
-    index("idx_proj_actual_dealer").on(t.dealerName),
+    index("idx_proj_actual_verified_dealer").on(t.verifiedDealerId),
+    index("idx_proj_actual_user").on(t.userId),
     index("idx_proj_actual_institution").on(t.institution),
-    uniqueIndex("uniq_proj_actual_snapshot").on(t.reportDate,t.dealerName,t.institution),
-]);
+    uniqueIndex("uniq_proj_actual_snapshot").on(t.reportDate, t.dealerName, t.institution),
+  ]);
 
 // SALES & COLLECTION PROJECTION (Planning Data)
 export const projectionReports = pgTable("projection_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
-  institution: varchar("institution", { length: 10 }),
+  institution: varchar("institution", { length: 10 }).notNull(),
   reportDate: date("report_date").notNull(),
   zone: varchar("zone", { length: 100 }).notNull(),
   orderDealerName: varchar("order_dealer_name", { length: 255 }),
   orderQtyMt: numeric("order_qty_mt", { precision: 10, scale: 2 }),
   collectionDealerName: varchar("collection_dealer_name", { length: 255 }),
   collectionAmount: numeric("collection_amount", { precision: 14, scale: 2 }),
-  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
   salesPromoterUserId: integer("sales_promoter_user_id"),
   sourceMessageId: text("source_message_id"),
   sourceFileName: text("source_file_name"),
+  verifiedDealerId: integer("verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
+  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_projection_date").on(t.reportDate),
   index("idx_projection_zone").on(t.zone),
   index("idx_projection_institution").on(t.institution),
-  index("idx_projection_dealer").on(t.dealerId),
+  index("idx_projection_verified_dealer").on(t.verifiedDealerId),
+  index("idx_projection_user").on(t.userId),
+  uniqueIndex("uniq_projection_snapshot")
+    .on(
+      t.reportDate,
+      t.orderDealerName,
+      t.collectionDealerName,
+      t.institution
+    ),
 ]);
 
 /* ========================= rewards (Renamed from gift_inventory to align with sample) ========================= */
@@ -1214,8 +1229,8 @@ export const logisticsIO = pgTable("logistics_io", {
   storeTime: varchar("store_time", { length: 50 }),
   noOfInvoice: integer("no_of_invoice"),
   partyName: varchar("party_name", { length: 255 }),
-  invoiceNos: text("invoice_nos").array(), 
-  billNos: text("bill_nos").array(),       
+  invoiceNos: text("invoice_nos").array(),
+  billNos: text("bill_nos").array(),
 
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { mode: "date" })

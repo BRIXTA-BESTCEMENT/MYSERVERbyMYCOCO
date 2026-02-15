@@ -225,6 +225,41 @@
       "when": 1770978082665,
       "tag": "0031_awesome_rumiko_fujikawa",
       "breakpoints": true
+    },
+    {
+      "idx": 32,
+      "version": "7",
+      "when": 1771155830273,
+      "tag": "0032_exotic_hitman",
+      "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1771160527848,
+      "tag": "0033_tan_karma",
+      "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1771161186830,
+      "tag": "0034_goofy_karnak",
+      "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1771165912068,
+      "tag": "0035_calm_ezekiel",
+      "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "7",
+      "when": 1771166378180,
+      "tag": "0036_reflective_lady_deathstrike",
+      "breakpoints": true
     }
   ]
 }

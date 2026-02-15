@@ -1,7 +1,7 @@
 import { Request, Response, Express } from "express";
 import { db } from "../../db/db";
-import { projectionReports } from "../../db/schema";
-import { eq, and, desc, gte, lte, SQL } from "drizzle-orm";
+import { projectionReports, users, verifiedDealers } from "../../db/schema";
+import { eq, and, desc, gte, lte, SQL, getTableColumns, sql } from "drizzle-orm";
 import { z } from "zod";
 
 /* =========================================================
@@ -11,7 +11,9 @@ import { z } from "zod";
 const querySchema = z.object({
   institution: z.enum(["JUD", "JSB"]).optional(),
   zone: z.string().optional(),
-  dealerId: z.string().optional(),
+  verifiedDealerId: z.coerce.number().optional(),
+  userId: z.coerce.number().optional(),
+  salesPromoterUserId: z.coerce.number().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
   limit: z.coerce.number().default(100),
@@ -39,8 +41,14 @@ export default function setupProjectionRoutes(app: Express) {
       if (q.zone)
         filters.push(eq(projectionReports.zone, q.zone));
 
-      if (q.dealerId)
-        filters.push(eq(projectionReports.dealerId, q.dealerId));
+      if (q.verifiedDealerId !== undefined)
+        filters.push(eq(projectionReports.verifiedDealerId, q.verifiedDealerId));
+
+      if (q.userId !== undefined)
+        filters.push(eq(projectionReports.userId, q.userId));
+
+      if (q.salesPromoterUserId !== undefined)
+        filters.push(eq(projectionReports.salesPromoterUserId, q.salesPromoterUserId));
 
       if (q.fromDate)
         filters.push(gte(projectionReports.reportDate, q.fromDate));
@@ -49,8 +57,14 @@ export default function setupProjectionRoutes(app: Express) {
         filters.push(lte(projectionReports.reportDate, q.toDate));
 
       const rows = await db
-        .select()
+        .select({
+          ...getTableColumns(projectionReports),
+          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+          dealerPartyName: verifiedDealers.dealerPartyName
+        })
         .from(projectionReports)
+        .leftJoin(users, eq(projectionReports.userId, users.id))
+        .leftJoin(verifiedDealers, eq(projectionReports.verifiedDealerId, verifiedDealers.id))
         .where(filters.length ? and(...filters) : undefined)
         .orderBy(desc(projectionReports.reportDate))
         .limit(q.limit);
@@ -69,8 +83,14 @@ export default function setupProjectionRoutes(app: Express) {
       const id = z.string().uuid().parse(req.params.id);
 
       const [row] = await db
-        .select()
+        .select({
+          ...getTableColumns(projectionReports),
+          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+          dealerPartyName: verifiedDealers.dealerPartyName
+        })
         .from(projectionReports)
+        .leftJoin(users, eq(projectionReports.userId, users.id))
+        .leftJoin(verifiedDealers, eq(projectionReports.verifiedDealerId, verifiedDealers.id))
         .where(eq(projectionReports.id, id));
 
       if (!row)

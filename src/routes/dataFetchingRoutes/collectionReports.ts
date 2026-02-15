@@ -1,7 +1,7 @@
 // server/src/routes/dataFetchingRoutes/collectionReports.ts
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { collectionReports, users, dealers } from '../../db/schema';
+import { collectionReports, users, verifiedDealers } from '../../db/schema';
 import { eq, and, desc, asc, gte, lte, SQL, getTableColumns, sql } from 'drizzle-orm';
 import { z } from 'zod';
 
@@ -25,12 +25,19 @@ export default function setupCollectionReportsRoutes(app: Express) {
       conds.push(eq(collectionReports.institution, String(q.institution)));
     }
 
-    // Filter: Dealer
-    if (q.dealerId) {
-      conds.push(eq(collectionReports.dealerId, String(q.dealerId)));
+    // Filter: Verified Dealer
+    const verifiedDealerId = numberish(q.verifiedDealerId);
+    if (verifiedDealerId !== undefined) {
+      conds.push(eq(collectionReports.verifiedDealerId, verifiedDealerId));
     }
 
-    // Filter: Sales Promoter (User ID)
+    // Filter: User ID (New relation)
+    const userId = numberish(q.userId);
+    if (userId !== undefined) {
+      conds.push(eq(collectionReports.userId, userId));
+    }
+
+    // Filter: Legacy Sales Promoter User ID (Isolated)
     const salesPromoterUserId = numberish(q.salesPromoterUserId);
     if (salesPromoterUserId !== undefined) {
       conds.push(eq(collectionReports.salesPromoterUserId, salesPromoterUserId));
@@ -79,15 +86,15 @@ export default function setupCollectionReportsRoutes(app: Express) {
       const whereCondition: SQL | undefined = conds.length > 0 ? and(...conds) : undefined;
       const orderExpr = buildSort(String(sortBy), String(sortDir));
 
-      // Query with joins to get contextual data (Sales Promoter Name & Dealer Name)
+      // Query with joins to get contextual data using the new relations
       let query = db.select({
           ...getTableColumns(collectionReports),
-          salesPromoterName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-          dealerName: dealers.name
+          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+          dealerName: verifiedDealers.dealerPartyName
         })
         .from(collectionReports)
-        .leftJoin(users, eq(collectionReports.salesPromoterUserId, users.id))
-        .leftJoin(dealers, eq(collectionReports.dealerId, dealers.id))
+        .leftJoin(users, eq(collectionReports.userId, users.id))
+        .leftJoin(verifiedDealers, eq(collectionReports.verifiedDealerId, verifiedDealers.id))
         .$dynamic();
 
       // Conditionally apply where clause
@@ -133,12 +140,12 @@ export default function setupCollectionReportsRoutes(app: Express) {
 
       const [record] = await db.select({
           ...getTableColumns(collectionReports),
-          salesPromoterName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-          dealerName: dealers.name
+          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+          dealerName: verifiedDealers.dealerPartyName
         })
         .from(collectionReports)
-        .leftJoin(users, eq(collectionReports.salesPromoterUserId, users.id))
-        .leftJoin(dealers, eq(collectionReports.dealerId, dealers.id))
+        .leftJoin(users, eq(collectionReports.userId, users.id))
+        .leftJoin(verifiedDealers, eq(collectionReports.verifiedDealerId, verifiedDealers.id))
         .where(eq(collectionReports.id, id))
         .limit(1);
 
@@ -162,14 +169,14 @@ export default function setupCollectionReportsRoutes(app: Express) {
   });
 
   // -------------------------------------------------------
-  // 3. GET BY SALES PROMOTER (User Context)
+  // 3. GET BY USER (New Relation)
   // -------------------------------------------------------
   app.get(`/api/${ENDPOINT}/user/:userId`, (req, res) => {
     const userId = numberish(req.params.userId);
     if (userId === undefined) {
       return res.status(400).json({ success: false, error: 'Valid User ID is required.' });
     }
-    const base = eq(collectionReports.salesPromoterUserId, userId);
+    const base = eq(collectionReports.userId, userId);
     return listHandler(req, res, base);
   });
 

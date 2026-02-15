@@ -1,7 +1,7 @@
 import { Request, Response, Express } from "express";
 import { db } from "../../db/db";
-import { projectionVsActualReports } from "../../db/schema";
-import { eq, and, desc, gte, lte, SQL } from "drizzle-orm";
+import { projectionVsActualReports, users, verifiedDealers } from "../../db/schema";
+import { eq, and, desc, gte, lte, SQL, getTableColumns, sql } from "drizzle-orm";
 import { z } from "zod";
 
 /* =========================================================
@@ -12,6 +12,8 @@ const querySchema = z.object({
   institution: z.enum(["JUD", "JSB"]).optional(),
   zone: z.string().optional(),
   dealerName: z.string().optional(),
+  verifiedDealerId: z.coerce.number().optional(),
+  userId: z.coerce.number().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
   limit: z.coerce.number().default(200),
@@ -42,6 +44,12 @@ export default function setupProjectionVsActualRoutes(app: Express) {
       if (q.dealerName)
         filters.push(eq(projectionVsActualReports.dealerName, q.dealerName));
 
+      if (q.verifiedDealerId !== undefined)
+        filters.push(eq(projectionVsActualReports.verifiedDealerId, q.verifiedDealerId));
+
+      if (q.userId !== undefined)
+        filters.push(eq(projectionVsActualReports.userId, q.userId));
+
       if (q.fromDate)
         filters.push(gte(projectionVsActualReports.reportDate, q.fromDate));
 
@@ -49,8 +57,14 @@ export default function setupProjectionVsActualRoutes(app: Express) {
         filters.push(lte(projectionVsActualReports.reportDate, q.toDate));
 
       const rows = await db
-        .select()
+        .select({
+          ...getTableColumns(projectionVsActualReports),
+          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+          verifiedDealerPartyName: verifiedDealers.dealerPartyName
+        })
         .from(projectionVsActualReports)
+        .leftJoin(users, eq(projectionVsActualReports.userId, users.id))
+        .leftJoin(verifiedDealers, eq(projectionVsActualReports.verifiedDealerId, verifiedDealers.id))
         .where(filters.length ? and(...filters) : undefined)
         .orderBy(desc(projectionVsActualReports.reportDate))
         .limit(q.limit);
@@ -69,8 +83,14 @@ export default function setupProjectionVsActualRoutes(app: Express) {
       const id = z.string().uuid().parse(req.params.id);
 
       const [row] = await db
-        .select()
+        .select({
+          ...getTableColumns(projectionVsActualReports),
+          userName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
+          verifiedDealerPartyName: verifiedDealers.dealerPartyName
+        })
         .from(projectionVsActualReports)
+        .leftJoin(users, eq(projectionVsActualReports.userId, users.id))
+        .leftJoin(verifiedDealers, eq(projectionVsActualReports.verifiedDealerId, verifiedDealers.id))
         .where(eq(projectionVsActualReports.id, id));
 
       if (!row)
