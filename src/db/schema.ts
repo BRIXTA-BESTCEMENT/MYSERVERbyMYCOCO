@@ -806,7 +806,8 @@ export const projectionReports = pgTable("projection_reports", {
       t.reportDate,
       t.orderDealerName,
       t.collectionDealerName,
-      t.institution
+      t.institution,
+      t.zone
     ),
 ]);
 

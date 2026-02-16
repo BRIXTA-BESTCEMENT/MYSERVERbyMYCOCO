@@ -127,7 +127,7 @@ export class EmailSystemWorker {
       .join(" ")
       .toUpperCase();
 
-    if (!text) return true;
+    if (!text) return false;
 
     return (
       text.includes("TOTAL") ||
@@ -443,6 +443,9 @@ export class EmailSystemWorker {
   ========================================================= */
   private extractReportDate(rows: (string | number | null)[][]): string {
     // Scan deeper (first 20 rows) to catch metadata below logos/headers
+    let finalDate = new Date().toISOString().split("T")[0]; // default
+    let found = false;
+
     for (let r = 0; r < Math.min(20, rows.length); r++) {
       const row = rows[r];
       if (!row) continue;
@@ -452,11 +455,12 @@ export class EmailSystemWorker {
 
         // --- 1. Handle Excel Serial Numbers (e.g., 45678) ---
         // Range Check: > 35000 (Year ~1995) to < 60000 (Year ~2064)
-        // Prevents picking up random IDs, Quantities, or Zip Codes as dates
         if (typeof cell === "number" && cell > 35000 && cell < 60000) {
           try {
             const date = new Date(Math.round((cell - 25569) * 86400 * 1000));
-            return date.toISOString().split("T")[0];
+            finalDate = date.toISOString().split("T")[0];
+            found = true;
+            break;
           } catch {
             // Ignore bad math, continue scanning
           }
@@ -464,26 +468,32 @@ export class EmailSystemWorker {
 
         // --- 2. Handle Strings ---
         const text = String(cell).trim().toUpperCase();
-        if (text.length < 8) continue; // "1/1/24" is 6 chars, but mostly we want full years
+        if (text.length < 8) continue;
 
         // Match ISO: YYYY-MM-DD
         const isoMatch = text.match(/\b(\d{4})[-\/](\d{1,2})[-\/](\d{1,2})\b/);
         if (isoMatch) {
           const [_, yyyy, mm, dd] = isoMatch;
-          return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+          finalDate = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+          found = true;
+          break;
         }
 
         // Match DMY: DD-MM-YYYY or DD/MM/YYYY or DD.MM.YYYY
         const dmyMatch = text.match(/\b(\d{1,2})[-\/\.](\d{1,2})[-\/\.](\d{4})\b/);
         if (dmyMatch) {
           const [_, dd, mm, yyyy] = dmyMatch;
-          return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+          finalDate = `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+          found = true;
+          break;
         }
       }
+      if (found) break;
     }
 
-    // Fallback: Today's date
-    return new Date().toISOString().split("T")[0];
+    // ⚠️ CRITICAL VERIFICATION LOG
+    console.log(`[VERIFY] Extracted reportDate: ${finalDate}`);
+    return finalDate;
   }
 
   /* =========================================================
@@ -615,9 +625,10 @@ export class EmailSystemWorker {
     console.log(`[OUTSTANDING] 🏢 Detected: ${safeInstitution || "UNKNOWN"} (isAccountJsbJud: ${isAccountJsbJud})`);
 
     /* ------------------------------------------------------
-       STEP 1.5: EXTRACT DATE
+       STEP 1.5: EXTRACT DATE (WITH LOGGING)
     ------------------------------------------------------ */
     const reportDate = this.extractReportDate(rows);
+    console.log(`[VERIFY-OUT] 📅 Extracted reportDate: ${reportDate}`);
 
     /* --------------------------------------------------
        STEP 2: PREPARE PARSING
@@ -676,16 +687,36 @@ export class EmailSystemWorker {
         if (!row?.length) continue;
 
         const dealerNameRaw = dealerCol !== undefined ? String(row[dealerCol] ?? "").trim() : "";
-        if (!dealerNameRaw) continue;
+
+        // 🔥 LOGIC: Explicit Skips (Forensic Mode)
+        if (!dealerNameRaw) {
+          console.log("[OUT-SKIPPED] Empty dealer row");
+          continue;
+        }
 
         const upper = dealerNameRaw.toUpperCase();
-        if (upper.includes("GRAND TOTAL")) break;
-        if (upper.includes("TOTAL") || upper.includes("SUMMARY")) continue;
 
-        const resolvedDealerId = dealerMap.get(this.normalizeName(dealerNameRaw)) || null;
+        if (upper.includes("GRAND TOTAL")) {
+          // 🔥 CHANGED: Continue instead of break to avoid silent truncation
+          console.log("[OUT-DERIVED] Grand Total skipped.");
+          continue;
+        }
 
-        // Skip unmatched to avoid NULL key collisions in the Unique Index
-        if (!resolvedDealerId) continue;
+        if (upper.includes("TOTAL") || upper.includes("SUMMARY")) {
+          console.log("[OUT-SKIPPED] Derived row:", dealerNameRaw);
+          continue;
+        }
+
+        const normalizedName = this.normalizeName(dealerNameRaw);
+        const resolvedDealerId = dealerMap.get(normalizedName) || null;
+
+        // 🔥 CHANGED: Do NOT skip unmatched. Insert them.
+        if (!resolvedDealerId) {
+          console.log("[OUT-UNMATCHED] Dealer not in verified table. Still inserting:", {
+            dealerNameRaw,
+            normalizedName
+          });
+        }
 
         const bucketValues: any = {};
         for (const key of Object.keys(bucketMap)) {
@@ -693,11 +724,13 @@ export class EmailSystemWorker {
           bucketValues[key] = colIndex !== undefined ? num(row[colIndex]) : 0;
         }
 
-        rawRecords.push({
+        const record = {
           id: randomUUID(),
           reportDate: reportDate,
           verifiedDealerId: resolvedDealerId,
           isAccountJsbJud: isAccountJsbJud,
+          // ⚠️ Storing raw name temporarily for proper deduplication key generation
+          tempDealerName: dealerNameRaw,
 
           securityDepositAmt: String(depositCol !== undefined ? num(row[depositCol]) : 0),
           pendingAmt: String(pendingCol !== undefined ? num(row[pendingCol]) : 0),
@@ -713,9 +746,22 @@ export class EmailSystemWorker {
           isOverdue: bucketValues.greaterThan90Days > 0,
           createdAt: new Date(),
           updatedAt: new Date(),
+        };
+
+        // 🔥 LOGIC: Selected Row Logging
+        console.log("[OUT-SELECTED]", {
+          reportDate,
+          dealer: dealerNameRaw,
+          verifiedDealerId: resolvedDealerId,
+          pending: pendingCol !== undefined ? num(row[pendingCol]) : 0,
+          security: depositCol !== undefined ? num(row[depositCol]) : 0
         });
+
+        rawRecords.push(record);
       }
     }
+
+    console.log(`[VERIFY-OUT] Raw rows built: ${rawRecords.length}`);
 
     if (!rawRecords.length) {
       console.log("[OUTSTANDING] No valid rows found.");
@@ -727,7 +773,12 @@ export class EmailSystemWorker {
     -------------------------------------------------- */
     const uniqueMap = new Map<string, any>();
     for (const rec of rawRecords) {
-      const key = `${rec.reportDate}_${rec.verifiedDealerId}_${rec.isAccountJsbJud}`;
+      // 🔥 CHANGED: Unique Constraint Logic
+      // If ID exists, use ID. If not, use Raw Name to avoid collapsing all unmatched into one.
+      const key = rec.verifiedDealerId
+        ? `${rec.reportDate}_${rec.verifiedDealerId}_${rec.isAccountJsbJud}`
+        : `${rec.reportDate}_${rec.tempDealerName}_${rec.isAccountJsbJud}`;
+
       uniqueMap.set(key, rec);
     }
 
@@ -735,8 +786,18 @@ export class EmailSystemWorker {
     console.log(`[OUTSTANDING] Deduplicated: ${rawRecords.length} -> ${finalRecords.length} unique rows.`);
 
     /* --------------------------------------------------
-       STEP 5: EXECUTE UPSERT
+       STEP 5: EXECUTE UPSERT (WITH DB COUNTS)
     -------------------------------------------------- */
+
+    // 🔥 LOGIC: DB Count Before
+    const dbCountBefore = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(outstandingReports)
+      .where(eq(outstandingReports.reportDate, reportDate));
+
+    console.log(`[VERIFY-OUT] DB rows BEFORE upsert: ${dbCountBefore[0]?.count}`);
+
+
     await db.insert(outstandingReports)
       .values(finalRecords)
       .onConflictDoUpdate({
@@ -765,16 +826,20 @@ export class EmailSystemWorker {
         }
       });
 
+    // 🔥 LOGIC: DB Count After
+    const dbCountAfter = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(outstandingReports)
+      .where(eq(outstandingReports.reportDate, reportDate));
+
+    console.log(`[VERIFY-OUT] DB rows AFTER upsert: ${dbCountAfter[0]?.count}`);
+
     console.log(`[OUTSTANDING] Upserted ${finalRecords.length} records.`);
   }
   /* =========================================================
      HELPER: COLLECTIONS (UPSERT STRATEGY)
      Ensures historical data is preserved without duplicates
   ========================================================= */
-  /* =========================================================
-       HELPER: COLLECTIONS (UPSERT STRATEGY)
-       Ensures historical data is preserved without duplicates
-    ========================================================= */
   private async processCollectionRows(
     rows: (string | number | null)[][],
     institution: string | null,
@@ -880,7 +945,18 @@ export class EmailSystemWorker {
       if (!voucherNo || this.isDerivedRow(voucherNo)) continue;
 
       const partyNameRaw = get(row, "PARTY NAME");
-      const resolvedDealerId = dealerMap.get(this.normalizeName(partyNameRaw || "")) || null;
+
+      // 🔥 LOGIC: Forensic Unmatched Logging
+      const normalizedName = this.normalizeName(partyNameRaw || "");
+      const resolvedDealerId = dealerMap.get(normalizedName) || null;
+
+      if (!resolvedDealerId && partyNameRaw) {
+        console.log("[COLLECTION-UNMATCHED]", {
+          voucherNo,
+          partyNameRaw,
+          normalizedName
+        });
+      }
 
       const record = {
         id: randomUUID(),
@@ -899,6 +975,16 @@ export class EmailSystemWorker {
         sourceFileName: meta.fileName,
       };
 
+      // 🔥 LOGIC: Selected Row Logging
+      console.log("[COLLECTION-SELECTED]", {
+        voucherNo,
+        institution: safeInstitution,
+        partyName: partyNameRaw,
+        verifiedDealerId: resolvedDealerId,
+        amount: record.amount,
+        date: record.voucherDate
+      });
+
       // Deduplicate in memory (Voucher + Inst) - Last row wins
       uniqueRecords.set(`${voucherNo}_${safeInstitution}`, record);
     }
@@ -911,8 +997,17 @@ export class EmailSystemWorker {
     }
 
     /* --------------------------------------------------
-       STEP 4: EXECUTE UPSERT
+       STEP 4: EXECUTE UPSERT (WITH VERIFICATION)
     -------------------------------------------------- */
+
+    // 🔥 LOGIC: DB Count Before (Fixed Type Error by coalescing null to empty string)
+    const dbCountBefore = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(collectionReports)
+      .where(eq(collectionReports.institution, safeInstitution ?? ""));
+
+    console.log(`[VERIFY-COL] DB rows BEFORE upsert: ${dbCountBefore[0]?.count}`);
+
     await db.insert(collectionReports)
       .values(finalRecords)
       .onConflictDoUpdate({
@@ -935,12 +1030,20 @@ export class EmailSystemWorker {
         }
       });
 
+    // 🔥 LOGIC: DB Count After (Fixed Type Error)
+    const dbCountAfter = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(collectionReports)
+      .where(eq(collectionReports.institution, safeInstitution ?? ""));
+
+    console.log(`[VERIFY-COL] DB rows AFTER upsert: ${dbCountAfter[0]?.count}`);
+
     console.log(`[COLLECTION] Upserted ${finalRecords.length} rows for ${safeInstitution}`);
   }
   /* =========================================================
-         HELPER: PROJECTIONS (UPSERT STRATEGY)
-         Supports historical data preservation and latest-write-wins
-      ========================================================= */
+          HELPER: PROJECTIONS (UPSERT STRATEGY)
+          Updated: Lossless Ingestion (No Memory Dedup)
+       ========================================================= */
   private async processProjectionRows(
     rows: (string | number | null)[][],
     meta: { messageId: string; fileName?: string },
@@ -948,9 +1051,6 @@ export class EmailSystemWorker {
   ) {
     if (rows.length < 2) return;
 
-    /* --------------------------------------------------
-       STEP 0: FETCH AND MAP VERIFIED DEALERS
-    -------------------------------------------------- */
     console.log("[PROJECTION] 🔍 Fetching Verified Dealers for lookup...");
 
     const allVerifiedDealers = await db
@@ -969,14 +1069,12 @@ export class EmailSystemWorker {
     console.log(`[PROJECTION] ✅ Loaded ${dealerMap.size} dealer keys.`);
 
     /* ----------------------------------------------------
-       STEP 1: INSTITUTION AUTO-DETECT (Deep Scan)
+       INSTITUTION DETECT
     ---------------------------------------------------- */
     let detectedInst = institution;
-
     if (!detectedInst) {
       const fileName = (meta.fileName || "").toUpperCase();
       const cleanFileName = fileName.replace(/[\.\s]/g, "");
-
       const titleBlock = rows.slice(0, 50).map(r => r.join(" ").toUpperCase()).join(" ");
       const cleanTitleBlock = titleBlock.replace(/[\.]/g, "");
 
@@ -986,17 +1084,13 @@ export class EmailSystemWorker {
         detectedInst = "JUD";
       }
     }
-
     const safeInstitution = detectedInst ?? null;
     console.log(`[PROJECTION] 🏢 Detected Institution: ${safeInstitution || "UNKNOWN"}`);
 
-    /* ------------------------------------------------------
-       2. EXTRACT REPORT DATE
-    ------------------------------------------------------ */
     const reportDate = this.extractReportDate(rows);
 
     /* ------------------------------------------------------
-       3. FIND HEADER START
+       HEADER & COLUMN MAPPING
     ------------------------------------------------------ */
     const headerIndex = rows.findIndex(r =>
       r.some(c => String(c ?? "").toUpperCase().includes("ZONE"))
@@ -1007,12 +1101,8 @@ export class EmailSystemWorker {
       return;
     }
 
-    /* ------------------------------------------------------
-       4. MERGE TWO HEADER ROWS & MAP COLUMNS
-    ------------------------------------------------------ */
     const top = rows[headerIndex] ?? [];
     const bottom = rows[headerIndex + 1] ?? [];
-
     const headers = top.map((_, i) => {
       const t = String(top[i] ?? "").trim().toUpperCase();
       const b = String(bottom[i] ?? "").trim().toUpperCase();
@@ -1022,8 +1112,7 @@ export class EmailSystemWorker {
     const idx: Record<string, number> = {};
     headers.forEach((h, i) => (idx[h] = i));
 
-    const findCol = (keyword: string) =>
-      Object.entries(idx).find(([h]) => h.includes(keyword))?.[1];
+    const findCol = (keyword: string) => Object.entries(idx).find(([h]) => h.includes(keyword))?.[1];
 
     const zoneCol = findCol("ZONE");
     const orderDealerCol = findCol("ORDER PROJECTION") ?? findCol("ORDER DEALER");
@@ -1039,7 +1128,7 @@ export class EmailSystemWorker {
     const num = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
 
     /* --------------------------------------------------
-       STEP 5: BUILD RECORDS & DEDUPLICATE
+       BUILD + SUM RECORDS (Aggregating Duplicates)
     -------------------------------------------------- */
     const uniqueMap = new Map<string, any>();
 
@@ -1048,46 +1137,64 @@ export class EmailSystemWorker {
       if (!row.length) continue;
 
       const zone = String(row[zoneCol] ?? "").trim();
-      if (!zone || this.isDerivedRow(zone)) continue;
-
       const orderDealer = orderDealerCol !== undefined ? String(row[orderDealerCol] ?? "").trim() : "";
       const collDealer = collDealerCol !== undefined ? String(row[collDealerCol] ?? "").trim() : "";
 
-      // Ensure at least one dealer context exists
-      if (!orderDealer && !collDealer) continue;
-      // Filter out total rows
       if (this.isDerivedRow(orderDealer, collDealer)) continue;
 
-      /* ---- RESOLVE DEALER ID ---- */
+      // 🔥 FIX 1: FILTER GHOST ROWS
+      // If no dealers are named AND the zone is empty/generic, skip it.
+      // This prevents the "NAME__" collision crash.
+      if (!orderDealer && !collDealer) continue;
+
       let resolvedDealerId: number | null = null;
-      if (orderDealer) {
-        resolvedDealerId = dealerMap.get(this.normalizeName(orderDealer)) || null;
-      }
-      if (!resolvedDealerId && collDealer) {
+      if (orderDealer) resolvedDealerId = dealerMap.get(this.normalizeName(orderDealer)) || null;
+      if (!resolvedDealerId && collDealer)
         resolvedDealerId = dealerMap.get(this.normalizeName(collDealer)) || null;
+
+      if (!resolvedDealerId && (orderDealer || collDealer)) {
+        console.log("[PROJECTION-UNMATCHED]", { orderDealer, collDealer });
       }
 
-      const record = {
-        id: randomUUID(),
-        institution: safeInstitution,
-        reportDate,
-        verifiedDealerId: resolvedDealerId,
-        zone,
-        // Use empty string instead of NULL to ensure SQL Unique Constraints trigger the UPSERT
-        orderDealerName: orderDealer,
-        orderQtyMt: orderQtyCol !== undefined ? num(row[orderQtyCol]) : 0,
-        collectionDealerName: collDealer,
-        collectionAmount: collAmtCol !== undefined ? num(row[collAmtCol]) : 0,
-        sourceMessageId: meta.messageId,
-        sourceFileName: meta.fileName,
-      };
+      // Prepare Values
+      const currentOrderQty = orderQtyCol !== undefined ? num(row[orderQtyCol]) : 0;
+      const currentCollAmt = collAmtCol !== undefined ? num(row[collAmtCol]) : 0;
 
-      // Key for deduplication/conflict: Date + OrderDealer + CollectionDealer + Institution
-      const dedupKey = `${reportDate}_${orderDealer}_${collDealer}_${safeInstitution}`;
-      uniqueMap.set(dedupKey, record);
+      // Identify Record (ID Priority)
+      const dedupIdentifier = resolvedDealerId
+        ? `ID_${resolvedDealerId}`
+        : `NAME_${orderDealer}_${collDealer}`;
+
+      const key = `${reportDate}_${safeInstitution}_${zone}_${dedupIdentifier}`;
+
+      // 🔥 FIX 2: SUMMING LOGIC
+      if (uniqueMap.has(key)) {
+        const existing = uniqueMap.get(key);
+        existing.orderQtyMt += currentOrderQty;
+        existing.collectionAmount += currentCollAmt;
+
+        console.log(`[PROJECTION-MERGE] Merged duplicate for ${dedupIdentifier}. New Total: ${existing.orderQtyMt}`);
+      } else {
+        const record = {
+          id: randomUUID(),
+          institution: safeInstitution,
+          reportDate,
+          verifiedDealerId: resolvedDealerId,
+          zone,
+          orderDealerName: orderDealer,
+          orderQtyMt: currentOrderQty,
+          collectionDealerName: collDealer,
+          collectionAmount: currentCollAmt,
+          sourceMessageId: meta.messageId,
+          sourceFileName: meta.fileName,
+        };
+        uniqueMap.set(key, record);
+      }
     }
 
     const finalRecords = Array.from(uniqueMap.values());
+
+    console.log(`[VERIFY] Sheet prepared ${finalRecords.length} AGGREGATED rows for ${reportDate}`);
 
     if (!finalRecords.length) {
       console.log("[PROJECTION] No valid rows found");
@@ -1095,8 +1202,15 @@ export class EmailSystemWorker {
     }
 
     /* --------------------------------------------------
-       STEP 6: EXECUTE UPSERT
+       EXECUTE UPSERT
     -------------------------------------------------- */
+    const dbCountBefore = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projectionReports)
+      .where(eq(projectionReports.reportDate, reportDate));
+
+    console.log(`[VERIFY-PROJECTION] BEFORE: ${dbCountBefore[0]?.count}`);
+
     await db.insert(projectionReports)
       .values(finalRecords)
       .onConflictDoUpdate({
@@ -1105,6 +1219,7 @@ export class EmailSystemWorker {
           projectionReports.orderDealerName,
           projectionReports.collectionDealerName,
           projectionReports.institution,
+          projectionReports.zone, // ⚠️ Ensure your DB Index actually has 'zone' in it!
         ],
         set: {
           verifiedDealerId: sql`excluded.verified_dealer_id`,
@@ -1116,12 +1231,22 @@ export class EmailSystemWorker {
         },
       });
 
+    const dbCountAfter = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projectionReports)
+      .where(eq(projectionReports.reportDate, reportDate));
+
+    console.log(`[VERIFY-PROJECTION] AFTER: ${dbCountAfter[0]?.count}`);
     console.log(`[PROJECTION] Upserted ${finalRecords.length} rows for ${reportDate}`);
   }
   /* =========================================================
        HELPER: PROJECTION VS ACTUAL (UPSERT STRATEGY)
        Supports deep historical scanning and record merging
     ========================================================= */
+  /* =========================================================
+         HELPER: PROJECTION VS ACTUAL (UPSERT STRATEGY)
+         Updated: Lossless Ingestion (No Filters, No Memory Dedup)
+      ========================================================= */
   private async processProjectionVsActualRows(
     rows: (string | number | null)[][],
     meta: { messageId: string; fileName?: string },
@@ -1223,9 +1348,9 @@ export class EmailSystemWorker {
     const num = (v: any) => Number(String(v ?? "0").replace(/,/g, ""));
 
     /* ------------------------------------------------------
-       5. BUILD RECORDS & DEDUPLICATE (Last-Write-Wins)
+       5. BUILD RECORDS (NO MEMORY DEDUP)
     ------------------------------------------------------ */
-    const uniqueRecords = new Map<string, any>();
+    const finalRecords: any[] = [];
     let currentZone = "";
 
     for (let i = headerIndex + 2; i < rows.length; i++) {
@@ -1234,7 +1359,9 @@ export class EmailSystemWorker {
 
       const rawZone = String(row[zoneCol] ?? "").trim();
       if (rawZone) currentZone = rawZone;
-      if (!currentZone) continue;
+
+      // 🔥 LOGIC: Removed aggressive zone filter. Use current or raw or empty.
+      const zoneToUse = currentZone || rawZone || "";
 
       let dealer = "";
       if (dealerCol !== undefined) {
@@ -1244,9 +1371,15 @@ export class EmailSystemWorker {
         dealer = String(row[orderProjCol - 1] ?? "").trim();
       }
 
-      if (!dealer || this.isDerivedRow(dealer)) continue;
+      // 🔥 LOGIC: Only filter derived rows. Allow empty dealer names.
+      if (this.isDerivedRow(dealer)) continue;
 
       const resolvedDealerId = dealerMap.get(this.normalizeName(dealer)) || null;
+
+      // 🔥 LOGIC: Log Unmatched but do NOT skip
+      if (!resolvedDealerId && dealer) {
+        console.log("[PROJ-VS-ACTUAL-UNMATCHED]", dealer);
+      }
 
       const orderProj = orderProjCol !== undefined ? num(row[orderProjCol]) : 0;
       const actualOrder = actualOrderCol !== undefined ? num(row[actualOrderCol]) : 0;
@@ -1254,14 +1387,13 @@ export class EmailSystemWorker {
       const collProj = collProjCol !== undefined ? num(row[collProjCol]) : 0;
       const actualColl = actualCollCol !== undefined ? num(row[actualCollCol]) : 0;
 
-      // Skip empty spacer rows
-      if (orderProj === 0 && actualOrder === 0 && doDone === 0 && collProj === 0 && actualColl === 0) continue;
+      // 🔥 LOGIC: Removed "All Zero" Filter. Keep everything.
 
       const record = {
         id: randomUUID(),
         reportDate,
         institution: safeInstitution,
-        zone: currentZone,
+        zone: zoneToUse,
         dealerName: dealer,
         verifiedDealerId: resolvedDealerId,
         orderProjectionMt: orderProj,
@@ -1277,11 +1409,9 @@ export class EmailSystemWorker {
         sourceFileName: meta.fileName,
       };
 
-      // Deduplication Key: Date + Dealer + Institution
-      uniqueRecords.set(`${reportDate}_${dealer}_${safeInstitution}`, record);
+      // 🔥 LOGIC: Push directly. No map override.
+      finalRecords.push(record);
     }
-
-    const finalRecords = Array.from(uniqueRecords.values());
 
     if (!finalRecords.length) {
       console.log("[PROJ-VS-ACTUAL] No valid rows found in sheet.");
@@ -1289,8 +1419,17 @@ export class EmailSystemWorker {
     }
 
     /* --------------------------------------------------
-       STEP 6: EXECUTE UPSERT
+       STEP 6: EXECUTE UPSERT (WITH VERIFICATION)
     -------------------------------------------------- */
+
+    // 🔎 [VERIFY STEP 1] Log Existing DB Count Before Upsert
+    const dbCountBefore = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projectionVsActualReports)
+      .where(eq(projectionVsActualReports.reportDate, reportDate));
+
+    console.log(`[VERIFY-PVA] BEFORE: ${dbCountBefore[0]?.count}`);
+
     await db.insert(projectionVsActualReports)
       .values(finalRecords)
       .onConflictDoUpdate({
@@ -1313,6 +1452,14 @@ export class EmailSystemWorker {
           sourceFileName: sql`excluded.source_file_name`,
         },
       });
+
+    // 🔎 [VERIFY STEP 2] Log DB Count After Upsert
+    const dbCountAfter = await db
+      .select({ count: sql<number>`count(*)` })
+      .from(projectionVsActualReports)
+      .where(eq(projectionVsActualReports.reportDate, reportDate));
+
+    console.log(`[VERIFY-PVA] AFTER: ${dbCountAfter[0]?.count}`);
 
     console.log(`[PROJ-VS-ACTUAL] Upserted ${finalRecords.length} rows for ${reportDate}`);
   }
