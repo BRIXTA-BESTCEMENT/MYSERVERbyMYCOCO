@@ -700,19 +700,14 @@ private async processOutstandingRows(
         const upper = dealerNameRaw.toUpperCase();
 
         // 🔥 LOGIC: Explicit Garbage Filter
-        // 1. Skip Totals
         if (upper.includes("GRAND TOTAL")) { console.log("[OUT-DERIVED] Grand Total skipped."); continue; }
         if (upper.includes("TOTAL") || upper.includes("SUMMARY")) { continue; }
         
-        // 2. Skip Metadata/Titles (e.g., "Sundry Debtors Age Wise...")
         if (upper.includes("AGE WISE") || upper.includes("AS ON") || upper.includes("TILL")) { 
             console.log("[OUT-SKIPPED] Metadata row:", dealerNameRaw); 
             continue; 
         }
 
-        // 3. Skip Numeric "Names" (e.g. "60,000", "50.00", "-", "102800")
-        // Checks if string contains digits and is NOT a mixed alphanum code like "JSB001"
-        // It catches "100,000", "50.00", "200", "-"
         if (/^[\d,.\s-]+$/.test(dealerNameRaw) && /\d/.test(dealerNameRaw)) {
              console.log("[OUT-SKIPPED] Numeric garbage detected in Name column:", dealerNameRaw);
              continue;
@@ -772,7 +767,9 @@ private async processOutstandingRows(
             reportDate,
             verifiedDealerId: resolvedDealerId,
             isAccountJsbJud,
-            tempDealerName: dealerNameRaw, 
+            
+            // 🔥 CRITICAL: Saving raw name for Frontend Fallback
+            tempDealerName: dealerNameRaw,
 
             securityDepositAmt: currentDeposit,
             pendingAmt: currentPending,
@@ -838,6 +835,9 @@ private async processOutstandingRows(
           outstandingReports.isAccountJsbJud
         ],
         set: {
+          // 🔥 CRITICAL: Update temp name on conflict so older rows get fixed
+          tempDealerName: sql`excluded.temp_dealer_name`,
+
           securityDepositAmt: sql`excluded.security_deposit_amt`,
           pendingAmt: sql`excluded.pending_amt`,
           lessThan10Days: sql`excluded.less_than_10_days`,

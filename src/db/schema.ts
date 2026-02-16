@@ -723,6 +723,7 @@ export const collectionReports = pgTable("collection_reports", {
 export const outstandingReports = pgTable("outstanding_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
   reportDate: date("report_date"),
+  tempDealerName: text("temp_dealer_name"),
   securityDepositAmt: numeric("security_deposit_amt", { precision: 14, scale: 2 }),
   pendingAmt: numeric("pending_amt", { precision: 14, scale: 2 }),
   lessThan10Days: numeric("less_than_10_days", { precision: 14, scale: 2 }),

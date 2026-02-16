@@ -1,12 +1,13 @@
 // server/src/routes/dataFetchingRoutes/outstandingReports.ts
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { outstandingReports, verifiedDealers, } from '../../db/schema'; 
-import { eq, and, desc, asc, SQL, getTableColumns, gte, lte } from 'drizzle-orm';
+import { outstandingReports, verifiedDealers } from '../../db/schema'; 
+import { eq, and, desc, asc, SQL, getTableColumns, gte, lte, sql, ilike, or } from 'drizzle-orm';
 
 export default function setupOutstandingReportsGetRoutes(app: Express) {
     const endpoint = 'outstanding-reports';
 
+    // --- Helpers ---
     const numberish = (v: unknown) => {
       if (v === null || v === undefined || v === '') return undefined;
       const n = Number(v);
@@ -19,10 +20,11 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
         return undefined;
     };
 
+    // --- Query Builders ---
     const buildWhere = (q: any): SQL | undefined => {
         const conds: SQL[] = [];
 
-        // Foreign Key filters
+        // 1. ID Filters
         const dealerId = numberish(q.verifiedDealerId);
         if (dealerId !== undefined) {
             conds.push(eq(outstandingReports.verifiedDealerId, dealerId));
@@ -36,7 +38,7 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             conds.push(eq(outstandingReports.dvrId, String(q.dvrId)));
         }
 
-        // Boolean filters
+        // 2. Boolean Filters
         const isOverdue = booleanish(q.isOverdue);
         if (isOverdue !== undefined) {
             conds.push(eq(outstandingReports.isOverdue, isOverdue));
@@ -47,6 +49,7 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             conds.push(eq(outstandingReports.isAccountJsbJud, isAccountJsbJud));
         }
 
+        // 3. Date Filters
         if (q.reportDate) {
             conds.push(eq(outstandingReports.reportDate, String(q.reportDate)));
         }
@@ -57,26 +60,44 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
         if (fromDate) conds.push(gte(outstandingReports.reportDate, fromDate));
         if (toDate) conds.push(lte(outstandingReports.reportDate, toDate));
 
+        // 4. Search (Temp Dealer Name)
+        if (q.search) {
+            const searchStr = `%${q.search}%`;
+            conds.push(ilike(outstandingReports.tempDealerName, searchStr));
+        }
+
         if (conds.length === 0) return undefined;
         return conds.length === 1 ? conds[0] : and(...conds);
     };
 
     const buildSort = (sortByRaw?: string, sortDirRaw?: string) => {
         const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
+        const sortFn = direction === 'asc' ? asc : desc;
 
         switch (sortByRaw) {
-            case 'securityDepositAmt':
-                return direction === 'asc' ? asc(outstandingReports.securityDepositAmt) : desc(outstandingReports.securityDepositAmt);
-            case 'pendingAmt':
-                return direction === 'asc' ? asc(outstandingReports.pendingAmt) : desc(outstandingReports.pendingAmt);
-            case 'reportDate':
-                return direction === 'asc' ? asc(outstandingReports.reportDate) : desc(outstandingReports.reportDate);
-            case 'createdAt':
+            case 'securityDepositAmt': return sortFn(outstandingReports.securityDepositAmt);
+            case 'pendingAmt': return sortFn(outstandingReports.pendingAmt);
+            case 'reportDate': return sortFn(outstandingReports.reportDate);
+            
+            // Aging Buckets Sorting
+            case 'lessThan10Days': return sortFn(outstandingReports.lessThan10Days);
+            case 'days10To15': return sortFn(outstandingReports.days10To15);
+            case 'days15To21': return sortFn(outstandingReports.days15To21);
+            case 'days21To30': return sortFn(outstandingReports.days21To30);
+            case 'days30To45': return sortFn(outstandingReports.days30To45);
+            case 'days45To60': return sortFn(outstandingReports.days45To60);
+            case 'days60To75': return sortFn(outstandingReports.days60To75);
+            case 'days75To90': return sortFn(outstandingReports.days75To90);
+            case 'greaterThan90Days': return sortFn(outstandingReports.greaterThan90Days);
+            
+            case 'updatedAt': return sortFn(outstandingReports.updatedAt);
+            case 'createdAt': 
             default:
                 return desc(outstandingReports.createdAt);
         }
     };
 
+    // --- Main Handler ---
     const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
         try {
             const { limit = '50', page = '1', sortBy, sortDir, ...filters } = req.query;
@@ -84,8 +105,8 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             const pg = Math.max(1, parseInt(String(page), 10) || 1);
             const offset = (pg - 1) * lmt;
 
+            // Combine filters
             const extra = buildWhere(filters);
-            
             const conds: SQL[] = [];
             if (baseWhere) conds.push(baseWhere);
             if (extra) conds.push(extra);
@@ -93,8 +114,8 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             const whereCondition: SQL | undefined = conds.length > 0 ? and(...conds) : undefined;
             const orderExpr = buildSort(String(sortBy), String(sortDir));
 
-            // Execute Query with basic verified dealer join
-            const query = db.select({
+            // 1. Get Data
+            const dataQuery = db.select({
                 ...getTableColumns(outstandingReports),
                 dealerPartyName: verifiedDealers.dealerPartyName,
                 dealerCode: verifiedDealers.dealerCode,
@@ -104,15 +125,38 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             .leftJoin(verifiedDealers, eq(outstandingReports.verifiedDealerId, verifiedDealers.id));
 
             if (whereCondition) {
-                query.where(whereCondition);
+                dataQuery.where(whereCondition);
             }
 
-            const data = await query
+            const data = await dataQuery
                 .orderBy(orderExpr)
                 .limit(lmt)
                 .offset(offset);
 
-            res.json({ success: true, page: pg, limit: lmt, count: data.length, data });
+            // 2. Get Total Count (for pagination)
+            // Note: We use a separate query to get the true total matching the filters
+            const countQuery = db.select({ count: sql<number>`count(*)` })
+                .from(outstandingReports)
+                .leftJoin(verifiedDealers, eq(outstandingReports.verifiedDealerId, verifiedDealers.id)); // Join needed if we filter by dealer props later
+
+            if (whereCondition) {
+                countQuery.where(whereCondition);
+            }
+            
+            const [totalRes] = await countQuery;
+            const total = Number(totalRes?.count || 0);
+            const totalPages = Math.ceil(total / lmt);
+
+            res.json({ 
+                success: true, 
+                page: pg, 
+                limit: lmt, 
+                total,       // Total matching records
+                totalPages,  // Total pages available
+                count: data.length, // Count on this specific page
+                data 
+            });
+
         } catch (error) {
             console.error(`Get Outstanding Reports list error:`, error);
             res.status(500).json({
@@ -123,7 +167,9 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
         }
     };
 
-    // 1. GET ALL
+    // --- Routes ---
+
+    // 1. GET ALL (with filters)
     app.get(`/api/${endpoint}`, (req, res) => listHandler(req, res));
 
     // 2. GET BY ID (UUID)
@@ -135,6 +181,7 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
                 ...getTableColumns(outstandingReports),
                 dealerPartyName: verifiedDealers.dealerPartyName,
                 dealerCode: verifiedDealers.dealerCode,
+                zone: verifiedDealers.zone
             })
                 .from(outstandingReports)
                 .leftJoin(verifiedDealers, eq(outstandingReports.verifiedDealerId, verifiedDealers.id))
