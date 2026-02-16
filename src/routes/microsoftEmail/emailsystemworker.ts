@@ -572,7 +572,7 @@ export class EmailSystemWorker {
   /*============================================================
       HELPER: Outstanding Report (With Duplication Fix & Upsert)
     ============================================================ */
-  private async processOutstandingRows(
+private async processOutstandingRows(
     rows: (string | number | null)[][],
     meta: { messageId: string; fileName?: string },
     institution: string | null
@@ -654,32 +654,39 @@ export class EmailSystemWorker {
       return isNaN(n) ? 0 : n;
     };
 
-    const rawRecords: any[] = [];
-
     /* --------------------------------------------------
-       STEP 3: BUILD RAW RECORDS
+       STEP 3: BUILD & AGGREGATE RECORDS
     -------------------------------------------------- */
+    const uniqueMap = new Map<string, any>();
+
     for (const headerIndex of headerIndexes) {
       const headers = normalizeRow(rows[headerIndex]);
       const idx: Record<string, number> = {};
       headers.forEach((h, i) => (idx[h] = i));
 
-      const findCol = (k: string) => Object.entries(idx).find(([h]) => h.includes(k))?.[1];
+      // Improved Column Finder: Prioritize Specific Names
+      const findCol = (candidates: string[]) => {
+        for (const k of candidates) {
+          const match = Object.entries(idx).find(([h]) => h.includes(k));
+          if (match) return match[1];
+        }
+        return undefined;
+      };
 
-      const dealerCol = findCol("DEALER");
-      const depositCol = findCol("SECURITY") ?? findCol("DEPOSIT");
-      const pendingCol = findCol("PENDING") ?? findCol("OUTSTANDING");
+      const dealerCol = findCol(["DEALER NAME", "PARTY NAME", "PARTICULARS", "DEALER"]);
+      const depositCol = findCol(["SECURITY", "DEPOSIT"]);
+      const pendingCol = findCol(["PENDING", "OUTSTANDING", "TOTAL OUTSTANDING"]);
 
       const bucketMap = {
-        lessThan10Days: findCol("< 10"),
-        days10To15: findCol("10-15"),
-        days15To21: findCol("15-21"),
-        days21To30: findCol("21-30"),
-        days30To45: findCol("30-45"),
-        days45To60: findCol("45-60"),
-        days60To75: findCol("60-75"),
-        days75To90: findCol("75-90"),
-        greaterThan90Days: findCol("> 90"),
+        lessThan10Days: findCol(["< 10", "0-10"]),
+        days10To15: findCol(["10-15"]),
+        days15To21: findCol(["15-21"]),
+        days21To30: findCol(["21-30"]),
+        days30To45: findCol(["30-45"]),
+        days45To60: findCol(["45-60"]),
+        days60To75: findCol(["60-75"]),
+        days75To90: findCol(["75-90"]),
+        greaterThan90Days: findCol(["> 90", "90+"]),
       };
 
       for (let i = headerIndex + 1; i < rows.length; i++) {
@@ -688,115 +695,139 @@ export class EmailSystemWorker {
 
         const dealerNameRaw = dealerCol !== undefined ? String(row[dealerCol] ?? "").trim() : "";
 
-        // 🔥 LOGIC: Explicit Skips (Forensic Mode)
-        if (!dealerNameRaw) {
-          console.log("[OUT-SKIPPED] Empty dealer row");
-          continue;
-        }
+        if (!dealerNameRaw) continue; // Skip strictly empty rows
 
         const upper = dealerNameRaw.toUpperCase();
 
-        if (upper.includes("GRAND TOTAL")) {
-          // 🔥 CHANGED: Continue instead of break to avoid silent truncation
-          console.log("[OUT-DERIVED] Grand Total skipped.");
-          continue;
+        // 🔥 LOGIC: Explicit Garbage Filter
+        // 1. Skip Totals
+        if (upper.includes("GRAND TOTAL")) { console.log("[OUT-DERIVED] Grand Total skipped."); continue; }
+        if (upper.includes("TOTAL") || upper.includes("SUMMARY")) { continue; }
+        
+        // 2. Skip Metadata/Titles (e.g., "Sundry Debtors Age Wise...")
+        if (upper.includes("AGE WISE") || upper.includes("AS ON") || upper.includes("TILL")) { 
+            console.log("[OUT-SKIPPED] Metadata row:", dealerNameRaw); 
+            continue; 
         }
 
-        if (upper.includes("TOTAL") || upper.includes("SUMMARY")) {
-          console.log("[OUT-SKIPPED] Derived row:", dealerNameRaw);
-          continue;
+        // 3. Skip Numeric "Names" (e.g. "60,000", "50.00", "-", "102800")
+        // Checks if string contains digits and is NOT a mixed alphanum code like "JSB001"
+        // It catches "100,000", "50.00", "200", "-"
+        if (/^[\d,.\s-]+$/.test(dealerNameRaw) && /\d/.test(dealerNameRaw)) {
+             console.log("[OUT-SKIPPED] Numeric garbage detected in Name column:", dealerNameRaw);
+             continue;
         }
+        if (dealerNameRaw === "-") continue;
 
         const normalizedName = this.normalizeName(dealerNameRaw);
         const resolvedDealerId = dealerMap.get(normalizedName) || null;
 
-        // 🔥 CHANGED: Do NOT skip unmatched. Insert them.
         if (!resolvedDealerId) {
-          console.log("[OUT-UNMATCHED] Dealer not in verified table. Still inserting:", {
+          console.log("[OUT-UNMATCHED] Dealer not in verified table. Aggregating anyway:", {
             dealerNameRaw,
             normalizedName
           });
         }
 
-        const bucketValues: any = {};
+        // --- EXTRACT VALUES ---
+        const currentDeposit = depositCol !== undefined ? num(row[depositCol]) : 0;
+        const currentPending = pendingCol !== undefined ? num(row[pendingCol]) : 0;
+        const currentBuckets: any = {};
         for (const key of Object.keys(bucketMap)) {
           const colIndex = bucketMap[key as keyof typeof bucketMap];
-          bucketValues[key] = colIndex !== undefined ? num(row[colIndex]) : 0;
+          currentBuckets[key] = colIndex !== undefined ? num(row[colIndex]) : 0;
         }
 
-        const record = {
-          id: randomUUID(),
-          reportDate: reportDate,
-          verifiedDealerId: resolvedDealerId,
-          isAccountJsbJud: isAccountJsbJud,
-          // ⚠️ Storing raw name temporarily for proper deduplication key generation
-          tempDealerName: dealerNameRaw,
+        // --- DEDUP KEY (ID Priority) ---
+        const dedupIdentifier = resolvedDealerId
+          ? `ID_${resolvedDealerId}`
+          : `NAME_${normalizedName}`;
 
-          securityDepositAmt: String(depositCol !== undefined ? num(row[depositCol]) : 0),
-          pendingAmt: String(pendingCol !== undefined ? num(row[pendingCol]) : 0),
-          lessThan10Days: String(bucketValues.lessThan10Days),
-          days10To15: String(bucketValues.days10To15),
-          days15To21: String(bucketValues.days15To21),
-          days21To30: String(bucketValues.days21To30),
-          days30To45: String(bucketValues.days30To45),
-          days45To60: String(bucketValues.days45To60),
-          days60To75: String(bucketValues.days60To75),
-          days75To90: String(bucketValues.days75To90),
-          greaterThan90Days: String(bucketValues.greaterThan90Days),
-          isOverdue: bucketValues.greaterThan90Days > 0,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
+        const key = `${reportDate}_${isAccountJsbJud}_${dedupIdentifier}`;
 
-        // 🔥 LOGIC: Selected Row Logging
-        console.log("[OUT-SELECTED]", {
-          reportDate,
-          dealer: dealerNameRaw,
-          verifiedDealerId: resolvedDealerId,
-          pending: pendingCol !== undefined ? num(row[pendingCol]) : 0,
-          security: depositCol !== undefined ? num(row[depositCol]) : 0
-        });
+        // --- MERGE / INSERT LOGIC ---
+        if (uniqueMap.has(key)) {
+          const existing = uniqueMap.get(key);
+          
+          existing.securityDepositAmt += currentDeposit;
+          existing.pendingAmt += currentPending;
 
-        rawRecords.push(record);
+          existing.lessThan10Days += currentBuckets.lessThan10Days;
+          existing.days10To15 += currentBuckets.days10To15;
+          existing.days15To21 += currentBuckets.days15To21;
+          existing.days21To30 += currentBuckets.days21To30;
+          existing.days30To45 += currentBuckets.days30To45;
+          existing.days45To60 += currentBuckets.days45To60;
+          existing.days60To75 += currentBuckets.days60To75;
+          existing.days75To90 += currentBuckets.days75To90;
+          existing.greaterThan90Days += currentBuckets.greaterThan90Days;
+
+          existing.isOverdue = existing.greaterThan90Days > 0;
+
+          console.log(`[OUT-MERGE] Aggregated duplicate for ${dedupIdentifier}. New Pending: ${existing.pendingAmt}`);
+
+        } else {
+          uniqueMap.set(key, {
+            id: randomUUID(),
+            reportDate,
+            verifiedDealerId: resolvedDealerId,
+            isAccountJsbJud,
+            tempDealerName: dealerNameRaw, 
+
+            securityDepositAmt: currentDeposit,
+            pendingAmt: currentPending,
+            
+            lessThan10Days: currentBuckets.lessThan10Days,
+            days10To15: currentBuckets.days10To15,
+            days15To21: currentBuckets.days15To21,
+            days21To30: currentBuckets.days21To30,
+            days30To45: currentBuckets.days30To45,
+            days45To60: currentBuckets.days45To60,
+            days60To75: currentBuckets.days60To75,
+            days75To90: currentBuckets.days75To90,
+            greaterThan90Days: currentBuckets.greaterThan90Days,
+            
+            isOverdue: currentBuckets.greaterThan90Days > 0,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
       }
     }
 
-    console.log(`[VERIFY-OUT] Raw rows built: ${rawRecords.length}`);
+    // Convert to Array & Stringify Numbers for Drizzle
+    const finalRecords = Array.from(uniqueMap.values()).map(r => ({
+      ...r,
+      securityDepositAmt: String(r.securityDepositAmt),
+      pendingAmt: String(r.pendingAmt),
+      lessThan10Days: String(r.lessThan10Days),
+      days10To15: String(r.days10To15),
+      days15To21: String(r.days15To21),
+      days21To30: String(r.days21To30),
+      days30To45: String(r.days30To45),
+      days45To60: String(r.days45To60),
+      days60To75: String(r.days60To75),
+      days75To90: String(r.days75To90),
+      greaterThan90Days: String(r.greaterThan90Days),
+    }));
 
-    if (!rawRecords.length) {
+    console.log(`[VERIFY-OUT] Sheet prepared ${finalRecords.length} AGGREGATED rows for ${reportDate}`);
+
+    if (!finalRecords.length) {
       console.log("[OUTSTANDING] No valid rows found.");
       return;
     }
 
     /* --------------------------------------------------
-       STEP 4: DEDUPLICATE (Last-Write-Wins)
-    -------------------------------------------------- */
-    const uniqueMap = new Map<string, any>();
-    for (const rec of rawRecords) {
-      // 🔥 CHANGED: Unique Constraint Logic
-      // If ID exists, use ID. If not, use Raw Name to avoid collapsing all unmatched into one.
-      const key = rec.verifiedDealerId
-        ? `${rec.reportDate}_${rec.verifiedDealerId}_${rec.isAccountJsbJud}`
-        : `${rec.reportDate}_${rec.tempDealerName}_${rec.isAccountJsbJud}`;
-
-      uniqueMap.set(key, rec);
-    }
-
-    const finalRecords = Array.from(uniqueMap.values());
-    console.log(`[OUTSTANDING] Deduplicated: ${rawRecords.length} -> ${finalRecords.length} unique rows.`);
-
-    /* --------------------------------------------------
        STEP 5: EXECUTE UPSERT (WITH DB COUNTS)
     -------------------------------------------------- */
 
-    // 🔥 LOGIC: DB Count Before
     const dbCountBefore = await db
       .select({ count: sql<number>`count(*)` })
       .from(outstandingReports)
       .where(eq(outstandingReports.reportDate, reportDate));
 
     console.log(`[VERIFY-OUT] DB rows BEFORE upsert: ${dbCountBefore[0]?.count}`);
-
 
     await db.insert(outstandingReports)
       .values(finalRecords)
@@ -810,8 +841,6 @@ export class EmailSystemWorker {
           securityDepositAmt: sql`excluded.security_deposit_amt`,
           pendingAmt: sql`excluded.pending_amt`,
           lessThan10Days: sql`excluded.less_than_10_days`,
-
-          // 🛠️ QUOTED IDENTIFIERS: Fixes "trailing junk after numeric literal"
           days10To15: sql`excluded."10_to_15_days"`,
           days15To21: sql`excluded."15_to_21_days"`,
           days21To30: sql`excluded."21_to_30_days"`,
@@ -819,21 +848,18 @@ export class EmailSystemWorker {
           days45To60: sql`excluded."45_to_60_days"`,
           days60To75: sql`excluded."60_to_75_days"`,
           days75To90: sql`excluded."75_to_90_days"`,
-
           greaterThan90Days: sql`excluded.greater_than_90_days`,
           isOverdue: sql`excluded.is_overdue`,
           updatedAt: new Date(),
         }
       });
 
-    // 🔥 LOGIC: DB Count After
     const dbCountAfter = await db
       .select({ count: sql<number>`count(*)` })
       .from(outstandingReports)
       .where(eq(outstandingReports.reportDate, reportDate));
 
     console.log(`[VERIFY-OUT] DB rows AFTER upsert: ${dbCountAfter[0]?.count}`);
-
     console.log(`[OUTSTANDING] Upserted ${finalRecords.length} records.`);
   }
   /* =========================================================
