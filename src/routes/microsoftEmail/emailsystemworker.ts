@@ -7,7 +7,7 @@ import {
   projectionReports,
   projectionVsActualReports,
   outstandingReports,
-  verifiedDealers, // <--- Verified Dealers Table
+  verifiedDealers,
 } from "../../db/schema";
 import { eq, and, sql } from "drizzle-orm";
 import { EmailSystem } from "../../services/emailSystem";
@@ -569,10 +569,11 @@ export class EmailSystemWorker {
       console.log(`[PJP] Successfully created ${tasks.length} tasks.`);
     }
   }
+
   /*============================================================
       HELPER: Outstanding Report (With Duplication Fix & Upsert)
     ============================================================ */
-private async processOutstandingRows(
+  private async processOutstandingRows(
     rows: (string | number | null)[][],
     meta: { messageId: string; fileName?: string },
     institution: string | null
@@ -689,6 +690,16 @@ private async processOutstandingRows(
         greaterThan90Days: findCol(["> 90", "90+"]),
       };
 
+      // 🛑 BLOCK LIST for Summary Headers 🛑
+      const BLOCK_LIST = new Set([
+        "TRIPURA", "MEGHALAYA", "MIZORAM", "NAGALAND", "ARUNACHAL PRADESH", "MANIPUR",
+        "ASSAM", "LOWER ASSAM", "UPPER ASSAM", "CENTRAL ASSAM", "NORTH BANK",
+        "BARAK VALLEY", "KAMRUP", "KAMRUP (M)", "KAMRUP (R)", "NON TRADE", "OTHERS",
+        "EAST JAINTIA HILLS", "WEST JAINTIA HILLS", "EAST KHASI HILLS", "RI BHOI",
+        "NORTH TRIPURA", "SOUTH TRIPURA", "WEST TRIPURA", "DHALAI",
+        "CACHAR", "KARIMGANJ", "HAILAKANDI", "AIZAWL"
+      ]);
+
       for (let i = headerIndex + 1; i < rows.length; i++) {
         const row = rows[i];
         if (!row?.length) continue;
@@ -702,15 +713,17 @@ private async processOutstandingRows(
         // 🔥 LOGIC: Explicit Garbage Filter
         if (upper.includes("GRAND TOTAL")) { console.log("[OUT-DERIVED] Grand Total skipped."); continue; }
         if (upper.includes("TOTAL") || upper.includes("SUMMARY")) { continue; }
-        
-        if (upper.includes("AGE WISE") || upper.includes("AS ON") || upper.includes("TILL")) { 
-            console.log("[OUT-SKIPPED] Metadata row:", dealerNameRaw); 
-            continue; 
+        if (upper.includes("AGE WISE") || upper.includes("AS ON") || upper.includes("TILL")) { continue; }
+
+        // 🛑 NEW: SKIP REGION HEADERS TO PREVENT DOUBLE COUNTING
+        if (BLOCK_LIST.has(upper)) {
+          console.log(`[OUT-SKIPPED] Detected Region/Zone Header: ${dealerNameRaw}`);
+          continue;
         }
 
         if (/^[\d,.\s-]+$/.test(dealerNameRaw) && /\d/.test(dealerNameRaw)) {
-             console.log("[OUT-SKIPPED] Numeric garbage detected in Name column:", dealerNameRaw);
-             continue;
+          console.log("[OUT-SKIPPED] Numeric garbage detected in Name column:", dealerNameRaw);
+          continue;
         }
         if (dealerNameRaw === "-") continue;
 
@@ -743,7 +756,7 @@ private async processOutstandingRows(
         // --- MERGE / INSERT LOGIC ---
         if (uniqueMap.has(key)) {
           const existing = uniqueMap.get(key);
-          
+
           existing.securityDepositAmt += currentDeposit;
           existing.pendingAmt += currentPending;
 
@@ -767,13 +780,13 @@ private async processOutstandingRows(
             reportDate,
             verifiedDealerId: resolvedDealerId,
             isAccountJsbJud,
-            
+
             // 🔥 CRITICAL: Saving raw name for Frontend Fallback
             tempDealerName: dealerNameRaw,
 
             securityDepositAmt: currentDeposit,
             pendingAmt: currentPending,
-            
+
             lessThan10Days: currentBuckets.lessThan10Days,
             days10To15: currentBuckets.days10To15,
             days15To21: currentBuckets.days15To21,
@@ -783,7 +796,7 @@ private async processOutstandingRows(
             days60To75: currentBuckets.days60To75,
             days75To90: currentBuckets.days75To90,
             greaterThan90Days: currentBuckets.greaterThan90Days,
-            
+
             isOverdue: currentBuckets.greaterThan90Days > 0,
             createdAt: new Date(),
             updatedAt: new Date(),
@@ -866,6 +879,10 @@ private async processOutstandingRows(
      HELPER: COLLECTIONS (UPSERT STRATEGY)
      Ensures historical data is preserved without duplicates
   ========================================================= */
+  /* =========================================================
+       HELPER: COLLECTIONS (UPSERT STRATEGY)
+       Ensures historical data is preserved without duplicates
+    ========================================================= */
   private async processCollectionRows(
     rows: (string | number | null)[][],
     institution: string | null,
@@ -963,6 +980,16 @@ private async processOutstandingRows(
     -------------------------------------------------- */
     const uniqueRecords = new Map<string, any>();
 
+    // 🛑 BLOCK LIST for Summary Headers 🛑
+    const BLOCK_LIST = new Set([
+      "TRIPURA", "MEGHALAYA", "MIZORAM", "NAGALAND", "ARUNACHAL PRADESH", "MANIPUR",
+      "ASSAM", "LOWER ASSAM", "UPPER ASSAM", "CENTRAL ASSAM", "NORTH BANK",
+      "BARAK VALLEY", "KAMRUP", "KAMRUP (M)", "KAMRUP (R)", "NON TRADE", "OTHERS",
+      "EAST JAINTIA HILLS", "WEST JAINTIA HILLS", "EAST KHASI HILLS", "RI BHOI",
+      "NORTH TRIPURA", "SOUTH TRIPURA", "WEST TRIPURA", "DHALAI",
+      "CACHAR", "KARIMGANJ", "HAILAKANDI", "AIZAWL"
+    ]);
+
     for (let i = headerIndex + 1; i < rows.length; i++) {
       const row = rows[i];
       const voucherNo = get(row, "VOUCHER NO");
@@ -971,6 +998,13 @@ private async processOutstandingRows(
       if (!voucherNo || this.isDerivedRow(voucherNo)) continue;
 
       const partyNameRaw = get(row, "PARTY NAME");
+
+      // 🔥 LOGIC: Block Region Headers disguised as Parties
+      const upperParty = String(partyNameRaw ?? "").trim().toUpperCase();
+      if (BLOCK_LIST.has(upperParty) || upperParty.includes("TOTAL") || upperParty.includes("SUMMARY")) {
+        console.log(`[COL-SKIPPED] Detected Region/Summary Row: ${partyNameRaw}`);
+        continue;
+      }
 
       // 🔥 LOGIC: Forensic Unmatched Logging
       const normalizedName = this.normalizeName(partyNameRaw || "");
@@ -1070,6 +1104,10 @@ private async processOutstandingRows(
           HELPER: PROJECTIONS (UPSERT STRATEGY)
           Updated: Lossless Ingestion (No Memory Dedup)
        ========================================================= */
+  /* =========================================================
+            HELPER: PROJECTIONS (UPSERT STRATEGY)
+            Updated: Lossless Ingestion (No Memory Dedup)
+         ========================================================= */
   private async processProjectionRows(
     rows: (string | number | null)[][],
     meta: { messageId: string; fileName?: string },
@@ -1158,6 +1196,16 @@ private async processOutstandingRows(
     -------------------------------------------------- */
     const uniqueMap = new Map<string, any>();
 
+    // 🛑 BLOCK LIST for Summary Headers 🛑
+    const BLOCK_LIST = new Set([
+      "TRIPURA", "MEGHALAYA", "MIZORAM", "NAGALAND", "ARUNACHAL PRADESH", "MANIPUR",
+      "ASSAM", "LOWER ASSAM", "UPPER ASSAM", "CENTRAL ASSAM", "NORTH BANK",
+      "BARAK VALLEY", "KAMRUP", "KAMRUP (M)", "KAMRUP (R)", "NON TRADE", "OTHERS",
+      "EAST JAINTIA HILLS", "WEST JAINTIA HILLS", "EAST KHASI HILLS", "RI BHOI",
+      "NORTH TRIPURA", "SOUTH TRIPURA", "WEST TRIPURA", "DHALAI",
+      "CACHAR", "KARIMGANJ", "HAILAKANDI", "AIZAWL"
+    ]);
+
     for (let i = headerIndex + 2; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
@@ -1170,8 +1218,16 @@ private async processOutstandingRows(
 
       // 🔥 FIX 1: FILTER GHOST ROWS
       // If no dealers are named AND the zone is empty/generic, skip it.
-      // This prevents the "NAME__" collision crash.
       if (!orderDealer && !collDealer) continue;
+
+      // 🔥 LOGIC: Block Region Headers disguised as Parties
+      const upperOrder = String(orderDealer ?? "").trim().toUpperCase();
+      const upperColl = String(collDealer ?? "").trim().toUpperCase();
+
+      if (BLOCK_LIST.has(upperOrder) || BLOCK_LIST.has(upperColl)) {
+        console.log(`[PROJ-SKIPPED] Detected Region/Summary Row: ${orderDealer || collDealer}`);
+        continue;
+      }
 
       let resolvedDealerId: number | null = null;
       if (orderDealer) resolvedDealerId = dealerMap.get(this.normalizeName(orderDealer)) || null;
@@ -1273,6 +1329,10 @@ private async processOutstandingRows(
          HELPER: PROJECTION VS ACTUAL (UPSERT STRATEGY)
          Updated: Lossless Ingestion (No Filters, No Memory Dedup)
       ========================================================= */
+  /* =========================================================
+           HELPER: PROJECTION VS ACTUAL (UPSERT STRATEGY)
+           Updated: Lossless Ingestion (No Filters, No Memory Dedup)
+        ========================================================= */
   private async processProjectionVsActualRows(
     rows: (string | number | null)[][],
     meta: { messageId: string; fileName?: string },
@@ -1379,6 +1439,16 @@ private async processOutstandingRows(
     const finalRecords: any[] = [];
     let currentZone = "";
 
+    // 🛑 BLOCK LIST for Summary Headers 🛑
+    const BLOCK_LIST = new Set([
+      "TRIPURA", "MEGHALAYA", "MIZORAM", "NAGALAND", "ARUNACHAL PRADESH", "MANIPUR",
+      "ASSAM", "LOWER ASSAM", "UPPER ASSAM", "CENTRAL ASSAM", "NORTH BANK",
+      "BARAK VALLEY", "KAMRUP", "KAMRUP (M)", "KAMRUP (R)", "NON TRADE", "OTHERS",
+      "EAST JAINTIA HILLS", "WEST JAINTIA HILLS", "EAST KHASI HILLS", "RI BHOI",
+      "NORTH TRIPURA", "SOUTH TRIPURA", "WEST TRIPURA", "DHALAI",
+      "CACHAR", "KARIMGANJ", "HAILAKANDI", "AIZAWL"
+    ]);
+
     for (let i = headerIndex + 2; i < rows.length; i++) {
       const row = rows[i];
       if (!row.length) continue;
@@ -1399,6 +1469,13 @@ private async processOutstandingRows(
 
       // 🔥 LOGIC: Only filter derived rows. Allow empty dealer names.
       if (this.isDerivedRow(dealer)) continue;
+
+      // 🛑 NEW: SKIP REGION HEADERS TO PREVENT DOUBLE COUNTING
+      const upperDealer = String(dealer ?? "").trim().toUpperCase();
+      if (BLOCK_LIST.has(upperDealer) || upperDealer.includes("TOTAL") || upperDealer.includes("SUMMARY")) {
+        console.log(`[PVA-SKIPPED] Detected Region/Summary Row: ${dealer}`);
+        continue;
+      }
 
       const resolvedDealerId = dealerMap.get(this.normalizeName(dealer)) || null;
 
