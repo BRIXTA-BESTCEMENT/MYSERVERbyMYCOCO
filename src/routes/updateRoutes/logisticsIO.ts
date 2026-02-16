@@ -36,6 +36,9 @@ export default function setupLogisticsIOUpdateRoutes(app: Express) {
         diffTareWtGrossWt,
         gateOutDate,
         gateOutTime,
+        gateOutNoOfInvoice,
+        gateOutInvoiceNos,
+        gateOutBillNos,
         diffGrossWtGateOut,
         diffGrossWtInvoiceDT,
         diffInvoiceDTGateOut,
@@ -89,6 +92,9 @@ export default function setupLogisticsIOUpdateRoutes(app: Express) {
       if (wbOutTime !== undefined) updateData.wbOutTime = wbOutTime;
       if (diffTareWtGrossWt !== undefined) updateData.diffTareWtGrossWt = diffTareWtGrossWt;
       if (gateOutTime !== undefined) updateData.gateOutTime = gateOutTime;
+      if (gateOutNoOfInvoice !== undefined) updateData.gateOutNoOfInvoice = gateOutNoOfInvoice;
+      if (gateOutInvoiceNos !== undefined) updateData.gateOutInvoiceNos = Array.isArray(gateOutInvoiceNos) ? gateOutInvoiceNos : [];
+      if (gateOutBillNos !== undefined) updateData.gateOutBillNos = Array.isArray(gateOutBillNos) ? gateOutBillNos : [];
       if (diffGrossWtGateOut !== undefined) updateData.diffGrossWtGateOut = diffGrossWtGateOut;
       if (diffGrossWtInvoiceDT !== undefined) updateData.diffGrossWtInvoiceDT = diffGrossWtInvoiceDT;
       if (diffInvoiceDTGateOut !== undefined) updateData.diffInvoiceDTGateOut = diffInvoiceDTGateOut;
