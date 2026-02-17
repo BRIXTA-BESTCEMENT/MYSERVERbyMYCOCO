@@ -1,7 +1,7 @@
 services:
   mycocoserver:
     # Use your Docker image name here
-    image: zahrbrixta/mycocoserverz:v6
+    image: goswamirohit/mycocoserver:v39
     container_name: mycocoserver
     restart: unless-stopped
     # Maps host port 4000 to the container's exposed port 8000 (from your Dockerfile)
@@ -10,3 +10,36 @@ services:
     # Tells Docker Compose to read environment variables from a .env file in the same directory
     env_file:
       - .env
+
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - TWILIO_ACCOUNT_SID=${TWILIO_ACCOUNT_SID}
+      - TWILIO_AUTH_TOKEN=${TWILIO_AUTH_TOKEN}
+      - TWILIO_PHONE_NUMBER=${TWILIO_PHONE_NUMBER}
+      - TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN}
+      - OPENROUTER_API_KEY=${OPENROUTER_API_KEY}
+      - QDRANT_URL=${QDRANT_URL}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - VITE_RADAR_PUBLISHABLE_KEY=${VITE_RADAR_PUBLISHABLE_KEY}
+      - RADAR_SECRET_KEY=${RADAR_SECRET_KEY}
+      - LOCATIONIQ_KEY=${LOCATIONIQ_KEY}
+      - JWT_SECRET=${JWT_SECRET}
+      - PORT=${PORT}
+      - NODE_ENV=${NODE_ENV}
+      - WSPORT=${WSPORT}
+      - R2_ACCOUNT_ID=${R2_ACCOUNT_ID}
+      - R2_BUCKET_NAME=${R2_BUCKET_NAME}
+      - R2_ACCESS_KEY_ID=${R2_ACCESS_KEY_ID}
+      - R2_SECRET_ACCESS_KEY=${R2_SECRET_ACCESS_KEY}
+      - R2_ENDPOINT=${R2_ENDPOINT}
+      - R2_PUBLIC_URL=${R2_PUBLIC_URL}
+      - R_API_KEY=${R_API_KEY}
+      - FIREBASE_SERVICE_ACCOUNT_JSON=${FIREBASE_SERVICE_ACCOUNT_JSON}
+      - TENANT_ID=${TENANT_ID}
+      - CLIENT_ID=${CLIENT_ID}
+      - OBJECT_ID=${OBJECT_ID}
+      - CLIENT_SECRET=${CLIENT_SECRET}
+      - SECRET_ID=${SECRET_ID}
+      - MAILBOX=${MAILBOX}
+      - PROCESSED_FOLDER_ID=${PROCESSED_FOLDER_ID}
