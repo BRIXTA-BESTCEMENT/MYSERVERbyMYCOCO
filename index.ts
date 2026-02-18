@@ -137,11 +137,11 @@ import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
 
-const worker = new EmailSystemWorker();
+// const worker = new EmailSystemWorker();
 
-worker.Start().catch((e) => {
-  console.error("Worker crashed unexpectedly:", e);
-});
+// worker.Start().catch((e) => {
+//   console.error("Worker crashed unexpectedly:", e);
+// });
 
 // Initialize environment variables
 

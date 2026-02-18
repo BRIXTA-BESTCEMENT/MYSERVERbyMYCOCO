@@ -567,6 +567,8 @@ export const journeys = pgTable("journeys", {
   pjpId: varchar("pjp_id", { length: 255 }),
   siteId: varchar("site_id", { length: 255 }),
   dealerId: varchar("dealer_id", { length: 255 }),
+  taskId: varchar("task_id", { length: 255 }),
+  verifiedDealerId: integer("verified_dealer_id"),
   siteName: varchar("site_name", { length: 255 }),
   destLat: numeric("dest_lat", { precision: 10, scale: 7 }),
   destLng: numeric("dest_lng", { precision: 10, scale: 7 }),
