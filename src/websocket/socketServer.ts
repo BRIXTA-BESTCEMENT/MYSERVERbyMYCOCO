@@ -94,7 +94,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
 
         // 3. Process Specific Logic (Use 'tx' instead of 'db')
         if (op.type === 'START') {
-          const { siteId, dealerId, siteName, destLat, destLng, pjpId } = op.payload;
+          const { siteId, dealerId, siteName, destLat, destLng, pjpId, taskId, verifiedDealerId } = op.payload;
 
           await tx.insert(journeys).values({
             id: op.journeyId,
@@ -105,6 +105,8 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
             pjpId: pjpId,
             siteId: siteId,
             dealerId: dealerId,
+            taskId: taskId || null,                     
+            verifiedDealerId: verifiedDealerId || null, 
             destLat: destLat ? destLat.toString() : null,
             destLng: destLng ? destLng.toString() : null,
             isSynced: true,
