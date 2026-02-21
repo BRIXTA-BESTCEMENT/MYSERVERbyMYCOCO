@@ -267,6 +267,13 @@
       "when": 1771180432396,
       "tag": "0037_special_dagger",
       "breakpoints": true
+    },
+    {
+      "idx": 38,
+      "version": "7",
+      "when": 1771700403478,
+      "tag": "0038_cool_drax",
+      "breakpoints": true
     }
   ]
 }
