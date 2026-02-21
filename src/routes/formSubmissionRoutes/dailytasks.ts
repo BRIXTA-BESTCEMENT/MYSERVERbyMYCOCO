@@ -7,24 +7,6 @@ import { dailyTasks, insertDailyTaskSchema } from '../../db/schema';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
 
-// Manual Zod schema EXACTLY matching the table schema with empty string handling
-// const dailyTaskSchema = z.object({
-//   userId: z.number().int().positive(),
-//   assignedByUserId: z.number().int().positive(),
-//   taskDate: z.string().or(z.date()),
-//   visitType: z.string().max(50),
-//   relatedDealerId: z.string().max(255).optional().or(z.literal("")),
-//   siteName: z.string().max(255).optional().or(z.literal("")),
-//   description: z.string().max(500).optional().or(z.literal("")),
-//   status: z.string().max(50).default("Assigned"),
-//   pjpId: z.string().max(255).optional().or(z.literal("")),
-// }).transform((data) => ({
-//   ...data,
-//   relatedDealerId: data.relatedDealerId === "" ? null : data.relatedDealerId,
-//   siteName: data.siteName === "" ? null : data.siteName,
-//   description: data.description === "" ? null : data.description,
-//   pjpId: data.pjpId === "" ? null : data.pjpId,
-// }));
 
 function createAutoCRUD(app: Express, config: {
   endpoint: string,
@@ -58,7 +40,7 @@ function createAutoCRUD(app: Express, config: {
         ...executedAutoFields
       };
 
-      const [newRecord] = await db.insert(table).values(insertData).returning();
+      const [newRecord] : any = await db.insert(table).values(insertData).returning();
 
       res.status(201).json({
         success: true,

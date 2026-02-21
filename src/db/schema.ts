@@ -419,17 +419,16 @@ export const verifiedDealers = pgTable("verified_dealers", {
 /* ========================= email_reports (NEW) ========================= */
 export const emailReports = pgTable("email_reports", {
   id: uuid("id").primaryKey().defaultRandom(),
-
   messageId: text("message_id").notNull(), // Graph mail id
   subject: text("subject"),
   sender: text("sender"),
-
   fileName: text("file_name"),
-
   payload: jsonb("payload").notNull(), // ← your Excel → JSON here
-
   processed: boolean("processed").default(false),
-
+  institution: text("institution"),
+  reportName: text("report_name"),
+  dealerNames: jsonb("dealer_names"), // array of unique dealer names
+  reportDate: date("report_date"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 }, (t) => [
   index("idx_email_reports_message").on(t.messageId),
