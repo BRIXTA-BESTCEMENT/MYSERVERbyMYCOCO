@@ -18,9 +18,20 @@ const meetingInputSchema = z
     createdByUserId: z.coerce.number().int().positive(),
     type: z.string().max(100).min(1, "Type is required"),
     date: z.coerce.date(),
-    location: z.string().max(500).min(1, "Location is required"),
+    location: z.string().max(500).optional().nullable(),
     budgetAllocated: nullableNumber,
     participantsCount: z.coerce.number().int().positive().optional().nullable(),
+    zone: z.string().max(100).optional().nullable(),
+    market: z.string().max(100).optional().nullable(),
+    dealerName: z.string().max(255).optional().nullable(),
+    dealerAddress: z.string().max(500).optional().nullable(),
+    conductedBy: z.string().max(255).optional().nullable(),
+    giftType: z.string().max(255).optional().nullable(),
+    accountJsbJud: z.string().max(100).optional().nullable(),
+    totalExpenses: z.coerce.number().optional().nullable(), 
+    billSubmitted: z.boolean().optional().nullable(),
+    meetImageUrl: z.string().max(500).optional().nullable(), 
+    siteId: z.string().uuid().optional().nullable(),
   })
   .strict();
 
@@ -32,18 +43,24 @@ export default function setupTsoMeetingsPostRoutes(app: Express) {
 
       // 2) map to insert
       const insertData = {
-        id: randomUUID(), // App-generated UUID
+        id: randomUUID(), 
         createdByUserId: input.createdByUserId,
         type: input.type,
-        date: toDateOnly(input.date), // Normalize to YYYY-MM-DD
-        location: input.location,
-        
-        // Handle numeric(12, 2) - Drizzle expects string
-        budgetAllocated: input.budgetAllocated 
-          ? String(input.budgetAllocated) 
-          : null,
-          
+        date: toDateOnly(input.date), 
         participantsCount: input.participantsCount ?? null,
+        zone: input.zone ?? null,
+        market: input.market ?? null,
+        dealerName: input.dealerName ?? null,
+        dealerAddress: input.dealerAddress ?? null,
+        conductedBy: input.conductedBy ?? null,
+        giftType: input.giftType ?? null,
+        accountJsbJud: input.accountJsbJud ?? null,
+        totalExpenses: input.totalExpenses 
+          ? String(input.totalExpenses) 
+          : null,
+        billSubmitted: input.billSubmitted ?? false,
+        meetImageUrl: input.meetImageUrl ?? null,
+        siteId: input.siteId ?? null,
       };
 
       // 3) insert + return

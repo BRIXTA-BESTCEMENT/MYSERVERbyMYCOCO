@@ -21,6 +21,7 @@ const meetingPatchSchema = z
     location: z.string().max(500).min(1).optional(),
     budgetAllocated: nullableNumber,
     participantsCount: z.coerce.number().int().positive().optional().nullable(),
+    meetImageUrl: z.string().max(300).optional().nullable(),
   })
   .strict();
 
@@ -54,6 +55,7 @@ export default function setupTsoMeetingsPatchRoutes(app: Express) {
       if (input.date !== undefined) patch.date = toDateOnly(input.date);
       if (input.location !== undefined) patch.location = input.location;
       if (input.participantsCount !== undefined) patch.participantsCount = input.participantsCount;
+      if (input.meetImageUrl !== undefined) patch.meetImageUrl = input.meetImageUrl ?? null; 
 
       // Handle numeric
       if (input.budgetAllocated !== undefined) {

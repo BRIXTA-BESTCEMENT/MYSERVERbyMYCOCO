@@ -111,6 +111,7 @@ export const tsoMeetings = pgTable("tso_meetings", {
   accountJsbJud: varchar("account_jsb_jud", { length: 100 }),
   totalExpenses: numeric("total_expenses", { precision: 12, scale: 2 }),
   billSubmitted: boolean("bill_submitted").default(false),
+  meetImageUrl: varchar("meet_image_url", { length: 300 }),
   createdByUserId: integer("created_by_user_id").notNull().references(() => users.id),
   siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
 
