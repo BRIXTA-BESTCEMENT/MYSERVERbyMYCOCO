@@ -21,9 +21,8 @@ import {
   brands,
   dealerBrandMapping,
   tsoMeetings,
-  rewards, // UPDATED: Renamed from giftInventory
+  rewards, 
   giftAllocationLogs,
-  tallyRaw,
   masonPcSide,
   otpVerifications,
   schemesOffers,
@@ -84,7 +83,6 @@ async function seedDatabase() {
   await db.delete(companies);
 
   // --- 7. Delete independent tables ---
-  await db.delete(tallyRaw);
   await db.delete(technicalSites);
   
   console.log("Database cleared successfully (no demo data inserted).");

@@ -42,9 +42,6 @@ import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/collec
 import setupOutstandingReportsGetRoutes from './src/routes/dataFetchingRoutes/outstandingReports';
 import setupVerifiedDealersGetRoutes from './src/routes/dataFetchingRoutes/verifiedDealers';
 
-// Data Sync UPSERT
-import setupDealerSyncRoutes from './src/routes/dataSync/dealer';
-
 // --- Import DELETE route setups ---
 import setupDealersDeleteRoutes from './src/routes/deleteRoutes/dealers';
 import setupPermanentJourneyPlansDeleteRoutes from './src/routes/deleteRoutes/pjp';
@@ -299,7 +296,6 @@ setupDailyVisitReportsPatchRoutes(app);
 setupTechnicalVisitReportsPatchRoutes(app);
 setupTsoMeetingsPatchRoutes(app);
 setupSalesOrdersPatchRoutes(app);
-setupDealerSyncRoutes(app);
 
 // mason pc side
 setupMasonPcSidePatchRoutes(app);
