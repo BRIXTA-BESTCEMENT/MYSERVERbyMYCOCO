@@ -1,5 +1,9 @@
 {
+<<<<<<< HEAD
   "id": "aa7355d6-374f-4f18-ac22-8a7338d5e80c",
+=======
+  "id": "8c164eec-f9dd-4aa7-8feb-bfdc423e6820",
+>>>>>>> newemailworker
   "prevId": "2ba5bd2f-7713-4f03-b29a-f0d841fb6337",
   "version": "7",
   "dialect": "postgresql",
@@ -2741,6 +2745,33 @@
           "notNull": false,
           "default": false
         },
+<<<<<<< HEAD
+=======
+        "institution": {
+          "name": "institution",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "report_name": {
+          "name": "report_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dealer_names": {
+          "name": "dealer_names",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "report_date": {
+          "name": "report_date",
+          "type": "date",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> newemailworker
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -4039,6 +4070,7 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "task_id": {
           "name": "task_id",
           "type": "varchar(255)",
@@ -4051,6 +4083,8 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> newemailworker
         "site_name": {
           "name": "site_name",
           "type": "varchar(255)",

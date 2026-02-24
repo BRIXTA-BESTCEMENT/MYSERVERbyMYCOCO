@@ -1,4 +1,5 @@
 {
+<<<<<<< HEAD
   "id": "f378b5bb-1c5e-463a-b8b8-889693232a91",
   "prevId": "aa7355d6-374f-4f18-ac22-8a7338d5e80c",
   "version": "7",
@@ -158,6 +159,13 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+  "id": "69a59a4d-fa8b-430a-9f49-58daaa272724",
+  "prevId": "8c164eec-f9dd-4aa7-8feb-bfdc423e6820",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+>>>>>>> newemailworker
     "public.auth_sessions": {
       "name": "auth_sessions",
       "schema": "",
@@ -956,6 +964,7 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
     "public.construction_site": {
       "name": "construction_site",
       "schema": "",
@@ -1121,6 +1130,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+>>>>>>> newemailworker
     "public.daily_tasks": {
       "name": "daily_tasks",
       "schema": "",
@@ -1132,12 +1143,22 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+<<<<<<< HEAD
+=======
+        "pjp_batch_id": {
+          "name": "pjp_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+>>>>>>> newemailworker
         "user_id": {
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
+<<<<<<< HEAD
         "assigned_by_user_id": {
           "name": "assigned_by_user_id",
           "type": "integer",
@@ -1147,6 +1168,65 @@
         "related_verified_dealer_id": {
           "name": "related_verified_dealer_id",
           "type": "integer",
+=======
+        "dealer_id": {
+          "name": "dealer_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dealer_name_snapshot": {
+          "name": "dealer_name_snapshot",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dealer_mobile": {
+          "name": "dealer_mobile",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone": {
+          "name": "zone",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area": {
+          "name": "area",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "objective": {
+          "name": "objective",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "visit_type": {
+          "name": "visit_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "required_visit_count": {
+          "name": "required_visit_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "week": {
+          "name": "week",
+          "type": "varchar(50)",
+>>>>>>> newemailworker
           "primaryKey": false,
           "notNull": false
         },
@@ -1156,6 +1236,7 @@
           "primaryKey": false,
           "notNull": true
         },
+<<<<<<< HEAD
         "visit_type": {
           "name": "visit_type",
           "type": "varchar(50)",
@@ -1180,6 +1261,8 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> newemailworker
         "status": {
           "name": "status",
           "type": "varchar(50)",
@@ -1187,6 +1270,7 @@
           "notNull": true,
           "default": "'Assigned'"
         },
+<<<<<<< HEAD
         "dealer_name": {
           "name": "dealer_name",
           "type": "varchar(255)",
@@ -1220,21 +1304,35 @@
         "created_at": {
           "name": "created_at",
           "type": "timestamp (6) with time zone",
+=======
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+>>>>>>> newemailworker
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
+<<<<<<< HEAD
           "type": "timestamp (6) with time zone",
+=======
+          "type": "timestamp with time zone",
+>>>>>>> newemailworker
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         }
       },
       "indexes": {
+<<<<<<< HEAD
         "idx_daily_tasks_user_id": {
           "name": "idx_daily_tasks_user_id",
+=======
+        "idx_daily_tasks_user": {
+          "name": "idx_daily_tasks_user",
+>>>>>>> newemailworker
           "columns": [
             {
               "expression": "user_id",
@@ -1248,11 +1346,19 @@
           "method": "btree",
           "with": {}
         },
+<<<<<<< HEAD
         "idx_daily_tasks_assigned_by_user_id": {
           "name": "idx_daily_tasks_assigned_by_user_id",
           "columns": [
             {
               "expression": "assigned_by_user_id",
+=======
+        "idx_daily_tasks_dealer": {
+          "name": "idx_daily_tasks_dealer",
+          "columns": [
+            {
+              "expression": "dealer_id",
+>>>>>>> newemailworker
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1263,8 +1369,13 @@
           "method": "btree",
           "with": {}
         },
+<<<<<<< HEAD
         "idx_daily_tasks_task_date": {
           "name": "idx_daily_tasks_task_date",
+=======
+        "idx_daily_tasks_date": {
+          "name": "idx_daily_tasks_date",
+>>>>>>> newemailworker
           "columns": [
             {
               "expression": "task_date",
@@ -1278,11 +1389,19 @@
           "method": "btree",
           "with": {}
         },
+<<<<<<< HEAD
         "idx_daily_tasks_pjp_id": {
           "name": "idx_daily_tasks_pjp_id",
           "columns": [
             {
               "expression": "pjp_id",
+=======
+        "idx_daily_tasks_zone": {
+          "name": "idx_daily_tasks_zone",
+          "columns": [
+            {
+              "expression": "zone",
+>>>>>>> newemailworker
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1293,11 +1412,19 @@
           "method": "btree",
           "with": {}
         },
+<<<<<<< HEAD
         "idx_daily_tasks_related_dealer_id": {
           "name": "idx_daily_tasks_related_dealer_id",
           "columns": [
             {
               "expression": "related_dealer_id",
+=======
+        "idx_daily_tasks_week": {
+          "name": "idx_daily_tasks_week",
+          "columns": [
+            {
+              "expression": "week",
+>>>>>>> newemailworker
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1308,6 +1435,7 @@
           "method": "btree",
           "with": {}
         },
+<<<<<<< HEAD
         "idx_daily_tasks_date_user": {
           "name": "idx_daily_tasks_date_user",
           "columns": [
@@ -1349,6 +1477,13 @@
           "columns": [
             {
               "expression": "site_id",
+=======
+        "idx_daily_tasks_pjp_batch": {
+          "name": "idx_daily_tasks_pjp_batch",
+          "columns": [
+            {
+              "expression": "pjp_batch_id",
+>>>>>>> newemailworker
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1374,6 +1509,7 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
+<<<<<<< HEAD
         "daily_tasks_assigned_by_user_id_users_id_fk": {
           "name": "daily_tasks_assigned_by_user_id_users_id_fk",
           "tableFrom": "daily_tasks",
@@ -1432,6 +1568,14 @@
           "tableTo": "technical_sites",
           "columnsFrom": [
             "site_id"
+=======
+        "daily_tasks_dealer_id_dealers_id_fk": {
+          "name": "daily_tasks_dealer_id_dealers_id_fk",
+          "tableFrom": "daily_tasks",
+          "tableTo": "dealers",
+          "columnsFrom": [
+            "dealer_id"
+>>>>>>> newemailworker
           ],
           "columnsTo": [
             "id"
@@ -2564,6 +2708,7 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
     "public.detected_building": {
       "name": "detected_building",
       "schema": "",
@@ -2693,6 +2838,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+>>>>>>> newemailworker
     "public.email_reports": {
       "name": "email_reports",
       "schema": "",
@@ -3425,6 +3572,7 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
     "public.grid_change_score": {
       "name": "grid_change_score",
       "schema": "",
@@ -3720,6 +3868,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+>>>>>>> newemailworker
     "public.journey_breadcrumbs": {
       "name": "journey_breadcrumbs",
       "schema": "",
@@ -4063,6 +4213,7 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "task_id": {
           "name": "task_id",
           "type": "varchar(255)",
@@ -4075,6 +4226,8 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> newemailworker
         "site_name": {
           "name": "site_name",
           "type": "varchar(255)",
@@ -7071,6 +7224,72 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
+=======
+    "public.sales_promoters": {
+      "name": "sales_promoters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mobile": {
+          "name": "mobile",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone": {
+          "name": "zone",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "district": {
+          "name": "district",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+>>>>>>> newemailworker
     "public.salesman_attendance": {
       "name": "salesman_attendance",
       "schema": "",
@@ -7383,6 +7602,7 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
     "public.satellite_scene": {
       "name": "satellite_scene",
       "schema": "",
@@ -7578,6 +7798,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+>>>>>>> newemailworker
     "public.scheme_slabs": {
       "name": "scheme_slabs",
       "schema": "",
@@ -8118,6 +8340,7 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
     "public.tally_raw": {
       "name": "tally_raw",
       "schema": "",
@@ -8157,6 +8380,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+>>>>>>> newemailworker
     "public.technical_sites": {
       "name": "technical_sites",
       "schema": "",
@@ -9048,12 +9273,15 @@
           "notNull": false,
           "default": false
         },
+<<<<<<< HEAD
         "meet_image_url": {
           "name": "meet_image_url",
           "type": "varchar(300)",
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> newemailworker
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "integer",
@@ -9147,6 +9375,7 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+<<<<<<< HEAD
     "public.tso_visit": {
       "name": "tso_visit",
       "schema": "",
@@ -9231,6 +9460,8 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+=======
+>>>>>>> newemailworker
     "public.users": {
       "name": "users",
       "schema": "",
@@ -9552,6 +9783,7 @@
           "primaryKey": true,
           "notNull": true
         },
+<<<<<<< HEAD
         "dealer_code": {
           "name": "dealer_code",
           "type": "varchar(255)",
@@ -9570,21 +9802,70 @@
           "primaryKey": false,
           "notNull": false
         },
+=======
+>>>>>>> newemailworker
         "dealer_party_name": {
           "name": "dealer_party_name",
           "type": "varchar(255)",
           "primaryKey": false,
+<<<<<<< HEAD
+=======
+          "notNull": true
+        },
+        "alias": {
+          "name": "alias",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gst_no": {
+          "name": "gst_no",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pan_no": {
+          "name": "pan_no",
+          "type": "varchar(50)",
+          "primaryKey": false,
+>>>>>>> newemailworker
           "notNull": false
         },
         "zone": {
           "name": "zone",
+<<<<<<< HEAD
           "type": "varchar(255)",
+=======
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "district": {
+          "name": "district",
+          "type": "varchar(120)",
+>>>>>>> newemailworker
           "primaryKey": false,
           "notNull": false
         },
         "area": {
           "name": "area",
+<<<<<<< HEAD
           "type": "varchar(255)",
+=======
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pin_code": {
+          "name": "pin_code",
+          "type": "varchar(20)",
+>>>>>>> newemailworker
           "primaryKey": false,
           "notNull": false
         },
@@ -9606,6 +9887,7 @@
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "address": {
           "name": "address",
           "type": "text",
@@ -9620,16 +9902,26 @@
         },
         "related_sp_name": {
           "name": "related_sp_name",
+=======
+        "contact_person": {
+          "name": "contact_person",
+>>>>>>> newemailworker
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "owner_proprietor_name": {
           "name": "owner_proprietor_name",
+=======
+        "dealer_segment": {
+          "name": "dealer_segment",
+>>>>>>> newemailworker
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "nature_of_firm": {
           "name": "nature_of_firm",
           "type": "varchar(255)",
@@ -9650,10 +9942,15 @@
         },
         "user_id": {
           "name": "user_id",
+=======
+        "sales_promoter_id": {
+          "name": "sales_promoter_id",
+>>>>>>> newemailworker
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
+<<<<<<< HEAD
         "dealer_id": {
           "name": "dealer_id",
           "type": "varchar(255)",
@@ -9682,6 +9979,155 @@
           "tableTo": "dealers",
           "columnsFrom": [
             "dealer_id"
+=======
+        "sales_man_name_raw": {
+          "name": "sales_man_name_raw",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "credit_limit": {
+          "name": "credit_limit",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_blank_cheque_no": {
+          "name": "security_blank_cheque_no",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "idx_verified_zone": {
+          "name": "idx_verified_zone",
+          "columns": [
+            {
+              "expression": "zone",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_district": {
+          "name": "idx_verified_district",
+          "columns": [
+            {
+              "expression": "district",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_pincode": {
+          "name": "idx_verified_pincode",
+          "columns": [
+            {
+              "expression": "pin_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_sales_promoter": {
+          "name": "idx_verified_sales_promoter",
+          "columns": [
+            {
+              "expression": "sales_promoter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_segment": {
+          "name": "idx_verified_segment",
+          "columns": [
+            {
+              "expression": "dealer_segment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_gst": {
+          "name": "idx_verified_gst",
+          "columns": [
+            {
+              "expression": "gst_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_mobile": {
+          "name": "idx_verified_mobile",
+          "columns": [
+            {
+              "expression": "contact_no1",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "verified_dealers_sales_promoter_id_sales_promoters_id_fk": {
+          "name": "verified_dealers_sales_promoter_id_sales_promoters_id_fk",
+          "tableFrom": "verified_dealers",
+          "tableTo": "sales_promoters",
+          "columnsFrom": [
+            "sales_promoter_id"
+>>>>>>> newemailworker
           ],
           "columnsTo": [
             "id"

@@ -130,9 +130,20 @@ import setupAuthCredentialRoutes from './src/routes/authCredentials';
 import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 
 //weirdEMAILWORKERthatwillPOLLevery30s
-import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+// import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+import { MasterEmailWorker } from "./src/services/masteremailworker";
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
+
+
+//---------------------------------------------
+//----------------MainMasterEMAILWORKER--------------------
+
+const emailRouter = new MasterEmailWorker();
+emailRouter.Start();
+
+//----------------MainMasterEMAILWORKER--------------------
+//---------------------------------------------
 
 // const worker = new EmailSystemWorker();
 

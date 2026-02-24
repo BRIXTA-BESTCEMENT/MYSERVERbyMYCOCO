@@ -5,7 +5,6 @@ import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { dailyTasks, insertDailyTaskSchema } from '../../db/schema';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
 
 
 function createAutoCRUD(app: Express, config: {
@@ -29,14 +28,9 @@ function createAutoCRUD(app: Express, config: {
       // Validate the payload
       const parsed = schema.parse(req.body);
 
-      // Generate ID manually (fix for the database default issue)
-      const generatedId = randomUUID().replace(/-/g, '').substring(0, 25);
-
       // Prepare data for insertion
       const insertData = {
-        id: generatedId,
         ...parsed,
-        taskDate: new Date(parsed.taskDate),
         ...executedAutoFields
       };
 
@@ -75,10 +69,7 @@ export default function setupDailyTasksPostRoutes(app: Express) {
     table: dailyTasks,
     schema: insertDailyTaskSchema,
     tableName: 'Daily Task',
-    autoFields: {
-      createdAt: () => new Date(),
-      updatedAt: () => new Date()
-    }
+    autoFields: {}
   });
   
   console.log('✅ Daily Tasks POST endpoints setup complete');
