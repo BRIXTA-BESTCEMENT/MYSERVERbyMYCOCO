@@ -1,8 +1,9 @@
 // server/src/routes/dataFetchingRoutes/verifiedDealers.ts
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
-import { verifiedDealers, users, dealers } from '../../db/schema';
-import { eq, and, desc, asc, SQL, getTableColumns, sql } from 'drizzle-orm';
+// Removed users and dealers since those relations no longer exist on verifiedDealers
+import { verifiedDealers } from '../../db/schema'; 
+import { eq, and, desc, asc, SQL, getTableColumns } from 'drizzle-orm';
 
 export default function setupVerifiedDealersGetRoutes(app: Express) {
     const endpoint = 'verified-dealers';
@@ -13,33 +14,22 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
       return Number.isFinite(n) ? n : undefined;
     };
 
-    const booleanish = (v: unknown) => {
-        if (v === 'true' || v === '1') return true;
-        if (v === 'false' || v === '0') return false;
-        return undefined;
-    };
-
     const buildWhere = (q: any): SQL | undefined => {
         const conds: SQL[] = [];
 
+        // New schema string filters
         if (q.zone) conds.push(eq(verifiedDealers.zone, String(q.zone)));
         if (q.area) conds.push(eq(verifiedDealers.area, String(q.area)));
-        if (q.dealerCategory) conds.push(eq(verifiedDealers.dealerCategory, String(q.dealerCategory)));
-        if (q.dealerCode) conds.push(eq(verifiedDealers.dealerCode, String(q.dealerCode)));
+        if (q.district) conds.push(eq(verifiedDealers.district, String(q.district)));
+        if (q.state) conds.push(eq(verifiedDealers.state, String(q.state)));
+        if (q.dealerSegment) conds.push(eq(verifiedDealers.dealerSegment, String(q.dealerSegment)));
+        if (q.gstNo) conds.push(eq(verifiedDealers.gstNo, String(q.gstNo)));
+        if (q.contactNo1) conds.push(eq(verifiedDealers.contactNo1, String(q.contactNo1)));
 
-        const isSub = booleanish(q.isSubdealer);
-        if (isSub !== undefined) {
-            conds.push(eq(verifiedDealers.isSubdealer, isSub));
-        }
-
-        // Foreign keys
-        const userId = numberish(q.userId);
-        if (userId !== undefined) {
-            conds.push(eq(verifiedDealers.userId, userId));
-        }
-
-        if (q.dealerId) {
-            conds.push(eq(verifiedDealers.dealerId, String(q.dealerId)));
+        // New schema foreign key filter
+        const salesPromoterId = numberish(q.salesPromoterId);
+        if (salesPromoterId !== undefined) {
+            conds.push(eq(verifiedDealers.salesPromoterId, salesPromoterId));
         }
 
         if (conds.length === 0) return undefined;
@@ -54,6 +44,8 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
                 return direction === 'asc' ? asc(verifiedDealers.dealerPartyName) : desc(verifiedDealers.dealerPartyName);
             case 'zone':
                 return direction === 'asc' ? asc(verifiedDealers.zone) : desc(verifiedDealers.zone);
+            case 'district':
+                return direction === 'asc' ? asc(verifiedDealers.district) : desc(verifiedDealers.district);
             case 'id':
             default:
                 return direction === 'desc' ? desc(verifiedDealers.id) : asc(verifiedDealers.id);
@@ -76,14 +68,8 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
             const whereCondition: SQL | undefined = conds.length > 0 ? and(...conds) : undefined;
             const orderExpr = buildSort(String(sortBy), String(sortDir));
 
-            const query = db.select({
-                ...getTableColumns(verifiedDealers),
-                tsoName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-                systemDealerName: dealers.name
-            })
-            .from(verifiedDealers)
-            .leftJoin(users, eq(verifiedDealers.userId, users.id))
-            .leftJoin(dealers, eq(verifiedDealers.dealerId, dealers.id));
+            // Removed left joins to users/dealers as the foreign keys were dropped from schema
+            const query = db.select().from(verifiedDealers);
 
             if (whereCondition) {
                 query.where(whereCondition);
@@ -116,14 +102,9 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
                 return res.status(400).json({ success: false, error: 'Invalid ID format' });
             }
 
-            const [record] = await db.select({
-                ...getTableColumns(verifiedDealers),
-                tsoName: sql<string>`${users.firstName} || ' ' || ${users.lastName}`,
-                systemDealerName: dealers.name
-            })
+            // Removed left joins to users/dealers as the foreign keys were dropped from schema
+            const [record] = await db.select()
                 .from(verifiedDealers)
-                .leftJoin(users, eq(verifiedDealers.userId, users.id))
-                .leftJoin(dealers, eq(verifiedDealers.dealerId, dealers.id))
                 .where(eq(verifiedDealers.id, id))
                 .limit(1);
 
@@ -142,13 +123,13 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
         }
     });
 
-    // 3. GET BY USER ID (TSO)
-    app.get(`/api/${endpoint}/user/:userId`, (req, res) => {
-        const userId = numberish(req.params.userId);
-        if (userId === undefined) {
-            return res.status(400).json({ success: false, error: 'Valid User ID is required.' });
+    // 3. GET BY SALES PROMOTER ID (Replaced User ID)
+    app.get(`/api/${endpoint}/sales-promoter/:salesPromoterId`, (req, res) => {
+        const salesPromoterId = numberish(req.params.salesPromoterId);
+        if (salesPromoterId === undefined) {
+            return res.status(400).json({ success: false, error: 'Valid Sales Promoter ID is required.' });
         }
-        const base = eq(verifiedDealers.userId, userId);
+        const base = eq(verifiedDealers.salesPromoterId, salesPromoterId);
         return listHandler(req, res, base);
     });
 
