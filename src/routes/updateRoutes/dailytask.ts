@@ -43,7 +43,6 @@ export default function setupDailyTaskPatchRoutes(app: Express) {
         .update(dailyTasks)
         .set({
           ...validatedData,
-          updatedAt: new Date(), // Automatically update the timestamp
         })
         .where(eq(dailyTasks.id, id))
         .returning();

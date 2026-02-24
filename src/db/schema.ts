@@ -394,26 +394,109 @@ export const dealers = pgTable("dealers", {
 
 export const verifiedDealers = pgTable("verified_dealers", {
   id: serial("id").primaryKey(),
-  dealerCode: varchar("dealer_code", { length: 255 }),
-  dealerCategory: varchar("dealer_category", { length: 255 }),
-  isSubdealer: boolean("is_subdealer"),
-  dealerPartyName: varchar("dealer_party_name", { length: 255 }),
-  zone: varchar("zone", { length: 255 }),
-  area: varchar("area", { length: 255 }),
-  contactNo1: varchar("contact_no1", { length: 20 }),
-  contactNo2: varchar("contact_no2", { length: 20 }),
-  email: varchar("email", { length: 255 }),
-  address: text("address"),
-  pinCode: varchar("pin_code", { length: 20 }),
-  relatedSpName: varchar("related_sp_name", { length: 255 }),
-  ownerProprietorName: varchar("owner_proprietor_name", { length: 255 }),
-  natureOfFirm: varchar("nature_of_firm", { length: 255 }),
+
+  // =====================================================
+  // 1️⃣ CORE IDENTITY LAYER
+  // =====================================================
+
+  // Canonical dealer name (primary identity anchor)
+  dealerPartyName: varchar("dealer_party_name", { length: 255 }).notNull(),
+
+  // Alternate / historical naming (for drift handling)
+  alias: varchar("alias", { length: 255 }),
+
+  // Legal anchors (nullable but important for future-proofing)
   gstNo: varchar("gst_no", { length: 50 }),
   panNo: varchar("pan_no", { length: 50 }),
 
-  // Foreign Keys 
-  userId: integer("user_id").references(() => users.id, { onDelete: "set null" }),
-  dealerId: varchar("dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
+  // =====================================================
+  // 2️⃣ STRUCTURED GEOGRAPHY (Replaces vague Address1)
+  // =====================================================
+
+  zone: varchar("zone", { length: 120 }),
+  district: varchar("district", { length: 120 }),
+  area: varchar("area", { length: 120 }),
+  state: varchar("state", { length: 100 }),
+  pinCode: varchar("pin_code", { length: 20 }),
+
+  // =====================================================
+  // 3️⃣ CONTACT ANCHORS (Identity Reinforcement)
+  // =====================================================
+
+  contactNo1: varchar("contact_no1", { length: 20 }),
+  contactNo2: varchar("contact_no2", { length: 20 }),
+  email: varchar("email", { length: 255 }),
+  contactPerson: varchar("contact_person", { length: 255 }),
+
+  // =====================================================
+  // 4️⃣ RELATIONSHIP LAYER
+  // =====================================================
+
+  // Dealer classification (formerly Group1)
+  dealerSegment: varchar("dealer_segment", { length: 255 }),
+
+  // Sales Promoter as proper business entity (NOT user)
+  salesPromoterId: integer("sales_promoter_id")
+    .references(() => salesPromoters.id, { onDelete: "set null" }),
+
+  // Optional raw salesman name (if needed from Excel ingestion)
+  salesManNameRaw: varchar("sales_man_name_raw", { length: 255 }),
+
+  // =====================================================
+  // 5️⃣ COMMERCIAL FINGERPRINT
+  // =====================================================
+
+  creditLimit: numeric("credit_limit", { precision: 14, scale: 2 }),
+
+  // Strong probabilistic identity anchor
+  securityBlankChequeNo: varchar("security_blank_cheque_no", { length: 255 }),
+
+  // =====================================================
+  // METADATA
+  // =====================================================
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+
+}, (t) => [
+  // =====================================================
+  // INDEXES FOR PERFORMANCE & ANALYTICS
+  // =====================================================
+
+  index("idx_verified_zone").on(t.zone),
+  index("idx_verified_district").on(t.district),
+  index("idx_verified_pincode").on(t.pinCode),
+
+  index("idx_verified_sales_promoter").on(t.salesPromoterId),
+  index("idx_verified_segment").on(t.dealerSegment),
+
+  index("idx_verified_gst").on(t.gstNo),
+  index("idx_verified_mobile").on(t.contactNo1),
+
+  // Optional uniqueness constraint (only if confident in data hygiene)
+  // uniqueIndex("uniq_verified_mobile").on(t.contactNo1),
+]);
+
+export const salesPromoters = pgTable("sales_promoters", {
+  id: serial("id").primaryKey(),
+
+  name: varchar("name", { length: 255 }).notNull(),
+  mobile: varchar("mobile", { length: 20 }),
+  email: varchar("email", { length: 255 }),
+
+  zone: varchar("zone", { length: 120 }),
+  district: varchar("district", { length: 120 }),
+
+  isActive: boolean("is_active").default(true),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
 });
 
 /* ========================= email_reports (NEW) ========================= */
@@ -615,37 +698,62 @@ export const syncState = pgTable("sync_state", {
   // using mode: 'number' is safer for JS if seq won't exceed 2^53
   lastServerSeq: bigint("last_server_seq", { mode: "number" }).notNull().default(0),
 });
-
-/* ========================= daily_tasks ========================= */
 export const dailyTasks = pgTable("daily_tasks", {
-  id: varchar("id", { length: 255 }).primaryKey().default(sql`gen_random_uuid()`),
-  userId: integer("user_id").notNull().references(() => users.id, { onDelete: "cascade" }),
-  assignedByUserId: integer("assigned_by_user_id").notNull().references(() => users.id, { onDelete: "no action" }),
-  relatedVerifiedDealerId: integer("related_verified_dealer_id").references(() => verifiedDealers.id, { onDelete: "set null" }),
-  taskDate: date("task_date").notNull(),
-  visitType: varchar("visit_type", { length: 50 }).notNull(),
-  relatedDealerId: varchar("related_dealer_id", { length: 255 }).references(() => dealers.id, { onDelete: "set null" }),
-  siteName: varchar("site_name", { length: 255 }),
-  description: varchar("description", { length: 500 }),
-  status: varchar("status", { length: 50 }).notNull().default("Assigned"),
-  dealerName: varchar("dealer_name", { length: 255 }),
-  dealerCategory: varchar("dealer_category", { length: 50 }),
-  pjpCycle: varchar("pjp_cycle", { length: 50 }),
-  pjpId: varchar("pjp_id", { length: 255 }).references(() => permanentJourneyPlans.id, { onDelete: "set null" }),
-  siteId: uuid("site_id").references(() => technicalSites.id, { onDelete: "set null" }),
-  createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { withTimezone: true, precision: 6 }).defaultNow().notNull().$onUpdate(() => new Date()),
-}, (t) => [
-  index("idx_daily_tasks_user_id").on(t.userId),
-  index("idx_daily_tasks_assigned_by_user_id").on(t.assignedByUserId),
-  index("idx_daily_tasks_task_date").on(t.taskDate),
-  index("idx_daily_tasks_pjp_id").on(t.pjpId),
-  index("idx_daily_tasks_related_dealer_id").on(t.relatedDealerId),
-  index("idx_daily_tasks_date_user").on(t.taskDate, t.userId),
-  index("idx_daily_tasks_status").on(t.status),
-  index("idx_daily_tasks_site_id").on(t.siteId),
-]);
+  id: varchar("id", { length: 255 })
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
 
+  // Upload batch tracker
+  pjpBatchId: uuid("pjp_batch_id"),
+
+  // Responsible Person
+  userId: integer("user_id")
+    .notNull()
+    .references(() => users.id, { onDelete: "cascade" }),
+
+  // System dealer identity
+  dealerId: varchar("dealer_id", { length: 255 })
+    .references(() => dealers.id, { onDelete: "set null" }),
+
+  // ✅ Excel Counter Name snapshot
+  dealerNameSnapshot: varchar("dealer_name_snapshot", { length: 255 }),
+
+  // Excel mobile snapshot
+  dealerMobile: varchar("dealer_mobile", { length: 20 }),
+
+  zone: varchar("zone", { length: 120 }),
+  area: varchar("area", { length: 120 }),
+
+  route: text("route"),
+
+  objective: varchar("objective", { length: 255 }),
+  visitType: varchar("visit_type", { length: 100 }),
+
+  requiredVisitCount: integer("required_visit_count"),
+  week: varchar("week", { length: 50 }),
+
+  taskDate: date("task_date").notNull(),
+
+  status: varchar("status", { length: 50 })
+    .default("Assigned")
+    .notNull(),
+
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .$onUpdate(() => new Date())
+    .defaultNow()
+    .notNull(),
+}, (t) => [
+  index("idx_daily_tasks_user").on(t.userId),
+  index("idx_daily_tasks_dealer").on(t.dealerId),
+  index("idx_daily_tasks_date").on(t.taskDate),
+  index("idx_daily_tasks_zone").on(t.zone),
+  index("idx_daily_tasks_week").on(t.week),
+  index("idx_daily_tasks_pjp_batch").on(t.pjpBatchId),
+]);
 /* ========================= dealer_reports_and_scores ========================= */
 export const dealerReportsAndScores = pgTable("dealer_reports_and_scores", {
   id: varchar("id", { length: 255 }).primaryKey().default(sql`substr(replace(cast(gen_random_uuid() as text),'-',''),1,25)`),
@@ -1614,3 +1722,4 @@ export const insertOutstandingReportsSchema = createInsertSchema(outstandingRepo
 export const insertVerifiedDealersSchema = createInsertSchema(verifiedDealers);
 export const insertProjectionVsActualReportsSchema = createInsertSchema(projectionVsActualReports);
 export const insertProjectionReportsSchema = createInsertSchema(projectionReports);
+export const insertSalesPromoterSchema = createInsertSchema(salesPromoters);

@@ -5,26 +5,7 @@ import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { dailyTasks, insertDailyTaskSchema } from '../../db/schema';
 import { z } from 'zod';
-import { randomUUID } from 'crypto';
 
-// Manual Zod schema EXACTLY matching the table schema with empty string handling
-// const dailyTaskSchema = z.object({
-//   userId: z.number().int().positive(),
-//   assignedByUserId: z.number().int().positive(),
-//   taskDate: z.string().or(z.date()),
-//   visitType: z.string().max(50),
-//   relatedDealerId: z.string().max(255).optional().or(z.literal("")),
-//   siteName: z.string().max(255).optional().or(z.literal("")),
-//   description: z.string().max(500).optional().or(z.literal("")),
-//   status: z.string().max(50).default("Assigned"),
-//   pjpId: z.string().max(255).optional().or(z.literal("")),
-// }).transform((data) => ({
-//   ...data,
-//   relatedDealerId: data.relatedDealerId === "" ? null : data.relatedDealerId,
-//   siteName: data.siteName === "" ? null : data.siteName,
-//   description: data.description === "" ? null : data.description,
-//   pjpId: data.pjpId === "" ? null : data.pjpId,
-// }));
 
 function createAutoCRUD(app: Express, config: {
   endpoint: string,
@@ -47,18 +28,13 @@ function createAutoCRUD(app: Express, config: {
       // Validate the payload
       const parsed = schema.parse(req.body);
 
-      // Generate ID manually (fix for the database default issue)
-      const generatedId = randomUUID().replace(/-/g, '').substring(0, 25);
-
       // Prepare data for insertion
       const insertData = {
-        id: generatedId,
         ...parsed,
-        taskDate: new Date(parsed.taskDate),
         ...executedAutoFields
       };
 
-      const [newRecord] = await db.insert(table).values(insertData).returning();
+      const [newRecord] : any = await db.insert(table).values(insertData).returning();
 
       res.status(201).json({
         success: true,
@@ -93,10 +69,7 @@ export default function setupDailyTasksPostRoutes(app: Express) {
     table: dailyTasks,
     schema: insertDailyTaskSchema,
     tableName: 'Daily Task',
-    autoFields: {
-      createdAt: () => new Date(),
-      updatedAt: () => new Date()
-    }
+    autoFields: {}
   });
   
   console.log('✅ Daily Tasks POST endpoints setup complete');

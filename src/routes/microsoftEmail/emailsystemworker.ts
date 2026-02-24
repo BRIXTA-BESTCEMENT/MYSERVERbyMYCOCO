@@ -52,7 +52,6 @@ export class EmailSystemWorker {
       .select({
         id: verifiedDealers.id,
         partyName: verifiedDealers.dealerPartyName,
-        dealerCode: verifiedDealers.dealerCode,
       })
       .from(verifiedDealers);
 
@@ -62,7 +61,6 @@ export class EmailSystemWorker {
     for (const d of dealers) {
       // d.id is a number, so this works now
       if (d.partyName) map.set(this.normalizeName(d.partyName), d.id);
-      if (d.dealerCode) map.set(this.normalizeName(d.dealerCode), d.id);
     }
 
     this.dealerMapCache = map;
