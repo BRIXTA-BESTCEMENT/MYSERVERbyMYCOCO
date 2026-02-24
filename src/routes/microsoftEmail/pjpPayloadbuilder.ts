@@ -172,10 +172,35 @@ export class PjpPayloadBuilder {
     return String(val).trim();
   }
 
+  // 🚨 UPGRADED STRICT IST DATE PARSER 🚨
   private safeDate(value: any): string | null {
     if (!value) return null;
-    let parsed: Date;
+
+    // --- GET CURRENT TIME IN IST (Asia/Kolkata) ---
+    // This ensures if we fall back to "current year/month", it's based on India time
+    const nowString = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const nowIST = new Date(nowString);
+    const currentYear = nowIST.getFullYear();
+    const currentMonth = nowIST.getMonth(); // 0-indexed (Jan is 0)
+
+    // 🌟 SMART LOGIC: "Just the day" scenario (e.g. "24", "24th", "05", or number 24)
+    const stringVal = String(value).trim().toLowerCase();
     
+    // Regex matches 1 or 2 digits, optionally followed by st, nd, rd, th
+    const dayMatch = stringVal.match(/^(\d{1,2})(st|nd|rd|th)?$/);
+    
+    if (dayMatch) {
+        const dayNum = parseInt(dayMatch[1], 10);
+        // Ensure it's an actual calendar day (1 to 31)
+        if (dayNum >= 1 && dayNum <= 31) {
+            const monthStr = String(currentMonth + 1).padStart(2, "0");
+            const dayStr = String(dayNum).padStart(2, "0");
+            return `${currentYear}-${monthStr}-${dayStr}`;
+        }
+    }
+
+    // 🌟 STANDARD LOGIC: Full dates or Excel Serial offsets
+    let parsed: Date;
     if (value instanceof Date) {
       parsed = value;
     } else if (typeof value === "number") {
@@ -187,14 +212,19 @@ export class PjpPayloadBuilder {
     
     if (isNaN(parsed.getTime())) return null;
     
-    // 🚨 THE FIX: Strict UTC Extraction ensures zero Postgres timezone shifting
-    let year = parsed.getUTCFullYear();
-    const month = String(parsed.getUTCMonth() + 1).padStart(2, "0");
-    const day = String(parsed.getUTCDate()).padStart(2, "0");
+    // 🚨 THE FIX: Strict IST Extraction ensures zero Postgres timezone shifting
+    // Force Node to evaluate the parsed Date exactly as it would appear in India
+    const istString = parsed.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const targetIST = new Date(istString);
 
-    // 🚨 THE RULE: If just the date is mentioned and the year defaults to something old, force to present year
+    let year = targetIST.getFullYear();
+    const month = String(targetIST.getMonth() + 1).padStart(2, "0");
+    const day = String(targetIST.getDate()).padStart(2, "0");
+
+    // 🚨 THE RULE: If just "15-Oct" was typed, year defaults to 2001 or 1900. 
+    // Force it to the present IST year.
     if (year < 2020) {
-        year = new Date().getFullYear();
+        year = currentYear;
     }
 
     return `${year}-${month}-${day}`;

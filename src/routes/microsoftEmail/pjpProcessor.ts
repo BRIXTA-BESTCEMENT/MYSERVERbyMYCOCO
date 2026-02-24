@@ -1,6 +1,6 @@
 import { randomUUID } from "crypto";
 // ✅ Importing the dedicated Payload Builder we just perfected
-import { PjpPayloadBuilder } from "./pjpPayloadbuilder";
+import { PjpPayloadBuilder } from "./pjpPayloadbuilder"; // Make sure capitalization matches your filename!
 import { db } from "../../db/db";
 import { dailyTasks, users, dealers } from "../../db/schema";
 
@@ -97,18 +97,16 @@ export class PjpProcessor {
         // 2. Deep Match Fallbacks 
         for (const dbUser of this.userFuzzyCache!) {
             if (dbUser.strictName.includes(strictExcel) || strictExcel.includes(dbUser.strictName)) {
-                console.log(`[PjpProcessor] 🪄 Substring match: "${rawExcelName}" -> DB ID: ${dbUser.id}`);
+                // Silenced the console.log here to prevent log spam for fuzzy matches
                 return dbUser.id;
             }
 
             const allDbWordsInExcel = dbUser.tokens.length > 0 && dbUser.tokens.every(token => excelTokens.includes(token));
             if (allDbWordsInExcel) {
-                console.log(`[PjpProcessor] 🪄 Word-by-Word match: "${rawExcelName}" -> DB ID: ${dbUser.id}`);
                 return dbUser.id;
             }
 
             if (excelTokens.length === 1 && dbUser.tokens.includes(excelTokens[0])) {
-                console.log(`[PjpProcessor] 🪄 Single Name match: "${rawExcelName}" -> DB ID: ${dbUser.id}`);
                 return dbUser.id;
             }
         }
@@ -122,12 +120,21 @@ export class PjpProcessor {
     public async processFiles(mailId: string, subject: string, files: any[]): Promise<void> {
         await this.refreshCaches();
 
+        // 🚨 GENERATE IST FALLBACK DATE ONCE PER FILE BATCH 🚨
+        const nowString = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+        const nowIST = new Date(nowString);
+        const yyyy = nowIST.getFullYear();
+        const mm = String(nowIST.getMonth() + 1).padStart(2, "0");
+        const dd = String(nowIST.getDate()).padStart(2, "0");
+        const fallbackTodayIST = `${yyyy}-${mm}-${dd}`;
+
         for (const file of files) {
             if (!file?.name?.match(/\.(xlsx|xls|csv)$/i) || !file.contentBytes) continue;
 
             const buffer = Buffer.from(file.contentBytes, "base64");
             if (!buffer.length) continue;
 
+            // Calls the Twin-Engine Builder
             const payload = await this.excelBuilder.buildFromBuffer(buffer, {
                 messageId: mailId,
                 fileName: file.name,
@@ -137,6 +144,7 @@ export class PjpProcessor {
             const currentBatchId = randomUUID();
             const pjpInserts: typeof dailyTasks.$inferInsert[] = [];
 
+            // We iterate over the safely parsed `tasks` engine output
             for (const task of payload.tasks) {
                 const resolvedUserId = this.resolveUser(task.responsiblePerson);
                 const normCounterName = this.normalizeName(task.counterName);
@@ -161,7 +169,8 @@ export class PjpProcessor {
                     visitType: task.type,
                     requiredVisitCount: task.requiredVisitCount,
                     week: task.week,
-                    taskDate: task.date || new Date().toISOString().split("T")[0],
+                    // 🚨 USES THE SAFE IST FALLBACK IF DATE IS NULL
+                    taskDate: task.date || fallbackTodayIST,
                     status: "Assigned",
                 });
             }
