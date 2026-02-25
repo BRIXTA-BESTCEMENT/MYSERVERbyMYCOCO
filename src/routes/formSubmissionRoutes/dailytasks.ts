@@ -1,11 +1,10 @@
-//  server/src/routes/postRoutes/dailyTasks.ts 
-// Daily Tasks POST endpoints using createAutoCRUD pattern
+// server/src/routes/postRoutes/dailyTasks.ts 
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { dailyTasks, insertDailyTaskSchema } from '../../db/schema';
 import { z } from 'zod';
-
+import { randomUUID } from 'crypto'; // 🚀 ADDED THIS IMPORT
 
 function createAutoCRUD(app: Express, config: {
   endpoint: string,
@@ -31,7 +30,10 @@ function createAutoCRUD(app: Express, config: {
       // Prepare data for insertion
       const insertData = {
         ...parsed,
-        ...executedAutoFields
+        ...executedAutoFields,
+        // 🚀 THE FIX: Safely extract the ID from Flutter, or generate a fresh one.
+        // This guarantees Drizzle NEVER attempts to insert a literal 'null'
+        id: req.body.id || parsed.id || randomUUID(),
       };
 
       const [newRecord] : any = await db.insert(table).values(insertData).returning();
