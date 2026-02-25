@@ -1,6 +1,6 @@
-import { randomUUID } from "crypto";
-// ✅ Importing the dedicated Payload Builder we just perfected
-import { PjpPayloadBuilder } from "./pjpPayloadbuilder"; // Make sure capitalization matches your filename!
+import crypto, { randomUUID } from "crypto";
+import { sql } from "drizzle-orm"; // 🚨 Required for the UPSERT logic
+import { PjpPayloadBuilder } from "./pjpPayloadbuilder"; 
 import { db } from "../../db/db";
 import { dailyTasks, users, dealers } from "../../db/schema";
 
@@ -96,19 +96,10 @@ export class PjpProcessor {
 
         // 2. Deep Match Fallbacks 
         for (const dbUser of this.userFuzzyCache!) {
-            if (dbUser.strictName.includes(strictExcel) || strictExcel.includes(dbUser.strictName)) {
-                // Silenced the console.log here to prevent log spam for fuzzy matches
-                return dbUser.id;
-            }
-
+            if (dbUser.strictName.includes(strictExcel) || strictExcel.includes(dbUser.strictName)) return dbUser.id;
             const allDbWordsInExcel = dbUser.tokens.length > 0 && dbUser.tokens.every(token => excelTokens.includes(token));
-            if (allDbWordsInExcel) {
-                return dbUser.id;
-            }
-
-            if (excelTokens.length === 1 && dbUser.tokens.includes(excelTokens[0])) {
-                return dbUser.id;
-            }
+            if (allDbWordsInExcel) return dbUser.id;
+            if (excelTokens.length === 1 && dbUser.tokens.includes(excelTokens[0])) return dbUser.id;
         }
 
         return null;
@@ -120,7 +111,6 @@ export class PjpProcessor {
     public async processFiles(mailId: string, subject: string, files: any[]): Promise<void> {
         await this.refreshCaches();
 
-        // 🚨 GENERATE IST FALLBACK DATE ONCE PER FILE BATCH 🚨
         const nowString = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
         const nowIST = new Date(nowString);
         const yyyy = nowIST.getFullYear();
@@ -134,7 +124,6 @@ export class PjpProcessor {
             const buffer = Buffer.from(file.contentBytes, "base64");
             if (!buffer.length) continue;
 
-            // Calls the Twin-Engine Builder
             const payload = await this.excelBuilder.buildFromBuffer(buffer, {
                 messageId: mailId,
                 fileName: file.name,
@@ -144,7 +133,6 @@ export class PjpProcessor {
             const currentBatchId = randomUUID();
             const pjpInserts: typeof dailyTasks.$inferInsert[] = [];
 
-            // We iterate over the safely parsed `tasks` engine output
             for (const task of payload.tasks) {
                 const resolvedUserId = this.resolveUser(task.responsiblePerson);
                 const normCounterName = this.normalizeName(task.counterName);
@@ -155,8 +143,19 @@ export class PjpProcessor {
                     continue;
                 }
 
+                const taskDate = task.date || fallbackTodayIST;
+
+                // 🌟 DETERMINISTIC IDENTITY GENERATION 🌟
+                // Task is uniquely identified by: User + Dealer + Date
+                const rawIdentityString = `${resolvedUserId}_${normCounterName}_${taskDate}`;
+                
+                // 1. Generate the raw hex hash
+                const hash = crypto.createHash("sha256").update(rawIdentityString).digest("hex");
+                
+                // 2. 🚨 THE FIX: Format the first 32 characters of the hash as a valid UUID!
+                const deterministicId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
                 pjpInserts.push({
-                    id: randomUUID(),
+                    id: deterministicId, // 🚨 The Hash becomes the Primary Key
                     pjpBatchId: currentBatchId,
                     userId: resolvedUserId,
                     dealerId: resolvedDealerId,
@@ -169,8 +168,7 @@ export class PjpProcessor {
                     visitType: task.type,
                     requiredVisitCount: task.requiredVisitCount,
                     week: task.week,
-                    // 🚨 USES THE SAFE IST FALLBACK IF DATE IS NULL
-                    taskDate: task.date || fallbackTodayIST,
+                    taskDate: taskDate,
                     status: "Assigned",
                 });
             }
@@ -178,10 +176,30 @@ export class PjpProcessor {
             if (pjpInserts.length > 0) {
                 await db.transaction(async (tx) => {
                     for (let i = 0; i < pjpInserts.length; i += this.CHUNK_SIZE) {
-                        await tx.insert(dailyTasks).values(pjpInserts.slice(i, i + this.CHUNK_SIZE));
+                        
+                        // 🌟 ENTERPRISE UPSERT (SELF-HEALING) 🌟
+                        await tx.insert(dailyTasks)
+                            .values(pjpInserts.slice(i, i + this.CHUNK_SIZE))
+                            .onConflictDoUpdate({
+                                target: dailyTasks.id, // Conflict triggers on our Deterministic Hash PK
+                                set: {
+                                    // 🚨 Updates everything EXCEPT the `status` column to protect field progress!
+                                    route: sql`EXCLUDED.route`,
+                                    objective: sql`EXCLUDED.objective`,
+                                    visitType: sql`EXCLUDED.visit_type`,
+                                    dealerMobile: sql`EXCLUDED.dealer_mobile`,
+                                    zone: sql`EXCLUDED.zone`,
+                                    area: sql`EXCLUDED.area`,
+                                    dealerNameSnapshot: sql`EXCLUDED.dealer_name_snapshot`,
+                                    requiredVisitCount: sql`EXCLUDED.required_visit_count`,
+                                    week: sql`EXCLUDED.week`,
+                                    pjpBatchId: sql`EXCLUDED.pjp_batch_id`, // Tracks the latest batch upload ID
+                                    updatedAt: new Date()
+                                }
+                            });
                     }
                 });
-                console.log(`[PjpProcessor] ✅ Pushed ${pjpInserts.length} tasks to DB. BatchID: ${currentBatchId}`);
+                console.log(`[PjpProcessor] ✅ Upserted ${pjpInserts.length} tasks to DB. BatchID: ${currentBatchId}`);
             }
         }
     }
