@@ -1,5 +1,5 @@
 import crypto, { randomUUID } from "crypto";
-import { sql } from "drizzle-orm"; // 🚨 Required for the UPSERT logic
+import { sql } from "drizzle-orm"; 
 import { PjpPayloadBuilder } from "./pjpPayloadbuilder"; 
 import { db } from "../../db/db";
 import { dailyTasks, users, dealers } from "../../db/schema";
@@ -44,14 +44,12 @@ export class PjpProcessor {
 
         console.log("[PjpProcessor] 🔄 Refreshing User & Dealer Maps...");
 
-        // Dealers Map
         const allDealers = await db.select({ id: dealers.id, name: dealers.name }).from(dealers);
         const dMap = new Map<string, string>();
         for (const d of allDealers) {
             if (d.name) dMap.set(this.normalizeName(d.name), d.id);
         }
 
-        // Users Map & Fuzzy Cache
         const allUsers = await db.select({
             id: users.id,
             firstName: users.firstName,
@@ -89,12 +87,10 @@ export class PjpProcessor {
 
         if (!strictExcel) return null;
 
-        // 1. Exact Match 
         if (this.userMapCache!.has(strictExcel)) {
             return this.userMapCache!.get(strictExcel)!;
         }
 
-        // 2. Deep Match Fallbacks 
         for (const dbUser of this.userFuzzyCache!) {
             if (dbUser.strictName.includes(strictExcel) || strictExcel.includes(dbUser.strictName)) return dbUser.id;
             const allDbWordsInExcel = dbUser.tokens.length > 0 && dbUser.tokens.every(token => excelTokens.includes(token));
@@ -131,7 +127,9 @@ export class PjpProcessor {
             });
 
             const currentBatchId = randomUUID();
-            const pjpInserts: typeof dailyTasks.$inferInsert[] = [];
+            
+            // 🚨 THE FIX: Use a Map to deduplicate records in memory before sending to Postgres
+            const pjpInsertsMap = new Map<string, typeof dailyTasks.$inferInsert>();
 
             for (const task of payload.tasks) {
                 const resolvedUserId = this.resolveUser(task.responsiblePerson);
@@ -139,28 +137,30 @@ export class PjpProcessor {
                 const resolvedDealerId = this.dealerMapCache!.get(normCounterName) || null;
 
                 if (!resolvedUserId) {
-                    console.warn(`[PjpProcessor] ❌ Skipped row: User "${task.responsiblePerson}" not found in DB.`);
+                    // 🚨 THE FIX: Only log if the Excel cell actually had a name in it (stops empty spam)
+                    if (task.responsiblePerson && task.responsiblePerson.trim() !== "") {
+                        console.warn(`[PjpProcessor] ❌ Skipped row: User "${task.responsiblePerson}" not found in DB.`);
+                    }
                     continue;
                 }
 
                 const taskDate = task.date || fallbackTodayIST;
 
-                // 🌟 DETERMINISTIC IDENTITY GENERATION 🌟
-                // Task is uniquely identified by: User + Dealer + Date
                 const rawIdentityString = `${resolvedUserId}_${normCounterName}_${taskDate}`;
                 
-                // 1. Generate the raw hex hash
                 const hash = crypto.createHash("sha256").update(rawIdentityString).digest("hex");
                 
-                // 2. 🚨 THE FIX: Format the first 32 characters of the hash as a valid UUID!
                 const deterministicId = `${hash.slice(0, 8)}-${hash.slice(8, 12)}-${hash.slice(12, 16)}-${hash.slice(16, 20)}-${hash.slice(20, 32)}`;
-                pjpInserts.push({
-                    id: deterministicId, // 🚨 The Hash becomes the Primary Key
+                
+                // 🚨 THE FIX: Overwrite existing keys in the Map. 
+                // If there are duplicates in the Excel file, the last one wins.
+                pjpInsertsMap.set(deterministicId, {
+                    id: deterministicId, 
                     pjpBatchId: currentBatchId,
                     userId: resolvedUserId,
                     dealerId: resolvedDealerId,
                     dealerNameSnapshot: task.counterName,
-                    dealerMobile: task.mobile,
+                    dealerMobile: task.mobile ? task.mobile.slice(0, 20) : null,
                     zone: task.zone,
                     area: task.area,
                     route: task.route,
@@ -173,17 +173,18 @@ export class PjpProcessor {
                 });
             }
 
+            // Convert Map back to an Array for Drizzle
+            const pjpInserts = Array.from(pjpInsertsMap.values());
+
             if (pjpInserts.length > 0) {
                 await db.transaction(async (tx) => {
                     for (let i = 0; i < pjpInserts.length; i += this.CHUNK_SIZE) {
                         
-                        // 🌟 ENTERPRISE UPSERT (SELF-HEALING) 🌟
                         await tx.insert(dailyTasks)
                             .values(pjpInserts.slice(i, i + this.CHUNK_SIZE))
                             .onConflictDoUpdate({
-                                target: dailyTasks.id, // Conflict triggers on our Deterministic Hash PK
+                                target: dailyTasks.id, 
                                 set: {
-                                    // 🚨 Updates everything EXCEPT the `status` column to protect field progress!
                                     route: sql`EXCLUDED.route`,
                                     objective: sql`EXCLUDED.objective`,
                                     visitType: sql`EXCLUDED.visit_type`,
@@ -193,13 +194,13 @@ export class PjpProcessor {
                                     dealerNameSnapshot: sql`EXCLUDED.dealer_name_snapshot`,
                                     requiredVisitCount: sql`EXCLUDED.required_visit_count`,
                                     week: sql`EXCLUDED.week`,
-                                    pjpBatchId: sql`EXCLUDED.pjp_batch_id`, // Tracks the latest batch upload ID
+                                    pjpBatchId: sql`EXCLUDED.pjp_batch_id`,
                                     updatedAt: new Date()
                                 }
                             });
                     }
                 });
-                console.log(`[PjpProcessor] ✅ Upserted ${pjpInserts.length} tasks to DB. BatchID: ${currentBatchId}`);
+                console.log(`[PjpProcessor] ✅ Upserted ${pjpInserts.length} tasks to DB (Deduplicated). BatchID: ${currentBatchId}`);
             }
         }
     }
