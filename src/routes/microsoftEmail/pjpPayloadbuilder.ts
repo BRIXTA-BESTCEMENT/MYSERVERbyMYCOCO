@@ -173,25 +173,35 @@ export class PjpPayloadBuilder {
   }
 
   // 🚨 UPGRADED STRICT IST DATE PARSER 🚨
+// 🚨 UPGRADED BULLETPROOF DATE PARSER 🚨
   private safeDate(value: any): string | null {
     if (!value) return null;
 
-    // --- GET CURRENT TIME IN IST (Asia/Kolkata) ---
-    // This ensures if we fall back to "current year/month", it's based on India time
+    // 1. 🛡️ UNWRAP EXCELJS OBJECTS (RichText formatting, Formulas, etc)
+    let rawValue = value;
+    if (value && typeof value === 'object' && !(value instanceof Date)) {
+        if (value.result !== undefined) {
+            rawValue = value.result; 
+        } else if (value.richText) {
+            rawValue = value.richText.map((rt: any) => rt.text).join('').trim();
+        } else if (value.text !== undefined) {
+            rawValue = value.text;
+        }
+    }
+
+    if (!rawValue) return null;
+
     const nowString = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
     const nowIST = new Date(nowString);
     const currentYear = nowIST.getFullYear();
-    const currentMonth = nowIST.getMonth(); // 0-indexed (Jan is 0)
+    const currentMonth = nowIST.getMonth(); 
 
-    // 🌟 SMART LOGIC: "Just the day" scenario (e.g. "24", "24th", "05", or number 24)
-    const stringVal = String(value).trim().toLowerCase();
+    const stringVal = String(rawValue).trim().toLowerCase();
     
-    // Regex matches 1 or 2 digits, optionally followed by st, nd, rd, th
+    // 2. 🌟 "JUST THE DAY" LOGIC (e.g. "24", "24th")
     const dayMatch = stringVal.match(/^(\d{1,2})(st|nd|rd|th)?$/);
-    
     if (dayMatch) {
         const dayNum = parseInt(dayMatch[1], 10);
-        // Ensure it's an actual calendar day (1 to 31)
         if (dayNum >= 1 && dayNum <= 31) {
             const monthStr = String(currentMonth + 1).padStart(2, "0");
             const dayStr = String(dayNum).padStart(2, "0");
@@ -199,21 +209,43 @@ export class PjpPayloadBuilder {
         }
     }
 
-    // 🌟 STANDARD LOGIC: Full dates or Excel Serial offsets
+    // 3. 🌟 FORGIVING INDIAN DD/MM/YYYY LOGIC (Ignores timestamps)
+    const indianDateMatch = stringVal.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+    if (indianDateMatch) {
+        let day = parseInt(indianDateMatch[1], 10);
+        let month = parseInt(indianDateMatch[2], 10);
+        let year = parseInt(indianDateMatch[3], 10);
+
+        // Fix 2-digit years like "26" -> 2026
+        if (year < 100) year += 2000;
+
+        // Auto-correct if user accidentally typed MM/DD/YYYY
+        if (month > 12 && day <= 12) {
+            const temp = day;
+            day = month;
+            month = temp;
+        }
+
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+            const safeMonth = String(month).padStart(2, "0");
+            const safeDay = String(day).padStart(2, "0");
+            return `${year}-${safeMonth}-${safeDay}`; // Strict DB format
+        }
+    }
+
+    // 4. 🌟 STANDARD JAVASCRIPT / EXCEL SERIAL PARSING
     let parsed: Date;
-    if (value instanceof Date) {
-      parsed = value;
-    } else if (typeof value === "number") {
-      // Excel serial date offset (days since Jan 1, 1900)
-      parsed = new Date(Math.round((value - 25569) * 86400 * 1000));
+    if (rawValue instanceof Date) {
+        parsed = rawValue;
+    } else if (typeof rawValue === "number") {
+        parsed = new Date(Math.round((rawValue - 25569) * 86400 * 1000));
     } else {
-      parsed = new Date(value);
+        parsed = new Date(rawValue);
     }
     
     if (isNaN(parsed.getTime())) return null;
     
-    // 🚨 THE FIX: Strict IST Extraction ensures zero Postgres timezone shifting
-    // Force Node to evaluate the parsed Date exactly as it would appear in India
+    // 5. 🌟 STRICT IST CONVERSION
     const istString = parsed.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
     const targetIST = new Date(istString);
 
@@ -221,11 +253,7 @@ export class PjpPayloadBuilder {
     const month = String(targetIST.getMonth() + 1).padStart(2, "0");
     const day = String(targetIST.getDate()).padStart(2, "0");
 
-    // 🚨 THE RULE: If just "15-Oct" was typed, year defaults to 2001 or 1900. 
-    // Force it to the present IST year.
-    if (year < 2020) {
-        year = currentYear;
-    }
+    if (year < 2020) year = currentYear;
 
     return `${year}-${month}-${day}`;
   }
