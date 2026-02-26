@@ -111,13 +111,13 @@ export default function setupAuthRoutes(app: Express) {
       }
 
       // 🔒 HARD DEVICE LOCK (NO OVERRIDE)
-      if (row.deviceId && row.deviceId !== incomingDeviceId) {
-        return res.status(403).json({
-          code: 'DEVICE_LOCKED',
-          error:
-            'This account is locked to another device. Please contact admin.',
-        });
-      }
+      // if (row.deviceId && row.deviceId !== incomingDeviceId) {
+      //   return res.status(403).json({
+      //     code: 'DEVICE_LOCKED',
+      //     error:
+      //       'This account is locked to another device. Please contact admin.',
+      //   });
+      // }
 
       // Password validation
       // Password Validation (Check all 3 possibilities)
@@ -154,7 +154,8 @@ export default function setupAuthRoutes(app: Express) {
       await db
         .update(users)
         .set({
-          deviceId: incomingDeviceId,
+          // deviceId: incomingDeviceId,
+          deviceId: null,
           fcmToken: incomingFcmToken || row.fcmToken,
         })
         .where(eq(users.id, row.id));
@@ -239,7 +240,8 @@ export default function setupAuthRoutes(app: Express) {
       await db
         .update(users)
         .set({
-          deviceId: deviceId ?? null,
+          // deviceId: deviceId ?? null,
+          deviceId: null,
           fcmToken: fcmToken ?? null,
         })
         .where(eq(users.id, userId));
@@ -254,5 +256,5 @@ export default function setupAuthRoutes(app: Express) {
     }
   });
 
-  console.log('✅ Auth routes loaded (HARD DEVICE BINDING ENABLED)');
+  console.log('✅ Auth routes loaded');
 }
