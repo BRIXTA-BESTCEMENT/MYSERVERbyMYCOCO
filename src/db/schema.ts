@@ -1213,6 +1213,20 @@ export const schemeToRewards = pgTable("_SchemeToRewards", {
   index("_SchemeToRewards_B_index").on(t.B),
 ]);
 
+export const logisticsUsers = pgTable("logistics_users", {
+  id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
+  sourceName: varchar("source_name", { length: 255 }),
+  userName: varchar("user_name", { length: 255 }).unique().notNull(),
+  userPassword: varchar("user_password", { length: 255 }).notNull(),
+  userRole: varchar("user_role", { length: 255 }).notNull(), // 'GATE', 'WB', 'STORE', 'ADMIN' etc.
+  
+  createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt", { mode: "date" })
+    .defaultNow()
+    .$onUpdate(() => new Date())
+    .notNull(),
+});
+
 export const logisticsIO = pgTable("logistics_io", {
   id: uuid("id").primaryKey().default(sql`gen_random_uuid()`),
   zone: varchar("zone", { length: 255 }),
@@ -1247,6 +1261,7 @@ export const logisticsIO = pgTable("logistics_io", {
   partyName: varchar("party_name", { length: 255 }),
   invoiceNos: text("invoice_nos").array(),
   billNos: text("bill_nos").array(),
+  sourceName: varchar("source_name", { length: 255 }),
 
   createdAt: timestamp("createdAt", { mode: "date" }).defaultNow().notNull(),
   updatedAt: timestamp("updatedAt", { mode: "date" })
@@ -1305,6 +1320,7 @@ export const insertMasonSlabAchievementSchema = createInsertSchema(masonSlabAchi
 export const insertNotificationSchema = createInsertSchema(notifications);
 
 // logistics
+export const insertLogisticsUsersSchema = createInsertSchema(logisticsUsers);
 export const insertLogisticsIOSchema = createInsertSchema(logisticsIO);
 
 //emailStuff

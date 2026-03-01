@@ -125,6 +125,7 @@ import { attachWebSocket } from './src/websocket/socketServer';
 
 //notunRendami
 import setupAuthCredentialRoutes from './src/routes/authCredentials';
+import setupAuthLogisticsRoutes from './src/routes/authLogistics';
 
 // Microsoft Email
 import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
@@ -209,6 +210,7 @@ setupCompaniesRoutes(app);                // /api/companies
 setupLogoutAuthRoutes(app);               // /api/auth/logout
 //firebase
 setupAuthFirebaseRoutes(app);
+setupAuthLogisticsRoutes(app);
 
 // Core Data Endpoints (GET)
 setupBrandsAndMappingRoutes(app);        // /api/brands/*, /api/dealer-brand-mapping/*

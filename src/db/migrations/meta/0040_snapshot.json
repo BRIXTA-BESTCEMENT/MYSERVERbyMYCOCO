@@ -1,167 +1,9 @@
 {
-<<<<<<< HEAD
-  "id": "aa7355d6-374f-4f18-ac22-8a7338d5e80c",
-=======
-  "id": "8c164eec-f9dd-4aa7-8feb-bfdc423e6820",
->>>>>>> newemailworker
+  "id": "32975121-ce69-40c1-98c3-9ca431f7cce3",
   "prevId": "2ba5bd2f-7713-4f03-b29a-f0d841fb6337",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
-    "public.aoi": {
-      "name": "aoi",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "name": {
-          "name": "name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "type": {
-          "name": "type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "center_lat": {
-          "name": "center_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "center_lon": {
-          "name": "center_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "radius_km": {
-          "name": "radius_km",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "boundary_geojson": {
-          "name": "boundary_geojson",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.aoi_grid_cell": {
-      "name": "aoi_grid_cell",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "aoi_id": {
-          "name": "aoi_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cell_row": {
-          "name": "cell_row",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cell_col": {
-          "name": "cell_col",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "centroid_lat": {
-          "name": "centroid_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "centroid_lon": {
-          "name": "centroid_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "geometry_geojson": {
-          "name": "geometry_geojson",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "aoi_grid_cell_aoi_id_aoi_id_fk": {
-          "name": "aoi_grid_cell_aoi_id_aoi_id_fk",
-          "tableFrom": "aoi_grid_cell",
-          "tableTo": "aoi",
-          "columnsFrom": [
-            "aoi_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.auth_sessions": {
       "name": "auth_sessions",
       "schema": "",
@@ -960,171 +802,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.construction_site": {
-      "name": "construction_site",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "aoi_id": {
-          "name": "aoi_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grid_cell_id": {
-          "name": "grid_cell_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "source_type": {
-          "name": "source_type",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "source_building_id": {
-          "name": "source_building_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "lat": {
-          "name": "lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "lon": {
-          "name": "lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "geom_geojson": {
-          "name": "geom_geojson",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "estimated_area_sq_m": {
-          "name": "estimated_area_sq_m",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "first_seen_date": {
-          "name": "first_seen_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "last_seen_date": {
-          "name": "last_seen_date",
-          "type": "date",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'new'"
-        },
-        "verified_by_tso_id": {
-          "name": "verified_by_tso_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "verified_at": {
-          "name": "verified_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "linked_dealer_id": {
-          "name": "linked_dealer_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "notes": {
-          "name": "notes",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "construction_site_aoi_id_aoi_id_fk": {
-          "name": "construction_site_aoi_id_aoi_id_fk",
-          "tableFrom": "construction_site",
-          "tableTo": "aoi",
-          "columnsFrom": [
-            "aoi_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "construction_site_grid_cell_id_aoi_grid_cell_id_fk": {
-          "name": "construction_site_grid_cell_id_aoi_grid_cell_id_fk",
-          "tableFrom": "construction_site",
-          "tableTo": "aoi_grid_cell",
-          "columnsFrom": [
-            "grid_cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "construction_site_source_building_id_detected_building_id_fk": {
-          "name": "construction_site_source_building_id_detected_building_id_fk",
-          "tableFrom": "construction_site",
-          "tableTo": "detected_building",
-          "columnsFrom": [
-            "source_building_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.daily_tasks": {
       "name": "daily_tasks",
       "schema": "",
@@ -1136,21 +813,75 @@
           "notNull": true,
           "default": "gen_random_uuid()"
         },
+        "pjp_batch_id": {
+          "name": "pjp_batch_id",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
         "user_id": {
           "name": "user_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": true
         },
-        "assigned_by_user_id": {
-          "name": "assigned_by_user_id",
+        "dealer_id": {
+          "name": "dealer_id",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dealer_name_snapshot": {
+          "name": "dealer_name_snapshot",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "dealer_mobile": {
+          "name": "dealer_mobile",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone": {
+          "name": "zone",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "area": {
+          "name": "area",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "route": {
+          "name": "route",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "objective": {
+          "name": "objective",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "visit_type": {
+          "name": "visit_type",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "required_visit_count": {
+          "name": "required_visit_count",
           "type": "integer",
           "primaryKey": false,
-          "notNull": true
+          "notNull": false
         },
-        "related_verified_dealer_id": {
-          "name": "related_verified_dealer_id",
-          "type": "integer",
+        "week": {
+          "name": "week",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
         },
@@ -1160,30 +891,6 @@
           "primaryKey": false,
           "notNull": true
         },
-        "visit_type": {
-          "name": "visit_type",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "related_dealer_id": {
-          "name": "related_dealer_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "site_name": {
-          "name": "site_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "description": {
-          "name": "description",
-          "type": "varchar(500)",
-          "primaryKey": false,
-          "notNull": false
-        },
         "status": {
           "name": "status",
           "type": "varchar(50)",
@@ -1191,54 +898,24 @@
           "notNull": true,
           "default": "'Assigned'"
         },
-        "dealer_name": {
-          "name": "dealer_name",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "dealer_category": {
-          "name": "dealer_category",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pjp_cycle": {
-          "name": "pjp_cycle",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pjp_id": {
-          "name": "pjp_id",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "site_id": {
-          "name": "site_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
         "created_at": {
           "name": "created_at",
-          "type": "timestamp (6) with time zone",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         },
         "updated_at": {
           "name": "updated_at",
-          "type": "timestamp (6) with time zone",
+          "type": "timestamp with time zone",
           "primaryKey": false,
           "notNull": true,
           "default": "now()"
         }
       },
       "indexes": {
-        "idx_daily_tasks_user_id": {
-          "name": "idx_daily_tasks_user_id",
+        "idx_daily_tasks_user": {
+          "name": "idx_daily_tasks_user",
           "columns": [
             {
               "expression": "user_id",
@@ -1252,11 +929,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_daily_tasks_assigned_by_user_id": {
-          "name": "idx_daily_tasks_assigned_by_user_id",
+        "idx_daily_tasks_dealer": {
+          "name": "idx_daily_tasks_dealer",
           "columns": [
             {
-              "expression": "assigned_by_user_id",
+              "expression": "dealer_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1267,8 +944,8 @@
           "method": "btree",
           "with": {}
         },
-        "idx_daily_tasks_task_date": {
-          "name": "idx_daily_tasks_task_date",
+        "idx_daily_tasks_date": {
+          "name": "idx_daily_tasks_date",
           "columns": [
             {
               "expression": "task_date",
@@ -1282,11 +959,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_daily_tasks_pjp_id": {
-          "name": "idx_daily_tasks_pjp_id",
+        "idx_daily_tasks_zone": {
+          "name": "idx_daily_tasks_zone",
           "columns": [
             {
-              "expression": "pjp_id",
+              "expression": "zone",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1297,11 +974,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_daily_tasks_related_dealer_id": {
-          "name": "idx_daily_tasks_related_dealer_id",
+        "idx_daily_tasks_week": {
+          "name": "idx_daily_tasks_week",
           "columns": [
             {
-              "expression": "related_dealer_id",
+              "expression": "week",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1312,47 +989,11 @@
           "method": "btree",
           "with": {}
         },
-        "idx_daily_tasks_date_user": {
-          "name": "idx_daily_tasks_date_user",
+        "idx_daily_tasks_pjp_batch": {
+          "name": "idx_daily_tasks_pjp_batch",
           "columns": [
             {
-              "expression": "task_date",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            },
-            {
-              "expression": "user_id",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_daily_tasks_status": {
-          "name": "idx_daily_tasks_status",
-          "columns": [
-            {
-              "expression": "status",
-              "isExpression": false,
-              "asc": true,
-              "nulls": "last"
-            }
-          ],
-          "isUnique": false,
-          "concurrently": false,
-          "method": "btree",
-          "with": {}
-        },
-        "idx_daily_tasks_site_id": {
-          "name": "idx_daily_tasks_site_id",
-          "columns": [
-            {
-              "expression": "site_id",
+              "expression": "pjp_batch_id",
               "isExpression": false,
               "asc": true,
               "nulls": "last"
@@ -1378,64 +1019,12 @@
           "onDelete": "cascade",
           "onUpdate": "no action"
         },
-        "daily_tasks_assigned_by_user_id_users_id_fk": {
-          "name": "daily_tasks_assigned_by_user_id_users_id_fk",
-          "tableFrom": "daily_tasks",
-          "tableTo": "users",
-          "columnsFrom": [
-            "assigned_by_user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "daily_tasks_related_verified_dealer_id_verified_dealers_id_fk": {
-          "name": "daily_tasks_related_verified_dealer_id_verified_dealers_id_fk",
-          "tableFrom": "daily_tasks",
-          "tableTo": "verified_dealers",
-          "columnsFrom": [
-            "related_verified_dealer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "daily_tasks_related_dealer_id_dealers_id_fk": {
-          "name": "daily_tasks_related_dealer_id_dealers_id_fk",
+        "daily_tasks_dealer_id_dealers_id_fk": {
+          "name": "daily_tasks_dealer_id_dealers_id_fk",
           "tableFrom": "daily_tasks",
           "tableTo": "dealers",
           "columnsFrom": [
-            "related_dealer_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "daily_tasks_pjp_id_permanent_journey_plans_id_fk": {
-          "name": "daily_tasks_pjp_id_permanent_journey_plans_id_fk",
-          "tableFrom": "daily_tasks",
-          "tableTo": "permanent_journey_plans",
-          "columnsFrom": [
-            "pjp_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        },
-        "daily_tasks_site_id_technical_sites_id_fk": {
-          "name": "daily_tasks_site_id_technical_sites_id_fk",
-          "tableFrom": "daily_tasks",
-          "tableTo": "technical_sites",
-          "columnsFrom": [
-            "site_id"
+            "dealer_id"
           ],
           "columnsTo": [
             "id"
@@ -2568,135 +2157,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.detected_building": {
-      "name": "detected_building",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "highres_scene_id": {
-          "name": "highres_scene_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "aoi_id": {
-          "name": "aoi_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grid_cell_id": {
-          "name": "grid_cell_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "centroid_lat": {
-          "name": "centroid_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "centroid_lon": {
-          "name": "centroid_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "footprint_geojson": {
-          "name": "footprint_geojson",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "area_sq_m": {
-          "name": "area_sq_m",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "detection_confidence": {
-          "name": "detection_confidence",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "'auto_detected'"
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "detected_building_highres_scene_id_highres_scene_id_fk": {
-          "name": "detected_building_highres_scene_id_highres_scene_id_fk",
-          "tableFrom": "detected_building",
-          "tableTo": "highres_scene",
-          "columnsFrom": [
-            "highres_scene_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "detected_building_aoi_id_aoi_id_fk": {
-          "name": "detected_building_aoi_id_aoi_id_fk",
-          "tableFrom": "detected_building",
-          "tableTo": "aoi",
-          "columnsFrom": [
-            "aoi_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "detected_building_grid_cell_id_aoi_grid_cell_id_fk": {
-          "name": "detected_building_grid_cell_id_aoi_grid_cell_id_fk",
-          "tableFrom": "detected_building",
-          "tableTo": "aoi_grid_cell",
-          "columnsFrom": [
-            "grid_cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.email_reports": {
       "name": "email_reports",
       "schema": "",
@@ -2745,8 +2205,6 @@
           "notNull": false,
           "default": false
         },
-<<<<<<< HEAD
-=======
         "institution": {
           "name": "institution",
           "type": "text",
@@ -2771,7 +2229,6 @@
           "primaryKey": false,
           "notNull": false
         },
->>>>>>> newemailworker
         "created_at": {
           "name": "created_at",
           "type": "timestamp with time zone",
@@ -3432,301 +2889,6 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
-    "public.grid_change_score": {
-      "name": "grid_change_score",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "aoi_id": {
-          "name": "aoi_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grid_cell_id": {
-          "name": "grid_cell_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "earlier_scene_id": {
-          "name": "earlier_scene_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "later_scene_id": {
-          "name": "later_scene_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "t0_acquisition_datetime": {
-          "name": "t0_acquisition_datetime",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "t1_acquisition_datetime": {
-          "name": "t1_acquisition_datetime",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "ndvi_drop_mean": {
-          "name": "ndvi_drop_mean",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "ndvi_drop_fraction": {
-          "name": "ndvi_drop_fraction",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "change_score": {
-          "name": "change_score",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_hot": {
-          "name": "is_hot",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "grid_change_score_aoi_id_aoi_id_fk": {
-          "name": "grid_change_score_aoi_id_aoi_id_fk",
-          "tableFrom": "grid_change_score",
-          "tableTo": "aoi",
-          "columnsFrom": [
-            "aoi_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "grid_change_score_grid_cell_id_aoi_grid_cell_id_fk": {
-          "name": "grid_change_score_grid_cell_id_aoi_grid_cell_id_fk",
-          "tableFrom": "grid_change_score",
-          "tableTo": "aoi_grid_cell",
-          "columnsFrom": [
-            "grid_cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "grid_change_score_earlier_scene_id_satellite_scene_id_fk": {
-          "name": "grid_change_score_earlier_scene_id_satellite_scene_id_fk",
-          "tableFrom": "grid_change_score",
-          "tableTo": "satellite_scene",
-          "columnsFrom": [
-            "earlier_scene_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
-        "grid_change_score_later_scene_id_satellite_scene_id_fk": {
-          "name": "grid_change_score_later_scene_id_satellite_scene_id_fk",
-          "tableFrom": "grid_change_score",
-          "tableTo": "satellite_scene",
-          "columnsFrom": [
-            "later_scene_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.highres_scene": {
-      "name": "highres_scene",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "aoi_id": {
-          "name": "aoi_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "grid_cell_id": {
-          "name": "grid_cell_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "acquisition_datetime": {
-          "name": "acquisition_datetime",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "resolution_m": {
-          "name": "resolution_m",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_min_lon": {
-          "name": "bbox_min_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_min_lat": {
-          "name": "bbox_min_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_max_lon": {
-          "name": "bbox_max_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_max_lat": {
-          "name": "bbox_max_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "r2_bucket": {
-          "name": "r2_bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "r2_key": {
-          "name": "r2_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "raw_metadata_json": {
-          "name": "raw_metadata_json",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_downloaded": {
-          "name": "is_downloaded",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "is_processed": {
-          "name": "is_processed",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "highres_scene_aoi_id_aoi_id_fk": {
-          "name": "highres_scene_aoi_id_aoi_id_fk",
-          "tableFrom": "highres_scene",
-          "tableTo": "aoi",
-          "columnsFrom": [
-            "aoi_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        },
-        "highres_scene_grid_cell_id_aoi_grid_cell_id_fk": {
-          "name": "highres_scene_grid_cell_id_aoi_grid_cell_id_fk",
-          "tableFrom": "highres_scene",
-          "tableTo": "aoi_grid_cell",
-          "columnsFrom": [
-            "grid_cell_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
     "public.journey_breadcrumbs": {
       "name": "journey_breadcrumbs",
       "schema": "",
@@ -4070,7 +3232,6 @@
           "primaryKey": false,
           "notNull": false
         },
-<<<<<<< HEAD
         "task_id": {
           "name": "task_id",
           "type": "varchar(255)",
@@ -4083,8 +3244,6 @@
           "primaryKey": false,
           "notNull": false
         },
-=======
->>>>>>> newemailworker
         "site_name": {
           "name": "site_name",
           "type": "varchar(255)",
@@ -4513,6 +3672,12 @@
           "primaryKey": false,
           "notNull": false
         },
+        "source_name": {
+          "name": "source_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "createdAt": {
           "name": "createdAt",
           "type": "timestamp",
@@ -4532,6 +3697,72 @@
       "foreignKeys": {},
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
+    "public.logistics_users": {
+      "name": "logistics_users",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true,
+          "default": "gen_random_uuid()"
+        },
+        "source_name": {
+          "name": "source_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "user_name": {
+          "name": "user_name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_password": {
+          "name": "user_password",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "user_role": {
+          "name": "user_role",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "createdAt": {
+          "name": "createdAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updatedAt": {
+          "name": "updatedAt",
+          "type": "timestamp",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {
+        "logistics_users_user_name_unique": {
+          "name": "logistics_users_user_name_unique",
+          "nullsNotDistinct": false,
+          "columns": [
+            "user_name"
+          ]
+        }
+      },
       "policies": {},
       "checkConstraints": {},
       "isRLSEnabled": false
@@ -7081,6 +6312,69 @@
       "checkConstraints": {},
       "isRLSEnabled": false
     },
+    "public.sales_promoters": {
+      "name": "sales_promoters",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "serial",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "name": {
+          "name": "name",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "mobile": {
+          "name": "mobile",
+          "type": "varchar(20)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email": {
+          "name": "email",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "zone": {
+          "name": "zone",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "district": {
+          "name": "district",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "is_active": {
+          "name": "is_active",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": false,
+          "default": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    },
     "public.salesman_attendance": {
       "name": "salesman_attendance",
       "schema": "",
@@ -7379,201 +6673,6 @@
           "tableTo": "users",
           "columnsFrom": [
             "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.satellite_scene": {
-      "name": "satellite_scene",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "aoi_id": {
-          "name": "aoi_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "provider": {
-          "name": "provider",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stac_id": {
-          "name": "stac_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "stac_collection": {
-          "name": "stac_collection",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "acquisition_datetime": {
-          "name": "acquisition_datetime",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "cloud_cover_percent": {
-          "name": "cloud_cover_percent",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "bbox_min_lon": {
-          "name": "bbox_min_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_min_lat": {
-          "name": "bbox_min_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_max_lon": {
-          "name": "bbox_max_lon",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "bbox_max_lat": {
-          "name": "bbox_max_lat",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "crs_epsg": {
-          "name": "crs_epsg",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "native_resolution_m": {
-          "name": "native_resolution_m",
-          "type": "double precision",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "r2_bucket": {
-          "name": "r2_bucket",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "r2_prefix": {
-          "name": "r2_prefix",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "red_band_key": {
-          "name": "red_band_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "nir_band_key": {
-          "name": "nir_band_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "green_band_key": {
-          "name": "green_band_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "blue_band_key": {
-          "name": "blue_band_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "rgb_preview_key": {
-          "name": "rgb_preview_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stac_properties": {
-          "name": "stac_properties",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "stac_assets": {
-          "name": "stac_assets",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_downloaded": {
-          "name": "is_downloaded",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "is_processed": {
-          "name": "is_processed",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "is_deleted_from_r2": {
-          "name": "is_deleted_from_r2",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": true,
-          "default": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "satellite_scene_aoi_id_aoi_id_fk": {
-          "name": "satellite_scene_aoi_id_aoi_id_fk",
-          "tableFrom": "satellite_scene",
-          "tableTo": "aoi",
-          "columnsFrom": [
-            "aoi_id"
           ],
           "columnsTo": [
             "id"
@@ -8118,45 +7217,6 @@
           "primaryKey": false,
           "notNull": true,
           "default": 0
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.tally_raw": {
-      "name": "tally_raw",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "collection_name": {
-          "name": "collection_name",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "raw_data": {
-          "name": "raw_data",
-          "type": "jsonb",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "synced_at": {
-          "name": "synced_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
         }
       },
       "indexes": {},
@@ -9058,6 +8118,12 @@
           "notNull": false,
           "default": false
         },
+        "meet_image_url": {
+          "name": "meet_image_url",
+          "type": "varchar(300)",
+          "primaryKey": false,
+          "notNull": false
+        },
         "created_by_user_id": {
           "name": "created_by_user_id",
           "type": "integer",
@@ -9142,90 +8208,6 @@
             "id"
           ],
           "onDelete": "set null",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "policies": {},
-      "checkConstraints": {},
-      "isRLSEnabled": false
-    },
-    "public.tso_visit": {
-      "name": "tso_visit",
-      "schema": "",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "uuid",
-          "primaryKey": true,
-          "notNull": true,
-          "default": "gen_random_uuid()"
-        },
-        "site_id": {
-          "name": "site_id",
-          "type": "uuid",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "tso_id": {
-          "name": "tso_id",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "visited_at": {
-          "name": "visited_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "visit_outcome": {
-          "name": "visit_outcome",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true
-        },
-        "comments": {
-          "name": "comments",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "photo_urls": {
-          "name": "photo_urls",
-          "type": "text[]",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "created_at": {
-          "name": "created_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        },
-        "updated_at": {
-          "name": "updated_at",
-          "type": "timestamp with time zone",
-          "primaryKey": false,
-          "notNull": true,
-          "default": "now()"
-        }
-      },
-      "indexes": {},
-      "foreignKeys": {
-        "tso_visit_site_id_construction_site_id_fk": {
-          "name": "tso_visit_site_id_construction_site_id_fk",
-          "tableFrom": "tso_visit",
-          "tableTo": "construction_site",
-          "columnsFrom": [
-            "site_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "cascade",
           "onUpdate": "no action"
         }
       },
@@ -9556,39 +8538,57 @@
           "primaryKey": true,
           "notNull": true
         },
-        "dealer_code": {
-          "name": "dealer_code",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "dealer_category": {
-          "name": "dealer_category",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "is_subdealer": {
-          "name": "is_subdealer",
-          "type": "boolean",
-          "primaryKey": false,
-          "notNull": false
-        },
         "dealer_party_name": {
           "name": "dealer_party_name",
           "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "alias": {
+          "name": "alias",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "gst_no": {
+          "name": "gst_no",
+          "type": "varchar(50)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pan_no": {
+          "name": "pan_no",
+          "type": "varchar(50)",
           "primaryKey": false,
           "notNull": false
         },
         "zone": {
           "name": "zone",
-          "type": "varchar(255)",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "district": {
+          "name": "district",
+          "type": "varchar(120)",
           "primaryKey": false,
           "notNull": false
         },
         "area": {
           "name": "area",
-          "type": "varchar(255)",
+          "type": "varchar(120)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "state": {
+          "name": "state",
+          "type": "varchar(100)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "pin_code": {
+          "name": "pin_code",
+          "type": "varchar(20)",
           "primaryKey": false,
           "notNull": false
         },
@@ -9610,82 +8610,171 @@
           "primaryKey": false,
           "notNull": false
         },
-        "address": {
-          "name": "address",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pin_code": {
-          "name": "pin_code",
-          "type": "varchar(20)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "related_sp_name": {
-          "name": "related_sp_name",
+        "contact_person": {
+          "name": "contact_person",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
-        "owner_proprietor_name": {
-          "name": "owner_proprietor_name",
+        "dealer_segment": {
+          "name": "dealer_segment",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
         },
-        "nature_of_firm": {
-          "name": "nature_of_firm",
-          "type": "varchar(255)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "gst_no": {
-          "name": "gst_no",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "pan_no": {
-          "name": "pan_no",
-          "type": "varchar(50)",
-          "primaryKey": false,
-          "notNull": false
-        },
-        "user_id": {
-          "name": "user_id",
+        "sales_promoter_id": {
+          "name": "sales_promoter_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false
         },
-        "dealer_id": {
-          "name": "dealer_id",
+        "sales_man_name_raw": {
+          "name": "sales_man_name_raw",
           "type": "varchar(255)",
           "primaryKey": false,
           "notNull": false
+        },
+        "credit_limit": {
+          "name": "credit_limit",
+          "type": "numeric(14, 2)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "security_blank_cheque_no": {
+          "name": "security_blank_cheque_no",
+          "type": "varchar(255)",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
         }
       },
-      "indexes": {},
-      "foreignKeys": {
-        "verified_dealers_user_id_users_id_fk": {
-          "name": "verified_dealers_user_id_users_id_fk",
-          "tableFrom": "verified_dealers",
-          "tableTo": "users",
-          "columnsFrom": [
-            "user_id"
+      "indexes": {
+        "idx_verified_zone": {
+          "name": "idx_verified_zone",
+          "columns": [
+            {
+              "expression": "zone",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
           ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "set null",
-          "onUpdate": "no action"
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
         },
-        "verified_dealers_dealer_id_dealers_id_fk": {
-          "name": "verified_dealers_dealer_id_dealers_id_fk",
+        "idx_verified_district": {
+          "name": "idx_verified_district",
+          "columns": [
+            {
+              "expression": "district",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_pincode": {
+          "name": "idx_verified_pincode",
+          "columns": [
+            {
+              "expression": "pin_code",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_sales_promoter": {
+          "name": "idx_verified_sales_promoter",
+          "columns": [
+            {
+              "expression": "sales_promoter_id",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_segment": {
+          "name": "idx_verified_segment",
+          "columns": [
+            {
+              "expression": "dealer_segment",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_gst": {
+          "name": "idx_verified_gst",
+          "columns": [
+            {
+              "expression": "gst_no",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "idx_verified_mobile": {
+          "name": "idx_verified_mobile",
+          "columns": [
+            {
+              "expression": "contact_no1",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "verified_dealers_sales_promoter_id_sales_promoters_id_fk": {
+          "name": "verified_dealers_sales_promoter_id_sales_promoters_id_fk",
           "tableFrom": "verified_dealers",
-          "tableTo": "dealers",
+          "tableTo": "sales_promoters",
           "columnsFrom": [
-            "dealer_id"
+            "sales_promoter_id"
           ],
           "columnsTo": [
             "id"
