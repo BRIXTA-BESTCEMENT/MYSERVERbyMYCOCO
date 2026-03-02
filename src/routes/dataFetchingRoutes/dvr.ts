@@ -92,7 +92,8 @@ function createAutoCRUD(app: Express, config: {
       conds.push(
         sql`(${ilike(table.location, s)} 
            OR ${ilike(table.contactPerson, s)}
-           OR ${ilike(table.feedbacks, s)})`
+           OR ${ilike(table.feedbacks, s)})
+           OR ${ilike(table.nameOfParty, s)})`
       );
     }
 

@@ -1,5 +1,4 @@
-// server/src/routes/postRoutes/dvr.ts
-// --- UPDATED with visitType fix ---
+// server/src/routes/formSubmissionRoutes/dvr.ts
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
@@ -21,7 +20,7 @@ const strOrNull = z.preprocess((val) => {
 const numOrNull = z.preprocess((val) => (val === '' || val === null || val === undefined) ? null : val, z.coerce.number().nullable().optional());
 
 
-// ---- input schema UPDATED (matches DB + coercions) ----
+// ---- input schema UPDATED ----
 const dvrInputSchema = z
   .object({
     userId: z.coerce.number().int().positive(),
@@ -29,12 +28,17 @@ const dvrInputSchema = z
     subDealerId: strOrNull,
     reportDate: z.coerce.date(),
     dealerType: z.string().max(50),
+    
+    customerType: strOrNull,
+    partyType: strOrNull,
+    nameOfParty: strOrNull,
+    contactNoOfParty: strOrNull,
+    expectedActivationDate: z.coerce.date().nullable().optional(),
+
     location: z.string().max(500),
     latitude: z.coerce.number(),
     longitude: z.coerce.number(),
-    
-    visitType: z.string().max(50), // <-- This was in the schema
-    
+    visitType: z.string().max(50), 
     dealerTotalPotential: z.coerce.number(),
     dealerBestPotential: z.coerce.number(),
     brandSelling: z.preprocess(toStringArray, z.array(z.string()).min(1)),
@@ -52,16 +56,18 @@ const dvrInputSchema = z
     inTimeImageUrl: strOrNull,
     outTimeImageUrl: strOrNull,
     pjpId: strOrNull,
-  })
-  .strict();
+  });
 
 export default function setupDailyVisitReportsPostRoutes(app: Express) {
   app.post('/api/daily-visit-reports', async (req: Request, res: Response) => {
+    
+    // console.log('Incoming req.body keys:', Object.keys(req.body));
+    // console.log('Raw req.body:', JSON.stringify(req.body, null, 2));
+
     try {
-      // 1) validate + coerce
+
       const input = dvrInputSchema.parse(req.body);
 
-      // 2) map to insert
       const insertData = {
         id: randomUUID(),
         userId: input.userId,
@@ -69,14 +75,17 @@ export default function setupDailyVisitReportsPostRoutes(app: Express) {
         subDealerId: input.subDealerId ?? null,
         reportDate: toDateOnly(input.reportDate),
         dealerType: input.dealerType,
+
+        customerType: input.customerType ?? null,
+        partyType: input.partyType ?? null,
+        nameOfParty: input.nameOfParty ?? null,
+        contactNoOfParty: input.contactNoOfParty ?? null,
+        expectedActivationDate: input.expectedActivationDate ? toDateOnly(input.expectedActivationDate) : null,
+
         location: input.location,
         latitude: String(input.latitude),
         longitude: String(input.longitude),
-        
-        // --- ✅ THE FIX ---
-        visitType: input.visitType, // <-- This line was missing
-        // --- END FIX ---
-
+        visitType: input.visitType,
         dealerTotalPotential: String(input.dealerTotalPotential),
         dealerBestPotential: String(input.dealerBestPotential),
         brandSelling: input.brandSelling,
@@ -96,7 +105,6 @@ export default function setupDailyVisitReportsPostRoutes(app: Express) {
         pjpId: input.pjpId ?? null,
       };
 
-      // 3) insert
       const [record] = await db.insert(dailyVisitReports).values(insertData).returning();
 
       return res.status(201).json({
@@ -125,5 +133,5 @@ export default function setupDailyVisitReportsPostRoutes(app: Express) {
     }
   });
 
-  console.log('✅ DVR POST endpoints (using dealerId) setup complete');
+  console.log('✅ DVR POST endpoints setup complete');
 }

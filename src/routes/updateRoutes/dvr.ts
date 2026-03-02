@@ -1,5 +1,4 @@
 // server/src/routes/updateRoutes/dvr.ts
-// --- UPDATED to use dealerId and subDealerId ---
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
@@ -24,16 +23,18 @@ const numOrNull = z.preprocess((val) => (val === '' || val === null || val === u
 // ---- patch schema UPDATED ----
 const dvrPatchSchema = z
   .object({
-    // --- ✅ FIX ---
     dealerId: strOrNull,
     subDealerId: strOrNull,
-    // --- END FIX ---
-    
     userId: z.coerce.number().int().positive().optional(),
     reportDate: z.coerce.date().optional(),
     dealerType: z.string().max(50).optional(),
-    // dealerName: nullableString, // <-- REMOVED
-    // subDealerName: nullableString, // <-- REMOVED
+    
+    customerType: strOrNull,
+    partyType: strOrNull,
+    nameOfParty: strOrNull,
+    contactNoOfParty: strOrNull,
+    expectedActivationDate: z.coerce.date().nullable().optional(),
+
     location: z.string().max(500).optional(),
     latitude: z.coerce.number().optional(),
     longitude: z.coerce.number().optional(),
@@ -55,8 +56,7 @@ const dvrPatchSchema = z
     inTimeImageUrl: strOrNull,
     outTimeImageUrl: strOrNull,
     pjpId: z.string().max(255).nullable().optional(),
-  })
-  .strict();
+  });
 
 export default function setupDailyVisitReportsPatchRoutes(app: Express) {
   
@@ -84,18 +84,22 @@ export default function setupDailyVisitReportsPatchRoutes(app: Express) {
       
       const patch: any = { updatedAt: new Date() };
       
-      // --- ✅ FIX: Map new IDs ---
       if (input.dealerId !== undefined) patch.dealerId = input.dealerId;
       if (input.subDealerId !== undefined) patch.subDealerId = input.subDealerId;
-      // --- END FIX ---
-
       if (input.userId !== undefined) patch.userId = input.userId;
       if (input.reportDate !== undefined) patch.reportDate = toDateOnly(input.reportDate);
       if (input.dealerType !== undefined) patch.dealerType = input.dealerType;
+
+      if (input.customerType !== undefined) patch.customerType = input.customerType;
+      if (input.partyType !== undefined) patch.partyType = input.partyType;
+      if (input.nameOfParty !== undefined) patch.nameOfParty = input.nameOfParty;
+      if (input.contactNoOfParty !== undefined) patch.contactNoOfParty = input.contactNoOfParty;
+      if (input.expectedActivationDate !== undefined) {
+        patch.expectedActivationDate = input.expectedActivationDate ? toDateOnly(input.expectedActivationDate) : null;
+      }
+
       if (input.location !== undefined) patch.location = input.location;
       if (input.visitType !== undefined) patch.visitType = input.visitType;
-      
-      // --- ✅ FIX: Convert all numerics to strings ---
       if (input.latitude !== undefined) patch.latitude = String(input.latitude);
       if (input.longitude !== undefined) patch.longitude = String(input.longitude);
       if (input.dealerTotalPotential !== undefined) patch.dealerTotalPotential = String(input.dealerTotalPotential);
@@ -103,8 +107,6 @@ export default function setupDailyVisitReportsPatchRoutes(app: Express) {
       if (input.todayOrderMt !== undefined) patch.todayOrderMt = String(input.todayOrderMt);
       if (input.todayCollectionRupees !== undefined) patch.todayCollectionRupees = String(input.todayCollectionRupees);
       if (input.overdueAmount !== undefined) patch.overdueAmount = input.overdueAmount ? String(input.overdueAmount) : null;
-      // --- END FIX ---
-      
       if (input.brandSelling !== undefined) patch.brandSelling = input.brandSelling;
       if (input.contactPerson !== undefined) patch.contactPerson = input.contactPerson;
       if (input.contactPersonPhoneNo !== undefined) patch.contactPersonPhoneNo = input.contactPersonPhoneNo;
@@ -142,5 +144,5 @@ export default function setupDailyVisitReportsPatchRoutes(app: Express) {
     }
   });
 
-  console.log('✅ DVR PATCH endpoints (using dealerId) setup complete');
+  console.log('✅ DVR PATCH endpoints setup complete');
 }
