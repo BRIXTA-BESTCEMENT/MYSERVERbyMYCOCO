@@ -106,7 +106,7 @@ export class PjpPayloadBuilder {
         const counterName = this.cleanString(values[8]);
         const mobile = this.cleanString(values[9]);
         const week = this.cleanString(values[10]);
-
+        
         const rawVisits = parseInt(values[11], 10);
         const requiredVisitCount = isNaN(rawVisits) ? 1 : rawVisits;
 
@@ -152,90 +152,109 @@ export class PjpPayloadBuilder {
   ========================================================= */
   private cleanString(val: any): string {
     if (val === null || val === undefined) return "";
-
+    
     // 1. Handle Rich Text (Bold, Color, etc.)
     if (typeof val === 'object' && val.richText) {
-      return val.richText.map((rt: any) => rt.text).join('').trim();
+       return val.richText.map((rt: any) => rt.text).join('').trim();
     }
 
     // 2. Handle Formulas (ExcelJS returns { formula: '...', result: '...' })
     if (typeof val === 'object' && val.result !== undefined) {
-      return String(val.result).trim();
+        return String(val.result).trim();
     }
 
     // 3. Handle Hyperlinks (ExcelJS returns { text: '...', hyperlink: '...' })
     if (typeof val === 'object' && val.text !== undefined) {
-      return String(val.text).trim();
+        return String(val.text).trim();
     }
 
     // 4. Handle Standard Strings / Numbers
     return String(val).trim();
   }
 
-  // 🚨 THE SMART DAY EXTRACTOR 🚨
+  // 🚨 UPGRADED STRICT IST DATE PARSER 🚨
+// 🚨 UPGRADED BULLETPROOF DATE PARSER 🚨
   private safeDate(value: any): string | null {
     if (!value) return null;
 
+    // 1. 🛡️ UNWRAP EXCELJS OBJECTS (RichText formatting, Formulas, etc)
     let rawValue = value;
     if (value && typeof value === 'object' && !(value instanceof Date)) {
-      if (value.result !== undefined) rawValue = value.result;
-      else if (value.richText) rawValue = value.richText.map((rt: any) => rt.text).join('').trim();
-      else if (value.text !== undefined) rawValue = value.text;
+        if (value.result !== undefined) {
+            rawValue = value.result; 
+        } else if (value.richText) {
+            rawValue = value.richText.map((rt: any) => rt.text).join('').trim();
+        } else if (value.text !== undefined) {
+            rawValue = value.text;
+        }
     }
 
     if (!rawValue) return null;
 
-    // 1️⃣ Get STRICT Current Year and Month
     const nowString = new Date().toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
     const nowIST = new Date(nowString);
     const currentYear = nowIST.getFullYear();
-    const currentMonth = String(nowIST.getMonth() + 1).padStart(2, "0");
+    const currentMonth = nowIST.getMonth(); 
 
-    let extractedDay = 0;
+    const stringVal = String(rawValue).trim().toLowerCase();
+    
+    // 2. 🌟 "JUST THE DAY" LOGIC (e.g. "24", "24th")
+    const dayMatch = stringVal.match(/^(\d{1,2})(st|nd|rd|th)?$/);
+    if (dayMatch) {
+        const dayNum = parseInt(dayMatch[1], 10);
+        if (dayNum >= 1 && dayNum <= 31) {
+            const monthStr = String(currentMonth + 1).padStart(2, "0");
+            const dayStr = String(dayNum).padStart(2, "0");
+            return `${currentYear}-${monthStr}-${dayStr}`;
+        }
+    }
 
-    // 2️⃣ Handle JavaScript Date Objects (where the flip happens)
+    // 3. 🌟 FORGIVING INDIAN DD/MM/YYYY LOGIC (Ignores timestamps)
+    const indianDateMatch = stringVal.match(/^(\d{1,2})[\/\-\.](\d{1,2})[\/\-\.](\d{2,4})/);
+    if (indianDateMatch) {
+        let day = parseInt(indianDateMatch[1], 10);
+        let month = parseInt(indianDateMatch[2], 10);
+        let year = parseInt(indianDateMatch[3], 10);
+
+        // Fix 2-digit years like "26" -> 2026
+        if (year < 100) year += 2000;
+
+        // Auto-correct if user accidentally typed MM/DD/YYYY
+        if (month > 12 && day <= 12) {
+            const temp = day;
+            day = month;
+            month = temp;
+        }
+
+        if (day >= 1 && day <= 31 && month >= 1 && month <= 12) {
+            const safeMonth = String(month).padStart(2, "0");
+            const safeDay = String(day).padStart(2, "0");
+            return `${year}-${safeMonth}-${safeDay}`; // Strict DB format
+        }
+    }
+
+    // 4. 🌟 STANDARD JAVASCRIPT / EXCEL SERIAL PARSING
+    let parsed: Date;
     if (rawValue instanceof Date) {
-      const iso = rawValue.toISOString().split("T")[0]; // e.g., "2026-06-03" or "2026-03-26"
-      const parts = iso.split("-");
-
-      const num1 = parseInt(parts[1], 10); // Middle number
-      const num2 = parseInt(parts[2], 10); // Last number
-
-      // If either number is > 12, it MUST be the day.
-      if (num1 > 12) {
-        extractedDay = num1;
-      } else if (num2 > 12) {
-        extractedDay = num2;
-      } else {
-        // If both are <= 12 (ambiguous like 06-03), JS assumes US format (MM/DD).
-        // This means JS shoved your actual Day into the Month slot (num1).
-        extractedDay = num1;
-      }
+        parsed = rawValue;
+    } else if (typeof rawValue === "number") {
+        parsed = new Date(Math.round((rawValue - 25569) * 86400 * 1000));
+    } else {
+        parsed = new Date(rawValue);
     }
-    // 3️⃣ Handle Native Excel Serial Numbers
-    else if (typeof rawValue === "number") {
-      const parsed = new Date(Math.round((rawValue - 25569) * 86400 * 1000));
-      const iso = parsed.toISOString().split("T")[0];
-      const parts = iso.split("-");
+    
+    if (isNaN(parsed.getTime())) return null;
+    
+    // 5. 🌟 STRICT IST CONVERSION
+    const istString = parsed.toLocaleString("en-US", { timeZone: "Asia/Kolkata" });
+    const targetIST = new Date(istString);
 
-      const num1 = parseInt(parts[1], 10);
-      const num2 = parseInt(parts[2], 10);
+    let year = targetIST.getFullYear();
+    const month = String(targetIST.getMonth() + 1).padStart(2, "0");
+    const day = String(targetIST.getDate()).padStart(2, "0");
 
-      if (num1 > 12) extractedDay = num1;
-      else if (num2 > 12) extractedDay = num2;
-      else extractedDay = num1;
-    }
-    // 4️⃣ Handle Raw Strings (e.g., "6/3/2026")
-    else if (typeof rawValue === "string") {
-      const match = rawValue.trim().match(/^(\d{1,2})/);
-      if (match) extractedDay = parseInt(match[1], 10);
-    }
+    if (year < 2020) year = currentYear;
 
-    // Validate we got a real day
-    if (extractedDay < 1 || extractedDay > 31) return null;
-
-    // 5️⃣ GLUE IT TOGETHER AND ENFORCE CURRENT MONTH/YEAR
-    const safeDay = String(extractedDay).padStart(2, "0");
-    return `${currentYear}-${currentMonth}-${safeDay}`;
+    return `${year}-${month}-${day}`;
   }
 }
