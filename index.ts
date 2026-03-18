@@ -139,6 +139,7 @@ import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 import { MasterEmailWorker } from "./src/services/masteremailworker";
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
+import { setupAutoApproveCron } from './src/workers/autoApprove';
 
 
 //---------------------------------------------
@@ -383,6 +384,8 @@ setupAiService(app);
 
 // -------- Microsoft Email -------------
 setupMicrosoftEmailRoutes(app);
+
+setupAutoApproveCron();
 
 
 // Handle 404 - Not Found for any routes not matched above
