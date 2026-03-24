@@ -12,6 +12,47 @@ const dailyTaskUpdateSchema = insertDailyTaskSchema.partial();
 
 export default function setupDailyTaskPatchRoutes(app: Express) {
 
+  // PATCH /api/daily-tasks/bulk-status
+  app.patch('/api/daily-tasks/bulk-status', async (req: Request, res: Response) => {
+    try {
+      const { taskIds, status } = req.body;
+
+      if (!Array.isArray(taskIds) || taskIds.length === 0) {
+        return res.status(400).json({
+          success: false,
+          error: 'An array of taskIds is required.',
+        });
+      }
+
+      if (!status) {
+        return res.status(400).json({
+          success: false,
+          error: 'A status string is required.',
+        });
+      }
+
+      const updatedTasks = await db
+        .update(dailyTasks)
+        .set({ status, updatedAt: new Date() })
+        .where(inArray(dailyTasks.id, taskIds))
+        .returning({ id: dailyTasks.id });
+
+      return res.json({
+        success: true,
+        message: `Successfully updated ${updatedTasks.length} tasks`,
+        data: { updatedCount: updatedTasks.length },
+      });
+
+    } catch (error) {
+      console.error('Bulk Update Daily Task error:', error);
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to bulk update tasks',
+        details: error instanceof Error ? error.message : 'Unknown error',
+      });
+    }
+  });
+
   // PATCH /api/daily-tasks/:id
   app.patch('/api/daily-tasks/:id', async (req: Request, res: Response) => {
     try {
@@ -67,49 +108,6 @@ export default function setupDailyTaskPatchRoutes(app: Express) {
       res.status(500).json({
         success: false,
         error: 'Failed to update Daily Task',
-        details: error instanceof Error ? error.message : 'Unknown error',
-      });
-    }
-  });
-
-  // PATCH /api/daily-tasks/bulk-status
-  app.patch('/api/daily-tasks/bulk-status', async (req: Request, res: Response) => {
-    try {
-      const { taskIds, status } = req.body;
-
-      // 1. Validate inputs
-      if (!Array.isArray(taskIds) || taskIds.length === 0) {
-        return res.status(400).json({
-          success: false,
-          error: 'An array of taskIds is required.',
-        });
-      }
-
-      if (!status) {
-        return res.status(400).json({
-          success: false,
-          error: 'A status string is required.',
-        });
-      }
-
-      // 2. Perform the bulk update in ONE database query
-      const updatedTasks = await db
-        .update(dailyTasks)
-        .set({ status, updatedAt: new Date() })
-        .where(inArray(dailyTasks.id, taskIds))
-        .returning({ id: dailyTasks.id }); // Only return IDs to keep the payload tiny
-
-      res.json({
-        success: true,
-        message: `Successfully updated ${updatedTasks.length} tasks`,
-        updatedCount: updatedTasks.length,
-      });
-
-    } catch (error) {
-      console.error('Bulk Update Daily Task error:', error);
-      res.status(500).json({
-        success: false,
-        error: 'Failed to bulk update tasks',
         details: error instanceof Error ? error.message : 'Unknown error',
       });
     }
