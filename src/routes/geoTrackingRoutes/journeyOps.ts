@@ -55,7 +55,7 @@ export default function setupJourneyOpsRoutes(app: Express) {
         if (existing) {
           acks.push({
             opId: existing.opId,
-            serverSeq: existing.serverSeq,
+            serverSeq: Number(existing.serverSeq),
           });
           continue;
         }
@@ -69,13 +69,13 @@ export default function setupJourneyOpsRoutes(app: Express) {
             type: op.type,
             payload: op.payload,
             appRole: op.appRole,
-            createdAt: new Date(op.createdAt),
+            createdAt: new Date(op.createdAt).toISOString(),
           })
           .returning();
 
         acks.push({
           opId: inserted.opId,
-          serverSeq: inserted.serverSeq,
+          serverSeq: Number(inserted.serverSeq),
         });
       }
 

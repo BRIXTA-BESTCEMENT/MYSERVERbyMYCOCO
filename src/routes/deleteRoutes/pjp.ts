@@ -34,18 +34,6 @@ function createAutoCRUD(app: Express, config: {
       let mctDeleted = 0;
       let mctSkipped = false;
 
-      // ✅ Clean MCT only if exists
-      if (await mctExists(tx)) {
-        const mctRes = await tx
-          .delete(masterConnectedTable)
-          .where(inArray(masterConnectedTable.permanentJourneyPlanId, ids))
-          .returning({ id: masterConnectedTable.id });
-
-        mctDeleted = mctRes.length;
-      } else {
-        mctSkipped = true;
-      }
-
       const pjpRes = await tx
         .delete(permanentJourneyPlans)
         .where(inArray(permanentJourneyPlans.id, ids))

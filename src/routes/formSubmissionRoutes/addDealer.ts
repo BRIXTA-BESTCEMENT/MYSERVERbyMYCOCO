@@ -1,7 +1,7 @@
 // server/src/routes/postRoutes/dealers.ts
 // Dealers POST endpoint (create + Radar geofence) with robust empty-string/null coercion
 
-import { Request, Response, Express } from 'express'; 
+import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { dealers } from '../../db/schema';
 import { z } from 'zod';
@@ -92,12 +92,10 @@ export const dealerInputSchema = z.object({
   feedbacks: z.string().min(1),
   remarks: strOrNull,
 
-  // --- ADDED FOR PRISMA PARITY ---
-  dealerDevelopmentStatus: strOrNull,
-  dealerDevelopmentObstacle: strOrNull,
+  dealerdevelopmentstatus: strOrNull,
+  dealerdevelopmentobstacle: strOrNull,
   salesGrowthPercentage: numOrNull,
-  noOfPJP: intOrNull,
-  // -----------------------------
+  noOfPjp: intOrNull, // Changed from noOfPJP to match schema
 
   verificationStatus: z.enum(['PENDING', 'VERIFIED']).default('PENDING').optional(),
 
@@ -105,7 +103,7 @@ export const dealerInputSchema = z.object({
   whatsappNo: strOrNull,
   emailId: z.preprocess((val) => (val === '' ? null : val), z.string().email().nullable().optional()),
   businessType: strOrNull,
-  
+
   // --- ✅ NEW FIELDS ADDED ---
   nameOfFirm: strOrNull,
   underSalesPromoterName: strOrNull,
@@ -116,23 +114,23 @@ export const dealerInputSchema = z.object({
   tradeLicNo: strOrNull,
   aadharNo: strOrNull,
 
-  // Godown
-  godownSizeSqFt: intOrNull,
-  godownCapacityMTBags: strOrNull,
+  // Godown - Matching schema case (Sqft, MtBags, landmark, pincode)
+  godownSizeSqft: intOrNull,
+  godownCapacityMtBags: strOrNull,
   godownAddressLine: strOrNull,
-  godownLandMark: strOrNull,
+  godownLandmark: strOrNull,
   godownDistrict: strOrNull,
   godownArea: strOrNull,
   godownRegion: strOrNull,
-  godownPinCode: strOrNull,
+  godownPincode: strOrNull,
 
-  // Residential
+  // Residential - Matching schema case (landmark, pincode)
   residentialAddressLine: strOrNull,
-  residentialLandMark: strOrNull,
+  residentialLandmark: strOrNull,
   residentialDistrict: strOrNull,
   residentialArea: strOrNull,
   residentialRegion: strOrNull,
-  residentialPinCode: strOrNull,
+  residentialPincode: strOrNull,
 
   // Bank
   bankAccountName: strOrNull,
@@ -143,10 +141,10 @@ export const dealerInputSchema = z.object({
 
   // Sales & promoter
   brandName: strOrNull,
-  monthlySaleMT: numOrNull,
   noOfDealers: intOrNull,
   areaCovered: strOrNull,
-  projectedMonthlySalesBestCementMT: numOrNull,
+  monthlySaleMt: numOrNull,
+  projectedMonthlySalesBestCementMt: numOrNull,
   noOfEmployeesInSales: intOrNull,
 
   // Declaration
@@ -190,7 +188,6 @@ function createAutoCRUD(
       }
 
       // 2) Map to DB insert object
-      // --- Convert numbers/Dates to strings for Drizzle ---
       const finalData: Omit<DealerInsert, 'id' | 'createdAt' | 'updatedAt'> = {
         userId: input.userId ?? null,
         type: input.type,
@@ -215,11 +212,11 @@ function createAutoCRUD(
         feedbacks: input.feedbacks,
         remarks: input.remarks ?? null,
 
-        // --- ADDED FOR PRISMA PARITY ---
-        dealerDevelopmentStatus: input.dealerDevelopmentStatus ?? null,
-        dealerDevelopmentObstacle: input.dealerDevelopmentObstacle ?? null,
+        // --- MATCHING SCHEMA SOURCE OF TRUTH ---
+        dealerdevelopmentstatus: input.dealerdevelopmentstatus ?? null,
+        dealerdevelopmentobstacle: input.dealerdevelopmentobstacle ?? null,
         salesGrowthPercentage: input.salesGrowthPercentage ? String(input.salesGrowthPercentage) : null,
-        noOfPJP: input.noOfPJP ?? null,
+        noOfPjp: input.noOfPjp ?? null,
 
         verificationStatus: input.verificationStatus ?? 'PENDING',
         whatsappNo: input.whatsappNo ?? null,
@@ -234,22 +231,22 @@ function createAutoCRUD(
         aadharNo: input.aadharNo ?? null,
 
         // Godown
-        godownSizeSqFt: input.godownSizeSqFt ?? null,
-        godownCapacityMTBags: input.godownCapacityMTBags ?? null,
+        godownSizeSqft: input.godownSizeSqft ?? null,
+        godownCapacityMtBags: input.godownCapacityMtBags ?? null,
         godownAddressLine: input.godownAddressLine ?? null,
-        godownLandMark: input.godownLandMark ?? null,
+        godownLandmark: input.godownLandmark ?? null,
         godownDistrict: input.godownDistrict ?? null,
         godownArea: input.godownArea ?? null,
         godownRegion: input.godownRegion ?? null,
-        godownPinCode: input.godownPinCode ?? null,
+        godownPincode: input.godownPincode ?? null,
 
         // Residential
         residentialAddressLine: input.residentialAddressLine ?? null,
-        residentialLandMark: input.residentialLandMark ?? null,
+        residentialLandmark: input.residentialLandmark ?? null,
         residentialDistrict: input.residentialDistrict ?? null,
         residentialArea: input.residentialArea ?? null,
         residentialRegion: input.residentialRegion ?? null,
-        residentialPinCode: input.residentialPinCode ?? null,
+        residentialPincode: input.residentialPincode ?? null,
 
         // Bank
         bankAccountName: input.bankAccountName ?? null,
@@ -260,11 +257,11 @@ function createAutoCRUD(
 
         // Sales & promoter
         brandName: input.brandName ?? null,
-        monthlySaleMT: input.monthlySaleMT ? String(input.monthlySaleMT) : null,
+        monthlySaleMt: input.monthlySaleMt ? String(input.monthlySaleMt) : null,
         noOfDealers: input.noOfDealers ?? null,
         areaCovered: input.areaCovered ?? null,
-        projectedMonthlySalesBestCementMT: input.projectedMonthlySalesBestCementMT 
-          ? String(input.projectedMonthlySalesBestCementMT) 
+        projectedMonthlySalesBestCementMt: input.projectedMonthlySalesBestCementMt
+          ? String(input.projectedMonthlySalesBestCementMt)
           : null,
         noOfEmployeesInSales: input.noOfEmployeesInSales ?? null,
 
@@ -326,7 +323,7 @@ function createAutoCRUD(
       const upJson = await upRes.json().catch(() => ({} as any));
       if (!upRes.ok || upJson?.meta?.code !== 200 || !upJson?.geofence) {
         // --- Rollback DB insert on Radar failure ---
-        await db.delete(table).where(eq(table.id, dealer.id)); 
+        await db.delete(table).where(eq(table.id, dealer.id));
         return res.status(502).json({ // 502 Bad Gateway
           success: false,
           error: upJson?.meta?.message || upJson?.message || 'Failed to upsert dealer geofence in Radar',
@@ -337,7 +334,7 @@ function createAutoCRUD(
       // 5) OK
       return res.status(201).json({
         success: true,
-        data: dealer, 
+        data: dealer,
         message: `${tableName} created and geofence upserted`,
         geofenceRef: {
           id: upJson.geofence._id,
@@ -349,14 +346,14 @@ function createAutoCRUD(
     } catch (error) {
       console.error(`Create ${tableName} error:`, error);
       if (error instanceof z.ZodError) {
-        return res.status(400).json({ 
-          success: false, 
-          error: 'Validation failed', 
+        return res.status(400).json({
+          success: false,
+          error: 'Validation failed',
           details: error.issues.map(i => ({
             field: i.path.join('.'),
             message: i.message,
             code: i.code,
-          })) 
+          }))
         });
       }
       return res.status(500).json({

@@ -45,8 +45,8 @@ export default function setupPointsLedgerGetRoutes(app: Express) {
             const end = new Date(endDate); 
 
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
-                conds.push(gte(pointsLedger.createdAt, start));
-                conds.push(lte(pointsLedger.createdAt, end));
+                conds.push(gte(pointsLedger.createdAt, start.toISOString()));
+                conds.push(lte(pointsLedger.createdAt, end.toISOString()));
             } else {
                  console.warn('Invalid startDate or endDate provided for pointsLedger filter.');
             }

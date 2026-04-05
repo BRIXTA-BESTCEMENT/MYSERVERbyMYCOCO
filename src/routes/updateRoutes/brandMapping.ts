@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Create a partial schema for validation, only allowing 'capacityMT' to be updated.
-const mappingUpdateSchema = insertDealerBrandMappingSchema.pick({ capacityMT: true });
+const mappingUpdateSchema = insertDealerBrandMappingSchema.pick({ capacityMt: true });
 
 export default function setupDealerBrandMappingPatchRoutes(app: Express) {
   
@@ -34,7 +34,7 @@ export default function setupDealerBrandMappingPatchRoutes(app: Express) {
       const [updatedMapping] = await db
         .update(dealerBrandMapping)
         .set({
-          capacityMT: validatedData.capacityMT,
+          capacityMt: validatedData.capacityMt,
         })
         .where(eq(dealerBrandMapping.id, id))
         .returning();

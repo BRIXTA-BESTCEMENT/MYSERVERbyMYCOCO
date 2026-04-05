@@ -19,7 +19,7 @@ export default function setupLeaveUpdateRoute(app: Express) {
                 .set({ 
                     status, 
                     adminRemarks, 
-                    updatedAt: new Date() 
+                    updatedAt: new Date().toISOString() 
                 })
                 .where(eq(salesmanLeaveApplications.id, id))
                 .returning();

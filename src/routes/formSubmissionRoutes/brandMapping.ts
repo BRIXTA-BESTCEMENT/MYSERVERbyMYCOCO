@@ -3,6 +3,7 @@ import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { dealerBrandMapping, insertDealerBrandMappingSchema } from '../../db/schema';
 import { z } from 'zod';
+import { randomUUID } from 'crypto'; // Add this for the ID
 
 // const insertDealerBrandMappingSchema = z.object({
 //   dealerId: z.string().min(1, 'Dealer ID is required'),
@@ -25,15 +26,17 @@ function createAutoCRUD(
     try {
       const validated = schema.parse(req.body);
 
-      // numeric(12,2) -> ensure fixed 2 decimals and pass as string
-      const capacityStr = Number(validated.capacityMT).toFixed(2); // "12.50"
+      // 1. Use capacityMt (lowercase 't') to match schema
+      // 2. Ensure fixed 2 decimals for numeric(12,2)
+      const capacityStr = Number(validated.capacityMT).toFixed(2);
 
       const [newRecord] = await db
         .insert(table)
         .values({
+          id: randomUUID(), // 3. MUST provide ID since it's a varchar primary key
           dealerId: validated.dealerId,
           brandId: validated.brandId,
-          capacityMT: capacityStr,
+          capacityMt: capacityStr, // Fixed casing here
         })
         .returning();
 

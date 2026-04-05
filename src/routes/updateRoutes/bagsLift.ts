@@ -62,7 +62,7 @@ export default function setupBagLiftsPatchRoute(app: Express) {
 
       // 2. Determine Final Data
       const finalBagCount = input.bagCount ?? existingRecord.bagCount;
-      const finalPurchaseDate = input.purchaseDate ?? existingRecord.purchaseDate;
+      const finalPurchaseDate = new Date(input.purchaseDate ?? existingRecord.purchaseDate);
 
       // 3. RE-CALCULATE POINTS
       const recalculatedPoints = calculateBaseAndBonanzaPoints(finalBagCount, finalPurchaseDate);
@@ -89,7 +89,7 @@ export default function setupBagLiftsPatchRoute(app: Express) {
       }
 
       if (status === 'approved') {
-        updates.approvedAt = new Date();
+        updates.approvedAt = new Date().toISOString();
       }
 
       // 5. Transaction

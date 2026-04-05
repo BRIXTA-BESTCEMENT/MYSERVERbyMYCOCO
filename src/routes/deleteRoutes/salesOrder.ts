@@ -135,8 +135,8 @@ function createAutoCRUD(app: Express, config: {
       
       const col = pickDateColumn(String(dateField));
       const whereCond: SQL = and(
-        gte(col, new Date(String(dateFrom))),
-        lte(col, new Date(String(dateTo)))
+        gte(col, new Date(String(dateFrom)).toISOString()),
+        lte(col, new Date(String(dateTo)).toISOString())
       )!;
 
       const rows = await db.select().from(table).where(whereCond);

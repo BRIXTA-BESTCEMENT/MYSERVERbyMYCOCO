@@ -6,6 +6,7 @@ import { db } from '../../db/db';
 import { salesmanAttendance } from '../../db/schema';
 import { eq, and } from 'drizzle-orm';
 import { z } from 'zod';
+import { randomUUID } from 'crypto';
 
 // Zod schema for validation
 const attendanceInSchema = z.object({
@@ -46,7 +47,7 @@ export default function setupAttendanceInPostRoutes(app: Express) {
       } = parsed;
 
       const dateStr = String(attendanceDate).substring(0, 10);
-      
+
       console.log(`[CheckIn] App sent: ${attendanceDate} | Server using: ${dateStr}`);
 
       // Check if user already checked in today
@@ -70,11 +71,12 @@ export default function setupAttendanceInPostRoutes(app: Express) {
       }
 
       const attendanceData = {
+        id: randomUUID(),
         userId,
         attendanceDate: dateStr, // Pass string for date column
         role,
         locationName,
-        inTimeTimestamp: new Date(),
+        inTimeTimestamp: new Date().toISOString(),
         outTimeTimestamp: null,
         inTimeImageCaptured: inTimeImageCaptured ?? false,
         outTimeImageCaptured: false,
@@ -92,8 +94,8 @@ export default function setupAttendanceInPostRoutes(app: Express) {
         outTimeSpeed: null,
         outTimeHeading: null,
         outTimeAltitude: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       const [newAttendance] = await db

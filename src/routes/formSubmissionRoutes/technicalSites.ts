@@ -75,7 +75,7 @@ export default function setupTechnicalSitesPostRoutes(app: Express) {
         id: newSiteId,
         constructionStartDate: siteData.constructionStartDate ? siteData.constructionStartDate.toISOString() : null,
         constructionEndDate: siteData.constructionEndDate ? siteData.constructionEndDate.toISOString() : null,
-        firstVistDate: siteData.firstVistDate ? siteData.firstVistDate.toISOString() : null,
+        firstVisitDate: siteData.firstVistDate ? siteData.firstVistDate.toISOString() : null,
         lastVisitDate: siteData.lastVisitDate ? siteData.lastVisitDate.toISOString() : null,
         imageUrl: siteData.imageUrl ?? null,
       };
@@ -92,8 +92,8 @@ export default function setupTechnicalSitesPostRoutes(app: Express) {
         if (associatedMasonIds.length > 0) {
           const uniqueMasons = [...new Set(associatedMasonIds)];
           const masonMaps = uniqueMasons.map((masonId) => ({
-            A: masonId,
-            B: insertedSite.id,
+            a: masonId,
+            b: insertedSite.id,
           }));
           await tx.insert(siteAssociatedMasons).values(masonMaps);
         }
@@ -102,8 +102,8 @@ export default function setupTechnicalSitesPostRoutes(app: Express) {
         if (associatedDealerIds.length > 0) {
           const uniqueDealers = [...new Set(associatedDealerIds)];
           const dealerMaps = uniqueDealers.map((dealerId) => ({
-            A: dealerId,
-            B: insertedSite.id,
+            a: dealerId,
+            b: insertedSite.id,
           }));
           await tx.insert(siteAssociatedDealers).values(dealerMaps);
         }

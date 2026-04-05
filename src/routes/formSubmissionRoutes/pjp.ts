@@ -42,8 +42,8 @@ const pjpInputSchema = z.object({
   activityType: strOrNull,
 
   // Conversion & Schemes
-  noOfConvertedBags: numOrZero,
-  noOfMasonPcSchemes: numOrZero,
+  noofConvertedBags: numOrZero,
+  noofMasonpcInSchemes: numOrZero,
 
   verificationStatus: strOrNull.default('PENDING'),
   additionalVisitRemarks: strOrNull,
@@ -68,8 +68,8 @@ const bulkSchema = z.object({
   plannedNewDealerVisits: numOrZero,
   plannedInfluencerVisits: numOrZero,
 
-  noOfConvertedBags: numOrZero,
-  noOfMasonPcSchemes: numOrZero,
+  noofConvertedBags: numOrZero,
+  noofMasonpcInSchemes: numOrZero,
 
   influencerName: strOrNull,
   influencerPhone: strOrNull,
@@ -110,8 +110,8 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           activityType: input.activityType,
 
           // Conversion
-          noOfConvertedBags: input.noOfConvertedBags,
-          noOfMasonPcSchemes: input.noOfMasonPcSchemes,
+          noofConvertedBags: input.noofConvertedBags,
+          noofMasonpcInSchemes: input.noofMasonpcInSchemes,
 
           verificationStatus: input.verificationStatus ?? 'PENDING',
           additionalVisitRemarks: input.additionalVisitRemarks ?? null,
@@ -151,7 +151,7 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
         userId, createdById, dealerIds, siteIds, baseDate, batchSizePerDay,
         areaToBeVisited, route, description, status,
         plannedNewSiteVisits, plannedFollowUpSiteVisits, plannedNewDealerVisits, plannedInfluencerVisits,
-        noOfConvertedBags, noOfMasonPcSchemes,
+        noofConvertedBags, noofMasonpcInSchemes,
         influencerName, influencerPhone, activityType,
         bulkOpId, idempotencyKey,
       } = input;
@@ -184,8 +184,8 @@ export default function setupPermanentJourneyPlansPostRoutes(app: Express) {
           plannedNewDealerVisits,
           plannedInfluencerVisits,
 
-          noOfConvertedBags,
-          noOfMasonPcSchemes,
+          noofConvertedBags,
+          noofMasonpcInSchemes,
 
           influencerName,
           influencerPhone,

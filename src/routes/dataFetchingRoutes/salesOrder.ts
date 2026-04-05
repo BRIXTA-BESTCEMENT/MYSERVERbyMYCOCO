@@ -95,8 +95,8 @@ function createAutoCRUD(app: Express, config: {
     const col = pickDateColumn(table, q.dateField);
     const dateFrom = q.dateFrom ? String(q.dateFrom) : undefined;
     const dateTo = q.dateTo ? String(q.dateTo) : undefined;
-    if (dateFrom) conds.push(gte(col, new Date(dateFrom)));
-    if (dateTo) conds.push(lte(col, new Date(dateTo)));
+    if (dateFrom) conds.push(gte(col, new Date(dateFrom).toISOString()));
+    if (dateTo) conds.push(lte(col, new Date(dateTo).toISOString()));
 
     // Numeric ranges
     const minQty = numberish(q.minQty), maxQty = numberish(q.maxQty);

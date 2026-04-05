@@ -5,26 +5,36 @@ import { dailyTasks } from '../db/schema';
 import { eq, and, lte, sql } from 'drizzle-orm';
 
 export function setupAutoApproveCron() {
-  // Runs at minute 0 past every hour
-  cron.schedule('0 1 * * *', async () => {
-    console.log('⏳ Running 48-hour auto-approve check for PJPs...');
+  // CRON EXPLANATION:
+  // 0 -> Minute (0)
+  // 3 -> Hour (3 AM)
+  // * -> Day of Month (Every)
+  // * -> Month (Every)
+  // 1 -> Day of Week (Monday)
+  cron.schedule('0 3 * * 1', async () => {
+    console.log('⏳ Running Weekly Monday 3 AM auto-approve check for Daily Tasks...');
     
     try {
-      const result = await db
+      await db
         .update(dailyTasks)
-        .set({ status: 'Approved' })
+        .set({ 
+            status: 'Approved',
+            updatedAt: new Date()
+        })
         .where(
           and(
-            eq(dailyTasks.status, 'Pending'), // The magic check! Ignores anything already approved.
+            // Use 'Assigned' or 'Pending' based on your actual initial status
+            eq(dailyTasks.status, 'Assigned'), 
+            // Approves tasks older than 24 hours
             lte(dailyTasks.createdAt, sql`NOW() - INTERVAL '24 hours'`) 
           )
         );
 
-      console.log(`✅ Auto-approve cycle complete.`);
+      console.log(`✅ Weekly auto-approve cycle complete.`);
     } catch (error) {
       console.error('❌ Error in auto-approve cron job:', error);
     }
   });
 
-  console.log('✅ 48-Hour Auto-Approve Worker initialized.');
+  console.log('✅ Weekly Monday 3 AM Auto-Approve Worker initialized.');
 }

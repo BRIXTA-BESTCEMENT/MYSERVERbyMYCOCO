@@ -108,13 +108,13 @@ export default function setupAuthCredentialRoutes(app: Express) {
       // }
 
       const sessionToken = crypto.randomBytes(32).toString("hex");
-      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString();
 
       await db.insert(authSessions).values({
         sessionId: crypto.randomUUID(),
         masonId: mason.id,
         sessionToken,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         expiresAt: sessionExpiresAt,
       });
 
@@ -195,13 +195,13 @@ export default function setupAuthCredentialRoutes(app: Express) {
 
       // Generate Session
       const sessionToken = crypto.randomBytes(32).toString("hex");
-      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString();
 
       await db.insert(authSessions).values({
         sessionId: crypto.randomUUID(),
         masonId: mason.id,
         sessionToken,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         expiresAt: sessionExpiresAt,
       });
 

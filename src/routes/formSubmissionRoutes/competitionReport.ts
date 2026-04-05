@@ -6,6 +6,7 @@ import { db } from '../../db/db';
 import { competitionReports, insertCompetitionReportSchema } from '../../db/schema';
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
+import { PgTable } from 'drizzle-orm/pg-core';
 
 // Manual Zod schema matching the exact table schema
 // const competitionReportSchema = z.object({
@@ -22,7 +23,7 @@ import { randomUUID } from 'crypto';
 
 function createAutoCRUD(app: Express, config: {
   endpoint: string,
-  table: any,
+  table: PgTable<any>,
   schema: z.ZodSchema,
   tableName: string,
   autoFields?: { [key: string]: () => any }
@@ -48,7 +49,7 @@ function createAutoCRUD(app: Express, config: {
       const insertData = {
         id: generatedId,
         ...parsed,
-        reportDate: new Date(parsed.reportDate),
+        reportDate: new Date(parsed.reportDate).toISOString(),
         ...executedAutoFields
       };
 

@@ -6,7 +6,6 @@ import { db } from '../../db/db';
 import { salesOrders } from '../../db/schema';
 import { z } from 'zod';
 import { eq } from 'drizzle-orm';
-import { InferInsertModel } from 'drizzle-orm';
 
 // ... (helpers) ...
 const toYYYYMMDD = (v: unknown): string | null => {

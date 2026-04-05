@@ -134,23 +134,23 @@ export default function setupAuthFirebaseRoutes(app: Express) {
       }
 
       // 4. Create a persistent session (for "Remember Me")
-// Optional: only delete expired sessions
-await db.delete(authSessions)
-  .where(
-    and(
-      eq(authSessions.masonId, mason.id),
-      lt(authSessions.expiresAt, new Date())
-    )
-  );
+      // Optional: only delete expired sessions
+      await db.delete(authSessions)
+        .where(
+          and(
+            eq(authSessions.masonId, mason.id),
+            lt(authSessions.expiresAt, new Date().toISOString())
+          )
+        );
 
 
       const sessionToken = crypto.randomBytes(32).toString("hex");
-      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000); // 60 days
+      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString(); // 60 days
       await db.insert(authSessions).values({
         sessionId: crypto.randomUUID(),
         masonId: mason.id,
         sessionToken,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         expiresAt: sessionExpiresAt,
       });
 
@@ -208,8 +208,8 @@ await db.delete(authSessions)
       .where(eq(authSessions.sessionToken, sessionToken))
       .limit(1);
 
-    if (!session || session.expiresAt === null || session.expiresAt.getTime() < Date.now()) {
-      return res.status(401).json({ success: false, error: "Session invalid" });
+    if (!session || !session.expiresAt || new Date(session.expiresAt).getTime() < Date.now()) {
+      return res.status(401).json({ success: false, error: "Session invalid or expired" });
     }
 
     const [mason] = await db
@@ -239,7 +239,7 @@ await db.delete(authSessions)
       const [session] = await db.select().from(authSessions).where(eq(authSessions.sessionToken, token)).limit(1);
 
       // Check if session exists and is not expired
-      if (!session || !session.expiresAt || session.expiresAt < new Date()) {
+      if (!session || !session.expiresAt || session.expiresAt < new Date().toISOString()) {
         // If expired, delete it
         if (session) {
           await db.delete(authSessions).where(eq(authSessions.sessionId, session.sessionId));
@@ -271,10 +271,10 @@ await db.delete(authSessions)
 
       // 2. Create a new Session Token and update the DB
       const newSessionToken = crypto.randomBytes(32).toString("hex");
-      const newSessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000); // 60 days
+      const newSessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString(); // 60 days
 
       await db.update(authSessions)
-        .set({ sessionToken: newSessionToken, expiresAt: newSessionExpiresAt, createdAt: new Date() })
+        .set({ sessionToken: newSessionToken, expiresAt: newSessionExpiresAt, createdAt: new Date().toISOString() })
         .where(eq(authSessions.sessionId, session.sessionId));
 
       // 3. Return the new tokens and mason data
@@ -349,22 +349,22 @@ await db.delete(authSessions)
         const updates: any = {};
         //if (deviceId) updates.deviceId = deviceId;
         if (fcmToken) updates.fcmToken = fcmToken;
-        
+
         if (Object.keys(updates).length > 0) {
-           await db.update(masonPcSide).set(updates).where(eq(masonPcSide.id, mason.id));
-           // Update local obj
-           //if(deviceId) mason.deviceId = deviceId;
+          await db.update(masonPcSide).set(updates).where(eq(masonPcSide.id, mason.id));
+          // Update local obj
+          //if(deviceId) mason.deviceId = deviceId;
         }
       }
 
       // Create Session
       const sessionToken = crypto.randomBytes(32).toString("hex");
-      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000);
+      const sessionExpiresAt = new Date(Date.now() + SESSION_TTL_SECONDS * 1000).toISOString();
       await db.insert(authSessions).values({
         sessionId: crypto.randomUUID(),
         masonId: mason.id,
         sessionToken,
-        createdAt: new Date(),
+        createdAt: new Date().toISOString(),
         expiresAt: sessionExpiresAt,
       });
 

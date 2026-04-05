@@ -90,7 +90,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
             .set({
               status: 'approved',
               fulfillmentNotes: fulfillmentNotes,
-              updatedAt: new Date()
+              updatedAt: new Date().toISOString()
             })
             .where(eq(rewardRedemptions.id, id))
             .returning();
@@ -123,7 +123,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
           const [updated] = await tx.update(rewardRedemptions)
             .set({
               status: 'rejected',
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
               fulfillmentNotes: fulfillmentNotes,
             })
             .where(eq(rewardRedemptions.id, id))
@@ -161,7 +161,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
           const [updated] = await tx.update(rewardRedemptions)
             .set({
               status: 'rejected',
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
               fulfillmentNotes: fulfillmentNotes,
             })
             .where(eq(rewardRedemptions.id, id))
@@ -178,7 +178,7 @@ export default function setupRewardsRedemptionPatchRoute(app: Express) {
           const [updated] = await tx.update(rewardRedemptions)
             .set({
               status: status,
-              updatedAt: new Date(),
+              updatedAt: new Date().toISOString(),
               fulfillmentNotes: fulfillmentNotes,
             })
             .where(eq(rewardRedemptions.id, id))

@@ -25,7 +25,6 @@ export class ReportInterpreterWorker {
       .select({
         id: verifiedDealers.id,
         partyName: verifiedDealers.dealerPartyName,
-        dealerCode: verifiedDealers.dealerCode,
       })
       .from(verifiedDealers);
 
@@ -33,7 +32,6 @@ export class ReportInterpreterWorker {
 
     for (const d of dealerRows) {
       if (d.partyName) dealerMap.set(this.normalizeName(d.partyName), d.id);
-      if (d.dealerCode) dealerMap.set(this.normalizeName(d.dealerCode), d.id);
     }
 
     // 2. Fetch Unprocessed, Latest Reports

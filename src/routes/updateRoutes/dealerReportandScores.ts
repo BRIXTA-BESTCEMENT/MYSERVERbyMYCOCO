@@ -43,8 +43,8 @@ export default function setupDealerScoresPatchRoutes(app: Express) {
         .update(dealerReportsAndScores)
         .set({
           ...validatedData,
-          lastUpdatedDate: new Date(), // Always update the lastUpdatedDate
-          updatedAt: new Date(), // Always update the timestamp
+          lastUpdatedDate: new Date().toISOString(), // Always update the lastUpdatedDate
+          updatedAt: new Date().toISOString(), // Always update the timestamp
         })
         .where(eq(dealerReportsAndScores.dealerId, dealerId))
         .returning();

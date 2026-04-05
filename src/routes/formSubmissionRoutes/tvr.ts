@@ -191,11 +191,11 @@ function createAutoCRUD(app: Express, config: {
         promotionalActivity: input.promotionalActivity ?? null,
 
         // --- Time & Images ---
-        checkInTime: input.checkInTime, // Full timestamp
-        checkOutTime: input.checkOutTime ?? null,
+        checkInTime: input.checkInTime.toISOString(),
+        checkOutTime: input.checkOutTime ? input.checkOutTime.toISOString() : null,
         inTimeImageUrl: input.inTimeImageUrl ?? null,
         outTimeImageUrl: input.outTimeImageUrl ?? null,
-        timeSpentinLoc: input.timeSpentinLoc ?? null,
+        timeSpentInLoc: input.timeSpentinLoc ?? null,
         sitePhotoUrl: input.sitePhotoUrl ?? null,
 
         // --- Meta / Legacy / Foreign Keys ---
@@ -207,8 +207,8 @@ function createAutoCRUD(app: Express, config: {
         journeyId: input.journeyId ?? null,
 
         // --- Counters ---
-        firstVisitTime: input.firstVisitTime ?? null,
-        lastVisitTime: input.lastVisitTime ?? null,
+        firstVisitTime: input.firstVisitTime ? input.firstVisitTime.toISOString() : null,
+        lastVisitTime: input.lastVisitTime ? input.lastVisitTime.toISOString() : null,
         firstVisitDay: input.firstVisitDay ?? null,
         lastVisitDay: input.lastVisitDay ?? null,
         siteVisitsCount: input.siteVisitsCount ?? null,

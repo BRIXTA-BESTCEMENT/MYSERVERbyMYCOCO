@@ -62,40 +62,45 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
 
         // 4. Search (Temp Dealer Name)
         if (q.search) {
-            const searchStr = `%${q.search}%`;
-            conds.push(ilike(outstandingReports.tempDealerName, searchStr));
-        }
+    const searchStr = `%${q.search}%`;
+    conds.push(
+        or(
+            ilike(outstandingReports.tempDealerName, searchStr),
+            ilike(verifiedDealers.dealerPartyName, searchStr)  // Search by Verified Name
+        ) as SQL
+    );
+}
 
         if (conds.length === 0) return undefined;
         return conds.length === 1 ? conds[0] : and(...conds);
     };
 
     const buildSort = (sortByRaw?: string, sortDirRaw?: string) => {
-        const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
-        const sortFn = direction === 'asc' ? asc : desc;
+    const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
+    const sortFn = direction === 'asc' ? asc : desc;
 
-        switch (sortByRaw) {
-            case 'securityDepositAmt': return sortFn(outstandingReports.securityDepositAmt);
-            case 'pendingAmt': return sortFn(outstandingReports.pendingAmt);
-            case 'reportDate': return sortFn(outstandingReports.reportDate);
-            
-            // Aging Buckets Sorting
-            case 'lessThan10Days': return sortFn(outstandingReports.lessThan10Days);
-            case 'days10To15': return sortFn(outstandingReports.days10To15);
-            case 'days15To21': return sortFn(outstandingReports.days15To21);
-            case 'days21To30': return sortFn(outstandingReports.days21To30);
-            case 'days30To45': return sortFn(outstandingReports.days30To45);
-            case 'days45To60': return sortFn(outstandingReports.days45To60);
-            case 'days60To75': return sortFn(outstandingReports.days60To75);
-            case 'days75To90': return sortFn(outstandingReports.days75To90);
-            case 'greaterThan90Days': return sortFn(outstandingReports.greaterThan90Days);
-            
-            case 'updatedAt': return sortFn(outstandingReports.updatedAt);
-            case 'createdAt': 
-            default:
-                return desc(outstandingReports.createdAt);
-        }
-    };
+    switch (sortByRaw) {
+        case 'securityDepositAmt': return sortFn(outstandingReports.securityDepositAmt);
+        case 'pendingAmt': return sortFn(outstandingReports.pendingAmt);
+        case 'reportDate': return sortFn(outstandingReports.reportDate);
+        
+        // Aging Buckets - Match the Schema Keys exactly
+        case 'lessThan10Days': return sortFn(outstandingReports.lessThan10Days);
+        case 'days10To15': return sortFn(outstandingReports["10To15Days"]); // Fixed
+        case 'days15To21': return sortFn(outstandingReports["15To21Days"]); // Fixed
+        case 'days21To30': return sortFn(outstandingReports["21To30Days"]); // Fixed
+        case 'days30To45': return sortFn(outstandingReports["30To45Days"]); // Fixed
+        case 'days45To60': return sortFn(outstandingReports["45To60Days"]); // Fixed
+        case 'days60To75': return sortFn(outstandingReports["60To75Days"]); // Fixed
+        case 'days75To90': return sortFn(outstandingReports["75To90Days"]); // Fixed
+        case 'greaterThan90Days': return sortFn(outstandingReports.greaterThan90Days);
+        
+        case 'updatedAt': return sortFn(outstandingReports.updatedAt);
+        case 'createdAt': 
+        default:
+            return desc(outstandingReports.createdAt);
+    }
+};
 
     // --- Main Handler ---
     const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
@@ -118,7 +123,6 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             const dataQuery = db.select({
                 ...getTableColumns(outstandingReports),
                 dealerPartyName: verifiedDealers.dealerPartyName,
-                dealerCode: verifiedDealers.dealerCode,
                 zone: verifiedDealers.zone
             })
             .from(outstandingReports)
@@ -180,7 +184,6 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             const [record] = await db.select({
                 ...getTableColumns(outstandingReports),
                 dealerPartyName: verifiedDealers.dealerPartyName,
-                dealerCode: verifiedDealers.dealerCode,
                 zone: verifiedDealers.zone
             })
                 .from(outstandingReports)

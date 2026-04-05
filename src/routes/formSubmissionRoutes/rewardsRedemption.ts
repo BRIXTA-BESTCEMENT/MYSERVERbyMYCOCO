@@ -17,7 +17,7 @@ const redemptionSubmissionSchema = insertRewardRedemptionSchema.omit({
 }).extend({
     masonId: z.string().uuid({ message: 'A valid Mason ID (UUID) is required.' }),
     rewardId: z.preprocess(
-        (v) => (typeof v === 'string' ? parseInt(v, 10) : v), 
+        (v) => (typeof v === 'string' ? parseInt(v, 10) : v),
         z.number().int().positive('A valid Reward ID is required.')
     ),
     quantity: z.number().int().positive('Quantity must be a positive integer.').default(1),
@@ -26,7 +26,7 @@ const redemptionSubmissionSchema = insertRewardRedemptionSchema.omit({
     deliveryName: z.string().max(160).optional(),
     deliveryPhone: z.string().max(20).optional(),
     deliveryAddress: z.string().optional(),
-    memo: z.string().max(500).optional(), 
+    memo: z.string().max(500).optional(),
     fulfillmentNotes: z.string().max(500).optional().nullable(),
 });
 
@@ -38,16 +38,16 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
             const validationResult = redemptionSubmissionSchema.safeParse(req.body);
 
             if (!validationResult.success) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: 'Validation failed', 
-                    details: validationResult.error.errors 
+                return res.status(400).json({
+                    success: false,
+                    error: 'Validation failed',
+                    details: validationResult.error.errors
                 });
             }
 
             const validatedData = validationResult.data;
             const { masonId, quantity, memo, rewardId, fulfillmentNotes, ...redemptionBody } = validatedData;
-            
+
             // 2. FETCH REWARD DETAILS (Source of Truth)
             // We must get the price and stock from the DB, not the client.
             const [rewardItem] = await db.select({
@@ -56,9 +56,9 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
                 isActive: rewards.isActive,
                 itemName: rewards.itemName
             })
-            .from(rewards)
-            .where(eq(rewards.id, rewardId))
-            .limit(1);
+                .from(rewards)
+                .where(eq(rewards.id, rewardId))
+                .limit(1);
 
             if (!rewardItem) {
                 return res.status(404).json({ success: false, error: 'Reward item not found.' });
@@ -80,18 +80,18 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
             const [masonRecord] = await db.select({
                 pointsBalance: masonPcSide.pointsBalance
             })
-            .from(masonPcSide)
-            .where(eq(masonPcSide.id, masonId))
-            .limit(1);
+                .from(masonPcSide)
+                .where(eq(masonPcSide.id, masonId))
+                .limit(1);
 
             if (!masonRecord) {
                 return res.status(404).json({ success: false, error: 'Mason not found.' });
             }
 
-            if (masonRecord.pointsBalance < totalPointsDebited) {
-                return res.status(400).json({ 
-                    success: false, 
-                    error: `Insufficient points. Cost: ${totalPointsDebited}, Available: ${masonRecord.pointsBalance}.` 
+            if ((masonRecord.pointsBalance ?? 0) < totalPointsDebited) {
+                return res.status(400).json({
+                    success: false,
+                    error: `Insufficient points. Cost: ${totalPointsDebited}, Available: ${masonRecord.pointsBalance}.`
                 });
             }
 
@@ -99,7 +99,7 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
             const generatedRedemptionId = randomUUID();
 
             const result = await db.transaction(async (tx) => {
-                
+
                 // A. Insert Redemption Record
                 const [newRedemption] = await tx.insert(rewardRedemptions)
                     .values({
@@ -108,13 +108,13 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
                         masonId: masonId,
                         rewardId: rewardId,
                         // Use the CALCULATED secure cost, ignoring client input
-                        pointsDebited: totalPointsDebited, 
+                        pointsDebited: totalPointsDebited,
                         quantity: quantity,
                         status: 'placed', // Initial status
                         fulfillmentNotes: fulfillmentNotes,
                     })
                     .returning();
-                
+
                 // B. Insert Ledger DEBIT Entry
                 const [newLedgerEntry] = await tx.insert(pointsLedger)
                     .values({
@@ -125,7 +125,7 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
                         memo: memo || `Redeemed ${quantity} x ${rewardItem.itemName}`,
                     })
                     .returning();
-                
+
                 // C. Deduct Points from Mason Balance (Instant Debit)
                 // We debit NOW to "hold" the points.
                 await tx.update(masonPcSide)
@@ -142,9 +142,9 @@ export default function setupRewardsRedemptionPostRoute(app: Express) {
             });
 
             // Success
-            res.status(201).json({ 
-                success: true, 
-                message: 'Order placed successfully!', 
+            res.status(201).json({
+                success: true,
+                message: 'Order placed successfully!',
                 data: result.redemption,
             });
 

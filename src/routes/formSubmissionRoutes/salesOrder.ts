@@ -157,8 +157,8 @@ function createAutoCRUD(app: Express, config: {
         status: input.status, // Add status to insert
         // --- END FIX ---
         
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
 
       const [row] = await db.insert(table).values(insertData).returning();

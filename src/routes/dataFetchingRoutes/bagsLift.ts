@@ -75,8 +75,8 @@ export default function setupBagLiftsGetRoutes(app: Express) {
             if (!isNaN(start.getTime()) && !isNaN(end.getTime())) {
                 // IMPORTANT: Push conditions individually. Combining gte/lte with inner 'and' is unnecessary 
                 // as the outer 'and(...conds)' handles it correctly.
-                conds.push(gte(dateColumn, start));
-                conds.push(lte(dateColumn, end));
+                conds.push(gte(dateColumn, start.toISOString()));
+                conds.push(lte(dateColumn, end.toISOString()));
             } else {
                  console.warn('Invalid startDate or endDate provided for bagLifts filter.');
             }

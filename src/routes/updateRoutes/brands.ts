@@ -8,7 +8,7 @@ import { eq } from 'drizzle-orm';
 import { z } from 'zod';
 
 // Create a partial schema for validation, only allowing the 'name' field to be updated.
-const brandUpdateSchema = insertBrandSchema.pick({ name: true });
+const brandUpdateSchema = insertBrandSchema.pick({ brandName: true });
 
 export default function setupBrandsPatchRoutes(app: Express) {
   
@@ -37,7 +37,7 @@ export default function setupBrandsPatchRoutes(app: Express) {
       const [updatedBrand] = await db
         .update(brands)
         .set({
-          name: validatedData.name,
+          brandName: validatedData.brandName,
         })
         .where(eq(brands.id, id))
         .returning();

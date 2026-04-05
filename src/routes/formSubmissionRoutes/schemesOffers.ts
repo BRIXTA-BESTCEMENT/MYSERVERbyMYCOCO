@@ -52,8 +52,8 @@ export default function setupSchemesOffersPostRoutes(app: Express) {
       const insertData = {
         name: validated.name,
         description: validated.description ?? null,
-        startDate: validated.startDate ?? null, // Zod helper ensures this is a Date or null
-        endDate: validated.endDate ?? null,     // Zod helper ensures this is a Date or null
+        startDate: validated.startDate ? validated.startDate.toISOString() : null,
+  endDate: validated.endDate ? validated.endDate.toISOString() : null,
       };
 
       // 3. Insert the new record

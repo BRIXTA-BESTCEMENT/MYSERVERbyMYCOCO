@@ -52,7 +52,7 @@ const technicalSiteBaseSchema = z.object({
   // Date Handling
   constructionStartDate: dateOrNull,
   constructionEndDate: dateOrNull,
-  firstVistDate: dateOrNull,
+  firstVisitDate: dateOrNull,
   lastVisitDate: dateOrNull,
 
   convertedSite: boolOrNull,
@@ -107,7 +107,7 @@ export default function setupTechnicalSitesUpdateRoutes(app: Express) {
         }
       });
       
-      patch.updatedAt = new Date();
+      patch.updatedAt = new Date().toISOString();
 
       // --- 2. TRANSACTION ---
       const result = await db.transaction(async (tx) => {
@@ -125,26 +125,26 @@ export default function setupTechnicalSitesUpdateRoutes(app: Express) {
 
         // B. Update Masons (Full Replace)
         if (input.associatedMasonIds !== undefined) {
-          await tx.delete(siteAssociatedMasons).where(eq(siteAssociatedMasons.B, id));
+          await tx.delete(siteAssociatedMasons).where(eq(siteAssociatedMasons.b, id));
           
           const masons = input.associatedMasonIds;
           if (masons.length > 0) {
             const unique = [...new Set(masons)];
             await tx.insert(siteAssociatedMasons).values(
-              unique.map(mid => ({ A: mid, B: id }))
+              unique.map(mid => ({ a: mid, b: id }))
             );
           }
         }
 
         // C. Update Dealers (Full Replace)
         if (input.associatedDealerIds !== undefined) {
-          await tx.delete(siteAssociatedDealers).where(eq(siteAssociatedDealers.B, id));
+          await tx.delete(siteAssociatedDealers).where(eq(siteAssociatedDealers.b, id));
           
           const dealers = input.associatedDealerIds;
           if (dealers.length > 0) {
             const unique = [...new Set(dealers)];
             await tx.insert(siteAssociatedDealers).values(
-              unique.map(did => ({ A: did, B: id }))
+              unique.map(did => ({ a: did, b: id }))
             );
           }
         }

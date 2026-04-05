@@ -37,7 +37,7 @@ const userPublicSelect = {
   updatedAt: users.updatedAt,
   workosUserId: users.workosUserId,
   inviteToken: users.inviteToken,
-  noOfPJP: users.noOfPJP,
+  noOfPJP: users.noOfPjp,
   isTechnicalRole: users.isTechnicalRole,
   techLoginId: users.techLoginId,
   isAdminAppUser: users.isAdminAppUser,

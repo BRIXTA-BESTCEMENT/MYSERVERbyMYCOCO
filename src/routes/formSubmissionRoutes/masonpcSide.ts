@@ -28,8 +28,8 @@ export const intOrNull = z.preprocess((val) => {
 const insertMasonPcSideSchema = z.object({
   name: z.string().min(1, "Name is required"),
   phoneNumber: z.string().min(1, "Phone number is required"),
-  kycDocumentName: strOrNull,
-  kycDocumentIdNum: strOrNull,
+  kycDocName: strOrNull,       // Fixed from kycDocumentName
+  kycDocIdNum: strOrNull,      // Fixed from kycDocumentIdNum
   kycStatus: strOrNull,
   bagsLifted: intOrNull,
   isReferred: z.boolean().nullable().optional(),
@@ -39,7 +39,7 @@ const insertMasonPcSideSchema = z.object({
   userId: intOrNull,
   deviceId: strOrNull,
   fcmToken: strOrNull,
-}).strict();
+});
 
 type NewMason = InferInsertModel<typeof masonPcSide>;
 
@@ -59,8 +59,8 @@ export default function setupMasonPcSidePostRoutes(app: Express) {
           id: randomUUID(),
           name: validated.name,
           phoneNumber: validated.phoneNumber,
-          kycDocumentName: validated.kycDocumentName ?? null,
-          kycDocumentIdNum: validated.kycDocumentIdNum ?? null,
+          kycDocName: validated.kycDocName ?? null, 
+          kycDocIdNum: validated.kycDocIdNum ?? null,
           kycStatus: validated.kycStatus ?? 'pending',
           bagsLifted: validated.bagsLifted ?? 0,
           pointsBalance: 0, // <--- Always start at 0

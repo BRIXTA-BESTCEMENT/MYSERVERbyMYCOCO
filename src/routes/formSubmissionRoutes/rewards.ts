@@ -34,14 +34,15 @@ export default function setupRewardsPostRoute(app: Express) {
     try {
       const input = newRewardSchema.parse(req.body);
 
+      const { meta, ...rest } = input;
+
       const [newRecord] = await db
         .insert(rewards)
         .values({
           ...input,
-          // Drizzle needs JSON objects or strings for JSONB.
-          meta: input.meta ? JSON.stringify(input.meta) : null,
-          createdAt: new Date(),
-          updatedAt: new Date(),
+          meta: meta ? JSON.stringify(meta) : null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
         })
         .returning();
 

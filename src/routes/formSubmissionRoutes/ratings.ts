@@ -5,6 +5,7 @@ import { Request, Response, Express } from 'express';
 import { db } from '../../db/db';
 import { ratings, insertRatingSchema } from '../../db/schema';
 import { z } from 'zod';
+import { PgTable } from 'drizzle-orm/pg-core';
 
 // Manual Zod schema EXACTLY matching the table schema
 // const ratingSchema = z.object({
@@ -16,7 +17,7 @@ import { z } from 'zod';
 
 function createAutoCRUD(app: Express, config: {
   endpoint: string,
-  table: any,
+  table: PgTable<any>,
   schema: z.ZodSchema,
   tableName: string,
   autoFields?: { [key: string]: () => any }

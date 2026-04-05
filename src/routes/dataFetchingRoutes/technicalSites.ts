@@ -44,9 +44,9 @@ function createAutoCRUD(app: Express, config: {
     // Query the MANY-TO-MANY junction table for Dealers
     if (q.relatedDealerID) {
       const siteIdsWithDealer = db
-        .select({ id: siteAssociatedDealers.B })
+        .select({ id: siteAssociatedDealers.b })
         .from(siteAssociatedDealers)
-        .where(eq(siteAssociatedDealers.A, String(q.relatedDealerID)));
+        .where(eq(siteAssociatedDealers.a, String(q.relatedDealerID)));
 
       conds.push(inArray(table.id, siteIdsWithDealer));
     }
@@ -54,9 +54,9 @@ function createAutoCRUD(app: Express, config: {
     // Query the MANY-TO-MANY junction table for Masons
     if (q.relatedMasonpcID) {
       const siteIdsWithMason = db
-        .select({ id: siteAssociatedMasons.B })
+        .select({ id: siteAssociatedMasons.b })
         .from(siteAssociatedMasons)
-        .where(eq(siteAssociatedMasons.A, String(q.relatedMasonpcID)));
+        .where(eq(siteAssociatedMasons.a, String(q.relatedMasonpcID)));
 
       conds.push(inArray(table.id, siteIdsWithMason));
     }
@@ -221,9 +221,9 @@ function createAutoCRUD(app: Express, config: {
   app.get(`/api/${endpoint}/dealer/:dealerId`, (req, res) => {
     const base = inArray(
       table.id,
-      db.select({ id: siteAssociatedDealers.B })
+      db.select({ id: siteAssociatedDealers.b })
         .from(siteAssociatedDealers)
-        .where(eq(siteAssociatedDealers.A, String(req.params.dealerId)))
+        .where(eq(siteAssociatedDealers.a, String(req.params.dealerId)))
     );
 
     return listHandler(req, res, base);
@@ -233,9 +233,9 @@ function createAutoCRUD(app: Express, config: {
   app.get(`/api/${endpoint}/mason/:masonId`, (req, res) => {
     const base = inArray(
       table.id,
-      db.select({ id: siteAssociatedMasons.B })
+      db.select({ id: siteAssociatedMasons.b })
         .from(siteAssociatedMasons)
-        .where(eq(siteAssociatedMasons.A, String(req.params.masonId)))
+        .where(eq(siteAssociatedMasons.a, String(req.params.masonId)))
     );
     return listHandler(req, res, base);
   });

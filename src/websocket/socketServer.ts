@@ -90,7 +90,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
           type: op.type,
           payload: op.payload,
           appRole: op.appRole,
-          createdAt: new Date(op.createdAt),
+          createdAt: new Date(op.createdAt).toISOString(),
         }).returning({ serverSeq: journeyOps.serverSeq });
 
         // 3. Process Specific Logic (Use 'tx' instead of 'db')
@@ -100,7 +100,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
           await tx.insert(journeys).values({
             id: op.journeyId,
             userId: op.userId,
-            startTime: new Date(op.createdAt),
+            startTime: new Date(op.createdAt).toISOString(),
             status: 'ACTIVE',
             siteName: siteName || 'N/A Site',
             pjpId: pjpId,
@@ -112,7 +112,7 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
             destLng: destLng ? destLng.toString() : null,
             isSynced: true,
             appRole: op.appRole,
-            updatedAt: new Date(),
+            updatedAt: new Date().toISOString(),
           });
 
         }
@@ -145,15 +145,15 @@ async function handleSyncOps(ws: WebSocket, ops: IncomingOp[]) {
           await tx.update(journeys)
             .set({
               status: 'COMPLETED',
-              endTime: new Date(op.createdAt),
+              endTime: new Date(op.createdAt).toISOString(),
               totalDistance: distanceKm.toString(),
-              updatedAt: new Date()
+              updatedAt: new Date().toISOString()
             })
             .where(eq(journeys.id, op.journeyId));
         }
 
         // Return success for this specific Op
-        return { status: 'OK', serverSeq: insertedOp.serverSeq };
+        return { status: 'OK', serverSeq: Number(insertedOp.serverSeq) };
       });
 
       // Transaction succeeded, add to ACKs

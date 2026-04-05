@@ -36,7 +36,7 @@ function createPJPAutoGET(app: Express, cfg: {
     dealerId: 'dealerId', 
     verificationStatus: 'verificationStatus',
     plannedNewSiteVisits: 'plannedNewSiteVisits',
-    noOfConvertedBags: 'noOfConvertedBags',
+    noofConvertedBags: 'noofConvertedBags',
   };
 
   // --- buildWhere UPDATED ---

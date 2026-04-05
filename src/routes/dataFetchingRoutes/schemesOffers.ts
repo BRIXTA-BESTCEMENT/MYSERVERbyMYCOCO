@@ -39,16 +39,16 @@ export default function setupSchemesOffersRoutes(app: Express) {
         // Active: Start date is in the past, AND (End date is in the future OR end date is null)
         conds.push(
           and(
-            lte(table.startDate, now),
+            lte(table.startDate, now.toISOString()),
             or(
-              gte(table.endDate, now),
+              gte(table.endDate, now.toISOString()),
               isNull(table.endDate)
             )
           )
         );
       } else { // activeNow === false
         // Expired: End date is in the past
-        conds.push(lt(table.endDate, now));
+        conds.push(lt(table.endDate, now.toISOString()));
       }
     }
 
