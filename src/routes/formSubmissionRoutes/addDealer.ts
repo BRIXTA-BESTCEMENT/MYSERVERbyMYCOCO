@@ -161,7 +161,7 @@ export const dealerInputSchema = z.object({
 
   // Geofence (not part of DB, just for Radar)
   radius: z.preprocess((v) => (v === '' ? undefined : v), z.coerce.number().min(10).max(10000).optional()),
-}).strict(); // Use .strict() to catch extra fields
+}).passthrough(); 
 
 function createAutoCRUD(
   app: Express,
