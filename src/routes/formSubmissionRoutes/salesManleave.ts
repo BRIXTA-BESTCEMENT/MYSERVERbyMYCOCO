@@ -80,8 +80,8 @@ export default function setupSalesmanLeaveApplicationsPostRoutes(app: Express) {
     schema: insertSalesmanLeaveApplicationSchema,
     tableName: 'Salesman Leave Application',
     autoFields: {
-      createdAt: () => new Date(),
-      updatedAt: () => new Date()
+      createdAt: () => new Date().toISOString(),
+      updatedAt: () => new Date().toISOString()
     }
   });
 
