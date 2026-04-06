@@ -23,18 +23,18 @@ function createAutoCRUD(app: Express, config: {
         executedAutoFields[key] = fn();
       }
 
-      const parsed = schema.parse(req.body);
+      const parsed = (schema as any).passthrough().parse(req.body);
       const generatedId = randomUUID();
 
       const insertData = {
         id: generatedId,
         ...parsed,
-        startDate: new Date(parsed.startDate),
-        endDate: new Date(parsed.endDate),
+        startDate: new Date(parsed.startDate).toISOString().slice(0, 10),
+        endDate: new Date(parsed.endDate).toISOString().slice(0, 10),
         ...executedAutoFields
       };
 
-      const [newRecord] : any = await db.insert(table).values(insertData).returning();
+      const [newRecord]: any = await db.insert(table).values(insertData).returning();
 
       res.status(201).json({
         success: true,
@@ -75,6 +75,6 @@ export default function setupSalesmanLeaveApplicationsPostRoutes(app: Express) {
       updatedAt: () => new Date()
     }
   });
-  
+
   console.log('✅ Salesman Leave Applications POST endpoints setup complete');
 }
