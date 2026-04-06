@@ -23,15 +23,24 @@ function createAutoCRUD(app: Express, config: {
         executedAutoFields[key] = fn();
       }
 
-      const parsed = (schema as any).passthrough().parse(req.body);
+      // 1. Generate the ID first
       const generatedId = randomUUID();
 
-      const insertData = {
+      // 2. Add the ID to the body BEFORE parsing so Zod is happy
+      const dataToValidate = {
+        ...req.body,
         id: generatedId,
+        ...executedAutoFields // Includes createdAt, updatedAt
+      };
+
+      // 3. Now parse the data (with the ID included)
+      const parsed = (schema as any).passthrough().parse(dataToValidate);
+
+      // 4. Final preparation for DB
+      const insertData = {
         ...parsed,
         startDate: new Date(parsed.startDate).toISOString().slice(0, 10),
         endDate: new Date(parsed.endDate).toISOString().slice(0, 10),
-        ...executedAutoFields
       };
 
       const [newRecord]: any = await db.insert(table).values(insertData).returning();
