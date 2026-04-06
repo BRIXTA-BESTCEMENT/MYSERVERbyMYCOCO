@@ -95,7 +95,7 @@ export const dealerInputSchema = z.object({
   dealerdevelopmentstatus: strOrNull,
   dealerdevelopmentobstacle: strOrNull,
   salesGrowthPercentage: numOrNull,
-  noOfPjp: intOrNull, // Changed from noOfPJP to match schema
+  noOfPJP: intOrNull, 
 
   verificationStatus: z.enum(['PENDING', 'VERIFIED']).default('PENDING').optional(),
 
@@ -216,7 +216,7 @@ function createAutoCRUD(
         dealerdevelopmentstatus: input.dealerdevelopmentstatus ?? null,
         dealerdevelopmentobstacle: input.dealerdevelopmentobstacle ?? null,
         salesGrowthPercentage: input.salesGrowthPercentage ? String(input.salesGrowthPercentage) : null,
-        noOfPjp: input.noOfPjp ?? null,
+        noOfPjp: input.noOfPJP ?? null,
 
         verificationStatus: input.verificationStatus ?? 'PENDING',
         whatsappNo: input.whatsappNo ?? null,
