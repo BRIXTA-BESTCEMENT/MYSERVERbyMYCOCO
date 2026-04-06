@@ -61,7 +61,19 @@ const dvrInputSchema = z
     pjpId: strOrNull,
     dailyTaskId: strOrNull,
     idempotencyKey: strOrNull,
-  });
+
+    dealerDevelopmentStatus: strOrNull,
+    dealerDevelopmentObstacle: strOrNull,
+    noOfPJP: numOrNull,
+    godownSizeSqFt: numOrNull,
+    godownCapacityMTBags: numOrNull,
+    godownLandMark: strOrNull,
+    godownPinCode: strOrNull,
+    residentialLandMark: strOrNull,
+    residentialPinCode: strOrNull,
+    monthlySaleMT: numOrNull,
+    projectedMonthlySalesBestCementMT: numOrNull,
+  }).passthrough();
 
 export default function setupDailyVisitReportsPostRoutes(app: Express) {
   app.post('/api/daily-visit-reports', async (req: Request, res: Response) => {
