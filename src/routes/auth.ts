@@ -86,10 +86,6 @@ export default function setupAuthRoutes(app: Express) {
           techLoginId: users.techLoginId,
           techHashedPassword: users.techHashPassword,
 
-          // Admin App Credentials 
-          isAdminAppUser: users.isAdminAppUser,
-          adminAppLoginId: users.adminAppLoginId,
-          adminAppHashedPassword: users.adminAppHashedPassword,
         })
         .from(users)
         .where(
@@ -133,15 +129,6 @@ export default function setupAuthRoutes(app: Express) {
         row.isTechnicalRole && 
         row.techLoginId === loginId && 
         row.techHashedPassword === password
-      ) {
-        isAuthenticated = true;
-      }
-
-      // C. Admin App Check 
-      else if (
-        row.isAdminAppUser &&
-        row.adminAppLoginId === loginId &&
-        row.adminAppHashedPassword === password
       ) {
         isAuthenticated = true;
       }
@@ -207,8 +194,6 @@ export default function setupAuthRoutes(app: Express) {
           noOfPJP: users.noOfPjp,
           isTechnicalRole: users.isTechnicalRole,
           techLoginId: users.techLoginId,
-          isAdminAppUser: users.isAdminAppUser,
-          adminAppLoginId: users.adminAppLoginId,
         })
         .from(users)
         .leftJoin(companies, eq(companies.id, users.companyId))

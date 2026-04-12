@@ -314,7 +314,7 @@ export class DatabaseStorage implements IStorage {
   async updateCompany(id: number, updates: Partial<InsertCompany>): Promise<Company> {
     const [company] = await db.update(companies).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(companies.id, id)).returning();
     return company;
   }
@@ -340,7 +340,7 @@ export class DatabaseStorage implements IStorage {
   async updateSalesOrder(id: string, updates: Partial<InsertSalesOrder>): Promise<SalesOrder> {
     const [row] = await db.update(salesOrders).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(salesOrders.id, id)).returning();
     return row;
   }
@@ -402,7 +402,7 @@ export class DatabaseStorage implements IStorage {
   async updateUser(id: number, updates: Partial<InsertUser>): Promise<User> {
     const [user] = await db.update(users).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(users.id, id)).returning();
     return user;
   }
@@ -412,7 +412,7 @@ export class DatabaseStorage implements IStorage {
       .set({ 
         deviceId: deviceId, // The Hardware ID
         fcmToken: fcmToken, // The Notification Address
-        updatedAt: new Date() 
+        updatedAt: new Date().toISOString() 
       })
       .where(eq(users.id, userId));
   }
@@ -482,8 +482,8 @@ export class DatabaseStorage implements IStorage {
     return await db.select().from(technicalVisitReports).where(
       and(
         eq(technicalVisitReports.userId, userId),
-        gte(technicalVisitReports.createdAt, startDate),
-        lte(technicalVisitReports.createdAt, endDate)
+        gte(technicalVisitReports.createdAt, startDate.toISOString()),
+        lte(technicalVisitReports.createdAt, endDate.toISOString())
       )
     ).orderBy(desc(technicalVisitReports.createdAt));
   }
@@ -496,7 +496,7 @@ export class DatabaseStorage implements IStorage {
   async updateTechnicalVisitReport(id: string, updates: Partial<InsertTechnicalVisitReport>): Promise<TechnicalVisitReport> {
     const [report] = await db.update(technicalVisitReports).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(technicalVisitReports.id, id)).returning();
     return report;
   }
@@ -526,7 +526,7 @@ export class DatabaseStorage implements IStorage {
   async updatePermanentJourneyPlan(id: string, updates: Partial<InsertPermanentJourneyPlan>): Promise<PermanentJourneyPlan> {
     const [plan] = await db.update(permanentJourneyPlans).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(permanentJourneyPlans.id, id)).returning();
     return plan;
   }
@@ -560,7 +560,7 @@ export class DatabaseStorage implements IStorage {
   async updateDealer(id: string, updates: Partial<InsertDealer>): Promise<Dealer> {
     const [dealer] = await db.update(dealers).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(dealers.id, id)).returning();
     return dealer;
   }
@@ -593,7 +593,7 @@ export class DatabaseStorage implements IStorage {
   async updateSalesmanAttendance(id: string, updates: Partial<InsertSalesmanAttendance>): Promise<SalesmanAttendance> {
     const [attendance] = await db.update(salesmanAttendance).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(salesmanAttendance.id, id)).returning();
     return attendance;
   }
@@ -623,7 +623,7 @@ export class DatabaseStorage implements IStorage {
   async updateSalesmanLeaveApplication(id: string, updates: Partial<InsertSalesmanLeaveApplication>): Promise<SalesmanLeaveApplication> {
     const [leave] = await db.update(salesmanLeaveApplications).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(salesmanLeaveApplications.id, id)).returning();
     return leave;
   }
@@ -649,7 +649,7 @@ export class DatabaseStorage implements IStorage {
   async updateCompetitionReport(id: string, updates: Partial<InsertCompetitionReport>): Promise<CompetitionReport> {
     const [report] = await db.update(competitionReports).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(competitionReports.id, id)).returning();
     return report;
   }
@@ -675,7 +675,7 @@ export class DatabaseStorage implements IStorage {
   async updateGeoTracking(id: string, updates: Partial<InsertGeoTracking>): Promise<GeoTracking> {
     const [geo] = await db.update(geoTracking).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(geoTracking.id, id)).returning();
     return geo;
   }
@@ -694,7 +694,7 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getDailyTasksAssignedByUserId(assignedByUserId: number): Promise<DailyTask[]> {
-    return await db.select().from(dailyTasks).where(eq(dailyTasks.assignedByUserId, assignedByUserId)).orderBy(desc(dailyTasks.createdAt));
+    return await db.select().from(dailyTasks).where(eq(dailyTasks.userId, assignedByUserId)).orderBy(desc(dailyTasks.createdAt));
   }
 
   async createDailyTask(insertTask: InsertDailyTask): Promise<DailyTask> {
@@ -738,7 +738,7 @@ export class DatabaseStorage implements IStorage {
           orderHistoryScore: (data as any).orderHistoryScore,
           visitFrequencyScore: (data as any).visitFrequencyScore,
           lastUpdatedDate: (data as any).lastUpdatedDate,
-          updatedAt: new Date()
+          updatedAt: new Date().toISOString()
         })
         .where(eq(dealerReportsAndScores.dealerId, (data as any).dealerId))
         .returning();
@@ -803,7 +803,7 @@ export class DatabaseStorage implements IStorage {
   async assignTaskToUser(taskData: InsertDailyTask): Promise<DailyTask> {
     try {
       const task = await this.createDailyTask(taskData);
-      console.log(`Task assigned to user ${taskData.userId} by user ${taskData.assignedByUserId}`);
+      console.log(`Task assigned to user ${taskData.userId} by user ${taskData.userId}`);
       return task;
     } catch (error) {
       console.error('Error assigning task to user:', error);
@@ -837,7 +837,7 @@ export class DatabaseStorage implements IStorage {
   async updateTechnicalSite(id: string, updates: Partial<InsertTechnicalSite>): Promise<TechnicalSite> {
     const [site] = await db.update(technicalSites).set({
       ...updates,
-      updatedAt: new Date()
+      updatedAt: new Date().toISOString()
     }).where(eq(technicalSites.id, id)).returning();
     return site;
   }
@@ -869,11 +869,11 @@ export class DatabaseStorage implements IStorage {
     return row || undefined;
   }
   async getBrandByName(name: string): Promise<Brand | undefined> {
-    const [row] = await db.select().from(brands).where(eq(brands.name, name));
+    const [row] = await db.select().from(brands).where(eq(brands.brandName, name));
     return row || undefined;
   }
   async listBrands(): Promise<Brand[]> {
-    return await db.select().from(brands).orderBy(asc(brands.name));
+    return await db.select().from(brands).orderBy(asc(brands.brandName));
   }
   async createBrand(data: InsertBrand): Promise<Brand> {
     const [row] = await db.insert(brands).values(data).returning();
@@ -903,7 +903,7 @@ export class DatabaseStorage implements IStorage {
       return row;
     } catch (e) {
       const [row] = await db.update(dealerBrandMapping)
-        .set({ capacityMT: (data as any).capacityMT })
+        .set({ capacityMt: (data as any).capacityMT })
         .where(and(eq(dealerBrandMapping.dealerId, (data as any).dealerId), eq(dealerBrandMapping.brandId, (data as any).brandId)))
         .returning();
       return row;
@@ -925,7 +925,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async updateTSOMeeting(id: string, updates: Partial<InsertTSOMeeting>): Promise<TSOMeeting> {
-    const [row] = await db.update(tsoMeetings).set({ ...updates, updatedAt: new Date() }).where(eq(tsoMeetings.id, id)).returning();
+    const [row] = await db.update(tsoMeetings).set({ ...updates, updatedAt: new Date().toISOString() }).where(eq(tsoMeetings.id, id)).returning();
     return row;
   }
 
@@ -944,7 +944,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async updateRewardItem(id: number, updates: Partial<InsertReward>): Promise<Reward> {
-    const [row] = await db.update(rewards).set({ ...updates, updatedAt: new Date() }).where(eq(rewards.id, id)).returning();
+    const [row] = await db.update(rewards).set({ ...updates, updatedAt: new Date().toISOString() }).where(eq(rewards.id, id)).returning();
     return row;
   }
 
@@ -1024,7 +1024,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async updateKYCSubmission(id: string, updates: Partial<InsertKYCSubmission>): Promise<KYCSubmission> {
-    const [row] = await db.update(kycSubmissions).set({ ...updates, updatedAt: new Date() }).where(eq(kycSubmissions.id, id)).returning();
+    const [row] = await db.update(kycSubmissions).set({ ...updates, updatedAt: new Date().toISOString() }).where(eq(kycSubmissions.id, id)).returning();
     return row;
   }
 
@@ -1086,7 +1086,7 @@ export class DatabaseStorage implements IStorage {
     return row;
   }
   async updateRewardRedemption(id: string, updates: Partial<InsertRewardRedemption>): Promise<RewardRedemption> {
-    const [row] = await db.update(rewardRedemptions).set({ ...updates, updatedAt: new Date() }).where(eq(rewardRedemptions.id, id)).returning();
+    const [row] = await db.update(rewardRedemptions).set({ ...updates, updatedAt: new Date().toISOString() }).where(eq(rewardRedemptions.id, id)).returning();
     return row;
   }
 

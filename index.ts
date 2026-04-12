@@ -5,113 +5,114 @@ import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 // --- Import ALL your API route setups ---
-import setupMasonStatsRoute from './src/routes/dataFetchingRoutes/masonstatscheck'
+import setupMasonStatsRoute from './src/routes/dataFetchingRoutes/masonpc/masonstatscheck'
 import setupAuthRoutes from './src/routes/auth'; 
+import setupAuthAdminRoutes from './src/routes/authAdminApp';
 import setupUsersRoutes from './src/routes/users'; 
 import setupCompaniesRoutes from './src/routes/companies'; 
 import setupLogoutAuthRoutes from './src/routes/logout';
 import setupR2Upload from './src/routes/cloudfareRoutes/cloudfare'; 
-import setupBrandsAndMappingRoutes from './src/routes/dataFetchingRoutes/brandMappingFetch';
-import setupCompetitionReportsRoutes from './src/routes/dataFetchingRoutes/competetionReports';
-import setupDailyTasksRoutes from './src/routes/dataFetchingRoutes/dailyTasks';
-import setupDealersRoutes from './src/routes/dataFetchingRoutes/dealers';
-import setupPJPRoutes from './src/routes/dataFetchingRoutes/pjp';
-import setupDealerReportsAndScoresRoutes from './src/routes/dataFetchingRoutes/dealerReportandScores';
-import setupRatingsRoutes from './src/routes/dataFetchingRoutes/ratings';
-import setupSalesmanLeaveApplicationsRoutes from './src/routes/dataFetchingRoutes/salesmanLeaveApplications';
-import setupSalesOrdersRoutes from './src/routes/dataFetchingRoutes/salesOrder';
-import setupDailyVisitReportsRoutes from './src/routes/dataFetchingRoutes/dvr';
-import setupSalesmanAttendanceRoutes from './src/routes/dataFetchingRoutes/salesmanAttendance';
-import setupTechnicalVisitReportsRoutes from './src/routes/dataFetchingRoutes/tvr';
-import setupTsoMeetingsGetRoutes from './src/routes/dataFetchingRoutes/tsoMeetings';
-import setupMasonsOnMeetingsGetRoutes from './src/routes/dataFetchingRoutes/masonOnMeeting';
-import setupMasonsOnSchemeGetRoutes from './src/routes/dataFetchingRoutes/masonOnScheme';
-import setupMasonsPcSideRoutes from './src/routes/dataFetchingRoutes/masonpcSide';
-import setupSchemesOffersRoutes from './src/routes/dataFetchingRoutes/schemesOffers';
-import setupBagLiftsGetRoutes from './src/routes/dataFetchingRoutes/bagsLift';
-import setupPointsLedgerGetRoutes from './src/routes/dataFetchingRoutes/pointsLedger';
-import setupRewardCategoriesGetRoutes from './src/routes/dataFetchingRoutes/rewardCategories';
-import setupRewardsGetRoutes from './src/routes/dataFetchingRoutes/rewards';
-import setupRewardsRedemptionGetRoutes from './src/routes/dataFetchingRoutes/rewardsRedemption';
-import setupKycSubmissionsRoutes from './src/routes/dataFetchingRoutes/kycSubmissions';
-import setupTechnicalSitesRoutes from './src/routes/dataFetchingRoutes/technicalSites';
-import setupSchemeSlabsGetRoutes from './src/routes/dataFetchingRoutes/schemeSlabs';
-import setupMasonSlabAchievementsGetRoutes from './src/routes/dataFetchingRoutes/masonSlabAchievements';
-import setupLogisticsIORoutes from './src/routes/dataFetchingRoutes/logisticsIO';
-import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/collectionReports';
-import setupOutstandingReportsGetRoutes from './src/routes/dataFetchingRoutes/outstandingReports';
-import setupVerifiedDealersGetRoutes from './src/routes/dataFetchingRoutes/verifiedDealers';
+import setupBrandsAndMappingRoutes from './src/routes/dataFetchingRoutes/salesmanapp/brandMappingFetch';
+import setupCompetitionReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/competetionReports';
+import setupDailyTasksRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dailyTasks';
+import setupDealersRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dealers';
+import setupPJPRoutes from './src/routes/dataFetchingRoutes/salesmanapp/pjp';
+import setupDealerReportsAndScoresRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dealerReportandScores';
+import setupRatingsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/ratings';
+import setupSalesmanLeaveApplicationsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/salesmanLeaveApplications';
+import setupSalesOrdersRoutes from './src/routes/dataFetchingRoutes/salesmanapp/salesOrder';
+import setupDailyVisitReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dvr';
+import setupSalesmanAttendanceRoutes from './src/routes/dataFetchingRoutes/salesmanapp/salesmanAttendance';
+import setupTechnicalVisitReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/tvr';
+import setupTsoMeetingsGetRoutes from './src/routes/dataFetchingRoutes/salesmanapp/tsoMeetings';
+import setupMasonsOnMeetingsGetRoutes from './src/routes/dataFetchingRoutes/masonpc/masonOnMeeting';
+import setupMasonsOnSchemeGetRoutes from './src/routes/dataFetchingRoutes/masonpc/masonOnScheme';
+import setupMasonsPcSideRoutes from './src/routes/dataFetchingRoutes/masonpc/masonpcSide';
+import setupSchemesOffersRoutes from './src/routes/dataFetchingRoutes/masonpc/schemesOffers';
+import setupBagLiftsGetRoutes from './src/routes/dataFetchingRoutes/masonpc/bagsLift';
+import setupPointsLedgerGetRoutes from './src/routes/dataFetchingRoutes/masonpc/pointsLedger';
+import setupRewardCategoriesGetRoutes from './src/routes/dataFetchingRoutes/masonpc/rewardCategories';
+import setupRewardsGetRoutes from './src/routes/dataFetchingRoutes/masonpc/rewards';
+import setupRewardsRedemptionGetRoutes from './src/routes/dataFetchingRoutes/masonpc/rewardsRedemption';
+import setupKycSubmissionsRoutes from './src/routes/dataFetchingRoutes/masonpc/kycSubmissions';
+import setupTechnicalSitesRoutes from './src/routes/dataFetchingRoutes/salesmanapp/technicalSites';
+import setupSchemeSlabsGetRoutes from './src/routes/dataFetchingRoutes/masonpc/schemeSlabs';
+import setupMasonSlabAchievementsGetRoutes from './src/routes/dataFetchingRoutes/masonpc/masonSlabAchievements';
+import setupLogisticsIORoutes from './src/routes/dataFetchingRoutes/logistics/logisticsIO';
+import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/adminapp/collectionReports';
+import setupOutstandingReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/outstandingReports';
+import setupVerifiedDealersGetRoutes from './src/routes/dataFetchingRoutes/salesmanapp/verifiedDealers';
 
 // --- Import DELETE route setups ---
-import setupDealersDeleteRoutes from './src/routes/deleteRoutes/dealers';
-import setupPermanentJourneyPlansDeleteRoutes from './src/routes/deleteRoutes/pjp';
-import setupTechnicalVisitReportsDeleteRoutes from './src/routes/deleteRoutes/tvr';
-import setupDailyVisitReportsDeleteRoutes from './src/routes/deleteRoutes/dvr';
-import setupDailyTasksDeleteRoutes from './src/routes/deleteRoutes/dailytask';
-import setupSalesmanLeaveApplicationsDeleteRoutes from './src/routes/deleteRoutes/salesmanleave';
-import setupCompetitionReportsDeleteRoutes from './src/routes/deleteRoutes/competetionreports';
-import setupBrandsDeleteRoutes from './src/routes/deleteRoutes/brands';
-import setupRatingsDeleteRoutes from './src/routes/deleteRoutes/ratings';
-import setupSalesOrdersDeleteRoutes from './src/routes/deleteRoutes/salesOrder';
-import setupDealerReportsAndScoresDeleteRoutes from './src/routes/deleteRoutes/dealerReportsAndScores';
-import setupTsoMeetingsDeleteRoutes from './src/routes/deleteRoutes/tsoMeetings';
+import setupDealersDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/dealers';
+import setupPermanentJourneyPlansDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/pjp';
+import setupTechnicalVisitReportsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/tvr';
+import setupDailyVisitReportsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/dvr';
+import setupDailyTasksDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/dailytask';
+import setupSalesmanLeaveApplicationsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/salesmanleave';
+import setupCompetitionReportsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/competetionreports';
+import setupBrandsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/brands';
+import setupRatingsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/ratings';
+import setupSalesOrdersDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/salesOrder';
+import setupDealerReportsAndScoresDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/dealerReportsAndScores';
+import setupTsoMeetingsDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/tsoMeetings';
 
 //firebase stuff 
 import './src/firebase/admin';
 import setupAuthFirebaseRoutes from './src/routes/authFirebase';
 
 // --- Import POST route setups ---
-import setupDailyVisitReportsPostRoutes from './src/routes/formSubmissionRoutes/dvr';
-import setupTechnicalVisitReportsPostRoutes from './src/routes/formSubmissionRoutes/tvr';
-import setupPermanentJourneyPlansPostRoutes from './src/routes/formSubmissionRoutes/pjp';
-import setupDealersPostRoutes from './src/routes/formSubmissionRoutes/addDealer';
-import setupSalesmanLeaveApplicationsPostRoutes from './src/routes/formSubmissionRoutes/salesManleave';
-import setupCompetitionReportsPostRoutes from './src/routes/formSubmissionRoutes/competitionReport';
-import setupDailyTasksPostRoutes from './src/routes/formSubmissionRoutes/dailytasks';
-import setupDealerReportsAndScoresPostRoutes from './src/routes/formSubmissionRoutes/dealerReportsAndScores';
-import setupRatingsPostRoutes from './src/routes/formSubmissionRoutes/ratings';
-import setupBrandsPostRoutes from './src/routes/formSubmissionRoutes/brand';
-import setupSalesOrdersPostRoutes from './src/routes/formSubmissionRoutes/salesOrder';
-import setupDealerBrandMappingPostRoutes from './src/routes/formSubmissionRoutes/brandMapping';
-import setupAttendanceCheckInRoutes from './src/routes/formSubmissionRoutes/attendanceIn';
-import setupAttendanceCheckOutRoutes from './src/routes/formSubmissionRoutes/attendanceOut';
-import setupTsoMeetingsPostRoutes from './src/routes/formSubmissionRoutes/tsoMeetings';
-import setupMasonOnMeetingPostRoutes from './src/routes/formSubmissionRoutes/masonOnMeeting';
-import setupMasonOnSchemePostRoutes from './src/routes/formSubmissionRoutes/masonOnScheme';
-import setupMasonPcSidePostRoutes from './src/routes/formSubmissionRoutes/masonpcSide';
-import setupSchemesOffersPostRoutes from './src/routes/formSubmissionRoutes/schemesOffers';
-import setupBagLiftsPostRoute from './src/routes/formSubmissionRoutes/bagsLift';
-import setupRewardsRedemptionPostRoute from './src/routes/formSubmissionRoutes/rewardsRedemption';
-import setupKycSubmissionsPostRoute from './src/routes/formSubmissionRoutes/kycSubmission';
-import setupRewardsPostRoute from './src/routes/formSubmissionRoutes/rewards';
-import setupPointsLedgerPostRoutes from './src/routes/dataFetchingRoutes/pointsLedger';
-import setupTechnicalSitesPostRoutes from './src/routes/formSubmissionRoutes/technicalSites';
-import setupSchemeSlabsPostRoute from './src/routes/formSubmissionRoutes/schemeSlabs';
-import setupMasonSlabAchievementsPostRoute from './src/routes/formSubmissionRoutes/masonSlabAchievements';
-import setupLogisticsIOSubmissionRoute from './src/routes/formSubmissionRoutes/logisticsIO';
+import setupDailyVisitReportsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/dvr';
+import setupTechnicalVisitReportsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/tvr';
+import setupPermanentJourneyPlansPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/pjp';
+import setupDealersPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/addDealer';
+import setupSalesmanLeaveApplicationsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/salesManleave';
+import setupCompetitionReportsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/competitionReport';
+import setupDailyTasksPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/dailytasks';
+import setupDealerReportsAndScoresPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/dealerReportsAndScores';
+import setupRatingsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/ratings';
+import setupBrandsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/brand';
+import setupSalesOrdersPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/salesOrder';
+import setupDealerBrandMappingPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/brandMapping';
+import setupAttendanceCheckInRoutes from './src/routes/formSubmissionRoutes/salesmanapp/attendanceIn';
+import setupAttendanceCheckOutRoutes from './src/routes/formSubmissionRoutes/salesmanapp/attendanceOut';
+import setupTsoMeetingsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/tsoMeetings';
+import setupMasonOnMeetingPostRoutes from './src/routes/formSubmissionRoutes/masonpc/masonOnMeeting';
+import setupMasonOnSchemePostRoutes from './src/routes/formSubmissionRoutes/masonpc/masonOnScheme';
+import setupMasonPcSidePostRoutes from './src/routes/formSubmissionRoutes/masonpc/masonpcSide';
+import setupSchemesOffersPostRoutes from './src/routes/formSubmissionRoutes/masonpc/schemesOffers';
+import setupBagLiftsPostRoute from './src/routes/formSubmissionRoutes/masonpc/bagsLift';
+import setupRewardsRedemptionPostRoute from './src/routes/formSubmissionRoutes/masonpc/rewardsRedemption';
+import setupKycSubmissionsPostRoute from './src/routes/formSubmissionRoutes/masonpc/kycSubmission';
+import setupRewardsPostRoute from './src/routes/formSubmissionRoutes/masonpc/rewards';
+import setupPointsLedgerPostRoutes from './src/routes/dataFetchingRoutes/masonpc/pointsLedger';
+import setupTechnicalSitesPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/technicalSites';
+import setupSchemeSlabsPostRoute from './src/routes/formSubmissionRoutes/masonpc/schemeSlabs';
+import setupMasonSlabAchievementsPostRoute from './src/routes/formSubmissionRoutes/masonpc/masonSlabAchievements';
+import setupLogisticsIOSubmissionRoute from './src/routes/formSubmissionRoutes/logistics/logisticsIO';
 
 
 // --- Import UPDATE (PATCH) route setups ---
-import setupDealersPatchRoutes from './src/routes/updateRoutes/dealers';
-import setupPjpPatchRoutes from './src/routes/updateRoutes/pjp';
-import setupDailyTaskPatchRoutes from './src/routes/updateRoutes/dailytask';
-import setupDealerBrandMappingPatchRoutes from './src/routes/updateRoutes/brandMapping';
-import setupBrandsPatchRoutes from './src/routes/updateRoutes/brands';
-import setupRatingsPatchRoutes from './src/routes/updateRoutes/ratings';
-import setupDealerScoresPatchRoutes from './src/routes/updateRoutes/dealerReportandScores';
-import setupDailyVisitReportsPatchRoutes from './src/routes/updateRoutes/dvr';
-import setupTechnicalVisitReportsPatchRoutes from './src/routes/updateRoutes/tvr';
-import setupTsoMeetingsPatchRoutes from './src/routes/updateRoutes/tsoMeetings';
-import setupSalesOrdersPatchRoutes from './src/routes/updateRoutes/salesorder';
-import setupMasonPcSidePatchRoutes from './src/routes/updateRoutes/masonpcSide';
-import setupSchemesOffersPatchRoutes from './src/routes/updateRoutes/schemesOffers';
-import setupKycSubmissionsPatchRoute from './src/routes/updateRoutes/kycSubmission';
-import setupRewardsPatchRoute from './src/routes/updateRoutes/rewards';
-import setupRewardsRedemptionPatchRoute from './src/routes/updateRoutes/rewardsRedemption';
-import setupBagLiftsPatchRoute from './src/routes/updateRoutes/bagsLift';
-import setupTechnicalSitesUpdateRoutes from './src/routes/updateRoutes/technicalSites';
-import setupLogisticsIOUpdateRoutes from './src/routes/updateRoutes/logisticsIO';
-import setupLeaveUpdateRoute from './src/routes/updateRoutes/salesmanLeaves';
+import setupDealersPatchRoutes from './src/routes/updateRoutes/salesmanapp/dealers';
+import setupPjpPatchRoutes from './src/routes/updateRoutes/salesmanapp/pjp';
+import setupDailyTaskPatchRoutes from './src/routes/updateRoutes/salesmanapp/dailytask';
+import setupDealerBrandMappingPatchRoutes from './src/routes/updateRoutes/salesmanapp/brandMapping';
+import setupBrandsPatchRoutes from './src/routes/updateRoutes/salesmanapp/brands';
+import setupRatingsPatchRoutes from './src/routes/updateRoutes/salesmanapp/ratings';
+import setupDealerScoresPatchRoutes from './src/routes/updateRoutes/salesmanapp/dealerReportandScores';
+import setupDailyVisitReportsPatchRoutes from './src/routes/updateRoutes/salesmanapp/dvr';
+import setupTechnicalVisitReportsPatchRoutes from './src/routes/updateRoutes/salesmanapp/tvr';
+import setupTsoMeetingsPatchRoutes from './src/routes/updateRoutes/salesmanapp/tsoMeetings';
+import setupSalesOrdersPatchRoutes from './src/routes/updateRoutes/salesmanapp/salesorder';
+import setupMasonPcSidePatchRoutes from './src/routes/updateRoutes/masonpc/masonpcSide';
+import setupSchemesOffersPatchRoutes from './src/routes/updateRoutes/masonpc/schemesOffers';
+import setupKycSubmissionsPatchRoute from './src/routes/updateRoutes/masonpc/kycSubmission';
+import setupRewardsPatchRoute from './src/routes/updateRoutes/masonpc/rewards';
+import setupRewardsRedemptionPatchRoute from './src/routes/updateRoutes/masonpc/rewardsRedemption';
+import setupBagLiftsPatchRoute from './src/routes/updateRoutes/masonpc/bagsLift';
+import setupTechnicalSitesUpdateRoutes from './src/routes/updateRoutes/salesmanapp/technicalSites';
+import setupLogisticsIOUpdateRoutes from './src/routes/updateRoutes/logistics/logisticsIO';
+import setupLeaveUpdateRoute from './src/routes/updateRoutes/salesmanapp/salesmanLeaves';
 
 // --- Import GEO TRACKING route setups ---
 import setupGeoTrackingRoutes from './src/routes/geoTrackingRoutes/geoTracking';
@@ -137,8 +138,8 @@ import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 //weirdEMAILWORKERthatwillPOLLevery30s
 // import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
 import { MasterEmailWorker } from "./src/services/masteremailworker";
-import setupProjectionRoutes from './src/routes/dataFetchingRoutes/projectionReports';
-import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/projectionVsActualReports';
+import setupProjectionRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionReports';
+import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionVsActualReports';
 import { setupAutoApproveCron } from './src/workers/autoApprove';
 
 
@@ -244,6 +245,7 @@ setupProjectionRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
+setupAuthAdminRoutes(app);               // /api/auth/admin/login
 setupUsersRoutes(app);                   // /api/users/*
 setupCompaniesRoutes(app);                // /api/companies
 setupLogoutAuthRoutes(app);               // /api/auth/logout
