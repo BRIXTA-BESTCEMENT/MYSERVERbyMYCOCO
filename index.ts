@@ -136,21 +136,21 @@ import setupAuthLogisticsRoutes from './src/routes/authLogistics';
 import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 
 //weirdEMAILWORKERthatwillPOLLevery30s
-// import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+//import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
 import { MasterEmailWorker } from "./src/services/masteremailworker";
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionVsActualReports';
 import { setupAutoApproveCron } from './src/workers/autoApprove';
 
-
-//---------------------------------------------
-//----------------MainMasterEMAILWORKER--------------------
-
-// const emailRouter = new MasterEmailWorker();
-// emailRouter.Start();
+// admin App Email Worker
+import setupHrReportsRoutes from './src/routes/dataFetchingRoutes/adminapp/hr_reports';
 
 //----------------MainMasterEMAILWORKER--------------------
-//---------------------------------------------
+
+const emailRouter = new MasterEmailWorker();
+emailRouter.Start();
+
+//----------------MainMasterEMAILWORKER-------------------- OLD
 
 // const worker = new EmailSystemWorker();
 
@@ -181,20 +181,6 @@ app.use(express.json());
 
 app.use(express.static(path.join(process.cwd(), 'public')));
 
-// Simple logging middleware to see incoming requests
-
-
-
-
-// app.use((req: Request, res: Response, next: NextFunction) => {
-//   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-//   next();
-// });
-
-
-
-
-//old one^^^^^
 app.use((req: Request, res: Response, next: NextFunction) => {
   const forwarded = req.headers['x-forwarded-for'];
   const realIp = Array.isArray(forwarded)
@@ -234,14 +220,15 @@ app.get('/api', (req: Request, res: Response) => {
 // --- Modular Route Setup ---
 console.log('🔌 Registering API routes...');
 
-//colection reprts from MAIL NIGGA
+// reports from mail
 setupCollectionReportsRoutes(app);
 setupOutstandingReportsGetRoutes(app);
 setupVerifiedDealersGetRoutes(app);
-
-//YEAHEHE
 setupProjectionVsActualRoutes(app);
 setupProjectionRoutes(app);
+
+// admin app reports 
+setupHrReportsRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id

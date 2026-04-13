@@ -29,6 +29,11 @@ const pool =
     statement_timeout: 15000, 
   });
 
+pool.on('error', (err, client) => {
+  console.error('⚠️ Unexpected error on idle Postgres client:', err.message);
+  // The server will no longer crash. The pool will just create a new connection!
+});
+
 const db =
   globalForDb.__DRIZZLE_DB__ ??
   drizzle(pool, { schema });

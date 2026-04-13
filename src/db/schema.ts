@@ -1263,6 +1263,21 @@ export const emailReports = myCustomSchema.table("email_reports", {
   index("idx_email_reports_message").on(t.messageId),
 ]);
 
+// ------- Admin App Email Reports --------
+export const hrReports = myCustomSchema.table("hr_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+  vacancies: jsonb("vacancies"),
+  statutoryClearances: jsonb("statutory_clearances"),
+  topPerformers: jsonb("top_performers"),
+  bottomPerformers: jsonb("bottom_performers"),
+  interviews: jsonb("interviews"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ------- Mason PC --------
 export const masonPcSide = myCustomSchema.table("mason_pc_side", {
   id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
@@ -1673,3 +1688,6 @@ export const insertOutstandingReportsSchema = createInsertSchema(outstandingRepo
 export const insertVerifiedDealersSchema = createInsertSchema(verifiedDealers);
 export const insertProjectionVsActualReportsSchema = createInsertSchema(projectionVsActualReports);
 export const insertProjectionReportsSchema = createInsertSchema(projectionReports);
+
+// admin app email reports
+export const insertHrReportsSchema = createInsertSchema(hrReports);

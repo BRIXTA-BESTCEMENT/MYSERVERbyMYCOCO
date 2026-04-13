@@ -1,6 +1,6 @@
 import { EmailSystem } from "./emailSystem";
 import { PjpProcessor } from "../routes/microsoftEmail/pjpProcessor";
-// import { SalesProcessor } from "./salesProcessor"; <-- You will add this later when ready!
+import { HrReportsProcessor } from "../routes/microsoftEmail/adminappReports/hr_reports";
 
 enum WorkerState {
     IDLE = "IDLE",
@@ -12,8 +12,9 @@ enum WorkerState {
 export class MasterEmailWorker {
     private emailSystem = new EmailSystem();
     private pjpProcessor = new PjpProcessor();
-    private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
+    private hrProcessor = new HrReportsProcessor();
 
+    private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
     private state: WorkerState = WorkerState.IDLE;
     private shouldStop = false;
     private sleepTimer: NodeJS.Timeout | null = null;
@@ -53,7 +54,7 @@ export class MasterEmailWorker {
                 if (didWork) continue;
 
                 this.state = WorkerState.SLEEPING;
-                console.log("INBOX KHAALI surorbachaa....");
+                console.log("INBOX EMPTY....");
                 await this.sleep(10000);
                 this.state = WorkerState.RUNNING;
 
@@ -104,19 +105,27 @@ export class MasterEmailWorker {
                     continue;
                 }
 
-                // 🚦 THE ROUTER: Send to the correct department based on Subject
+                // 🚦 THE ROUTER : Correct mail to correct inbox
                 if (subject.includes("PJP")) {
                     console.log(`[Router] ➡️ Routing Mail ${mail.id} to PJP Processor...`);
                     await this.pjpProcessor.processFiles(mail.id, subject, files);
-                } 
-                // else if (subject.includes("SALES")) {
-                //     console.log(`[Router] ➡️ Routing Mail to Sales Processor...`);
-                //     await this.salesProcessor.processFiles(mail.id, subject, files);
-                // }
+                }
+                else if (subject.includes("HR REPORT") || subject.includes("HR-REPORT") || subject.includes("HR RECRUITMENT")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to HR Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.hrProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
                 else {
                     console.log(`[Router] ⚠️ Ignored unknown mail format: ${subject}`);
-                    // Skip cleanup so ignored emails stay in the inbox for human review
-                    continue; 
+                    continue;
                 }
 
                 // 🧹 CLEANUP: Only runs if the processor above successfully finishes
