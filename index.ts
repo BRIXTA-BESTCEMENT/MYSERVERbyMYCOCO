@@ -144,6 +144,8 @@ import { setupAutoApproveCron } from './src/workers/autoApprove';
 
 // admin App Email Worker
 import setupHrReportsRoutes from './src/routes/dataFetchingRoutes/adminapp/hr_reports';
+import setupHrReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/hr_reports';
+import setupHrReportsUpdateRoutes from './src/routes/updateRoutes/adminapp/hr_reports';
 
 //----------------MainMasterEMAILWORKER--------------------
 
@@ -229,6 +231,9 @@ setupProjectionRoutes(app);
 
 // admin app reports 
 setupHrReportsRoutes(app);
+setupHrReportsPostRoutes(app);
+setupHrReportsUpdateRoutes(app);
+
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
