@@ -143,9 +143,11 @@ import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/admin
 import { setupAutoApproveCron } from './src/workers/autoApprove';
 
 // admin App Email Worker
-import setupHrReportsRoutes from './src/routes/dataFetchingRoutes/adminapp/hr_reports';
+import setupHrReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/hr_reports';
 import setupHrReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/hr_reports';
-import setupHrReportsUpdateRoutes from './src/routes/updateRoutes/adminapp/hr_reports';
+
+import setupSalesReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/sales_reports';
+import setupSalesReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/sales_reports';
 
 //----------------MainMasterEMAILWORKER--------------------
 
@@ -230,10 +232,10 @@ setupProjectionVsActualRoutes(app);
 setupProjectionRoutes(app);
 
 // admin app reports 
-setupHrReportsRoutes(app);
+setupHrReportsGetRoutes(app);
 setupHrReportsPostRoutes(app);
-setupHrReportsUpdateRoutes(app);
-
+setupSalesReportsGetRoutes(app);
+setupSalesReportsPostRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id

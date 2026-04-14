@@ -1,6 +1,8 @@
 import { EmailSystem } from "./emailSystem";
 import { PjpProcessor } from "../routes/microsoftEmail/pjpProcessor";
 import { HrReportsProcessor } from "../routes/microsoftEmail/adminappReports/hr_reports";
+import { SalesReportProcessor } from "../routes/microsoftEmail/adminappReports/sales_reports";
+import { CollectionReportProcessor } from "../routes/microsoftEmail/adminappReports/collection_reports";
 
 enum WorkerState {
     IDLE = "IDLE",
@@ -13,6 +15,8 @@ export class MasterEmailWorker {
     private emailSystem = new EmailSystem();
     private pjpProcessor = new PjpProcessor();
     private hrProcessor = new HrReportsProcessor();
+    private salesReportsProcessor = new SalesReportProcessor();
+    private collectionReportsProcessor = new CollectionReportProcessor();
 
     private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
     private state: WorkerState = WorkerState.IDLE;
@@ -43,7 +47,7 @@ export class MasterEmailWorker {
     ========================================================= */
     async Start() {
         if (this.state === WorkerState.RUNNING) return;
-        console.log("SOLISEE KELA..AROMBHO HOI GOL XET.. (Master Router Mode)");
+        console.log("Started Mail Extractor Worker NOW!.. (Master Router Mode)");
         this.shouldStop = false;
         this.state = WorkerState.RUNNING;
 
@@ -59,7 +63,7 @@ export class MasterEmailWorker {
                 this.state = WorkerState.RUNNING;
 
             } catch (e: any) {
-                console.error("sudi gol.. ERROR TU dekhaabo etiya...", e);
+                console.error("ERROR: ", e);
                 this.state = WorkerState.SLEEPING;
                 await this.sleep(30000);
                 this.state = WorkerState.RUNNING;
@@ -67,7 +71,7 @@ export class MasterEmailWorker {
         }
 
         this.state = WorkerState.STOPPED;
-        console.log("SOB BONDHO...nosole kela..");
+        console.log("Nothing worked. Worker execution failed!");
     }
 
     async stop() {
@@ -117,6 +121,32 @@ export class MasterEmailWorker {
                         const buffer = Buffer.from(file.contentBytes, "base64");
 
                         await this.hrProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("SALES REPORT") || subject.includes("SALES REPORTS") || subject.includes("SALE REPORT") || subject.includes("SALE REPORTS")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to SALES REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.salesReportsProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("COLLECTION REPORT") || subject.includes("COLLECTION REPORTS")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to COLLECTION REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.collectionReportsProcessor.processFile(buffer, {
                             messageId: mail.id,
                             fileName: file.name,
                             subject: mail.subject,

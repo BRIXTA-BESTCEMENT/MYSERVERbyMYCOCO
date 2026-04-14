@@ -4,7 +4,7 @@ import { db } from "../../../db/db";
 import { hrReports } from "../../../db/schema";
 import { desc, isNotNull } from "drizzle-orm";
 
-export default function setupHrReportsRoutes(app: Express) {
+export default function setupHrReportsGetRoutes(app: Express) {
   const endpoint = "adminapp/hr-reports";
 
   // ✅ 1. GET Latest Excel Report (For Vacancies Tab)

@@ -1278,6 +1278,18 @@ export const hrReports = myCustomSchema.table("hr_reports", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const salesReports = myCustomSchema.table("sales_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+  salesDataPayload: jsonb("sales_data_payload"), 
+  collectionDataPayload: jsonb("collection_data_payload"), 
+  nonTradeDataPayload: jsonb("non_trade_data_payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
 // ------- Mason PC --------
 export const masonPcSide = myCustomSchema.table("mason_pc_side", {
   id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
@@ -1691,3 +1703,4 @@ export const insertProjectionReportsSchema = createInsertSchema(projectionReport
 
 // admin app email reports
 export const insertHrReportsSchema = createInsertSchema(hrReports);
+export const insertSalesReportsSchema = createInsertSchema(salesReports);
