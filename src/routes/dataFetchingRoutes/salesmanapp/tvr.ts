@@ -88,9 +88,8 @@ export default function setupTechnicalVisitReportsRoutes(app: Express) {
   // GET ALL (with all filters)
   app.get(`/api/${endpoint}`, async (req: Request, res: Response) => {
     try {
-      const { limit = '50', page = '1', sortBy, sortDir } = req.query;
-      
-      const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 50));
+      const { limit = '3000', page = '1', sortBy, sortDir } = req.query;
+      const lmt = Math.max(1, Math.min(3000, parseInt(String(limit), 10) || 50));
       const pg = Math.max(1, parseInt(String(page), 10) || 1);
       const offset = (pg - 1) * lmt;
 
