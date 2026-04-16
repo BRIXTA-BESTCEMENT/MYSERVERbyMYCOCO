@@ -11,7 +11,8 @@ import setupAuthAdminRoutes from './src/routes/authAdminApp';
 import setupUsersRoutes from './src/routes/users'; 
 import setupCompaniesRoutes from './src/routes/companies'; 
 import setupLogoutAuthRoutes from './src/routes/logout';
-import setupR2Upload from './src/routes/cloudfareRoutes/cloudfare'; 
+//import setupR2Upload from './src/routes/cloudfareRoutes/cloudfare';
+import setupUploadRoutes from './src/routes/fileUpload/upload'; 
 import setupBrandsAndMappingRoutes from './src/routes/dataFetchingRoutes/salesmanapp/brandMappingFetch';
 import setupCompetitionReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/competetionReports';
 import setupDailyTasksRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dailyTasks';
@@ -371,7 +372,10 @@ setupJourneyOpsRoutes(app);
 setupTeamViewRoutes(app);
 
 //------------ CLOUDFARE ----------------
-setupR2Upload(app);
+//setupR2Upload(app);
+
+// ------- File Upload Route -----
+setupUploadRoutes(app);
 console.log('✅ All routes registered successfully.');
 
 //------------ TelegramBot + AI setup ----------------

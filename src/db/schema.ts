@@ -580,6 +580,7 @@ export const salesOrders = myCustomSchema.table("sales_orders", {
   id: varchar({ length: 255 }).primaryKey().notNull(),
   userId: integer("user_id"),
   dealerId: varchar("dealer_id", { length: 255 }),
+  verifiedDealerId: integer("verified_dealer_id"),
   dvrId: varchar("dvr_id", { length: 255 }),
   pjpId: varchar("pjp_id", { length: 255 }),
   orderDate: date("order_date").notNull(),
@@ -609,6 +610,7 @@ export const salesOrders = myCustomSchema.table("sales_orders", {
   createdAt: timestamp("created_at", { precision: 6, withTimezone: true, mode: 'string' }).defaultNow(),
   updatedAt: timestamp("updated_at", { precision: 6, withTimezone: true, mode: 'string' }).defaultNow(),
   status: varchar({ length: 50 }).default('Pending'),
+  salesCategory: varchar("sales_category", { length: 20 }), // trade vs non trade
 }, (table) => [
   index("idx_sales_orders_dealer_id").using("btree", table.dealerId.asc().nullsLast()),
   index("idx_sales_orders_dvr_id").using("btree", table.dvrId.asc().nullsLast()),
@@ -1067,6 +1069,7 @@ export const projectionVsActualReports = myCustomSchema.table("projection_vs_act
   sourceFileName: text("source_file_name"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
   verifiedDealerId: integer("verified_dealer_id"),
+  dealerId: varchar("dealer_id", { length: 255 }),
   userId: integer("user_id"),
 }, (table) => [
   index("idx_proj_actual_date").using("btree", table.reportDate.asc().nullsLast()),
@@ -1088,6 +1091,49 @@ export const projectionVsActualReports = myCustomSchema.table("projection_vs_act
   }).onDelete("set null"),
 ]);
 
+export const projectionReports = myCustomSchema.table("projection_reports", {
+  id: uuid().defaultRandom().primaryKey().notNull(),
+  institution: varchar({ length: 10 }).notNull(),
+  reportDate: date("report_date").notNull(),
+  zone: varchar({ length: 100 }).notNull(),
+  orderDealerName: varchar("order_dealer_name", { length: 255 }),
+  orderQtyMt: numeric("order_qty_mt", { precision: 10, scale: 2 }),
+  collectionDealerName: varchar("collection_dealer_name", { length: 255 }),
+  collectionAmount: numeric("collection_amount", { precision: 14, scale: 2 }),
+  salesPromoterUserId: integer("sales_promoter_user_id"),
+  sourceMessageId: text("source_message_id"),
+  sourceFileName: text("source_file_name"),
+  createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+  verifiedDealerId: integer("verified_dealer_id"),
+  dealerId: varchar("dealer_id", { length: 255 }),
+  userId: integer("user_id"),
+  emailReportId: uuid("email_report_id"),
+}, (table) => [
+  index("idx_projection_date").using("btree", table.reportDate.asc().nullsLast()),
+  index("idx_projection_email_report").using("btree", table.emailReportId.asc().nullsLast()),
+  index("idx_projection_institution").using("btree", table.institution.asc().nullsLast()),
+  index("idx_projection_user").using("btree", table.userId.asc().nullsLast()),
+  index("idx_projection_verified_dealer").using("btree", table.verifiedDealerId.asc().nullsLast()),
+  index("idx_projection_zone").using("btree", table.zone.asc().nullsLast()),
+  uniqueIndex("uniq_projection_snapshot").using("btree", table.reportDate.asc().nullsLast(), table.orderDealerName.asc().nullsLast(), table.collectionDealerName.asc().nullsLast(), table.institution.asc().nullsLast()),
+  foreignKey({
+    columns: [table.verifiedDealerId],
+    foreignColumns: [verifiedDealers.id],
+    name: "projection_reports_verified_dealer_id_fkey"
+  }).onDelete("set null"),
+  foreignKey({
+    columns: [table.userId],
+    foreignColumns: [users.id],
+    name: "projection_reports_user_id_fkey"
+  }).onDelete("set null"),
+  foreignKey({
+    columns: [table.emailReportId],
+    foreignColumns: [emailReports.id],
+    name: "fk_projection_email_report"
+  }).onDelete("cascade"),
+  unique("projection_reports_unique_key").on(table.institution, table.reportDate, table.zone, table.orderDealerName, table.collectionDealerName),
+]);
+
 export const collectionReports = myCustomSchema.table("collection_reports", {
   id: uuid().defaultRandom().primaryKey().notNull(),
   institution: varchar({ length: 10 }).notNull(),
@@ -1105,6 +1151,7 @@ export const collectionReports = myCustomSchema.table("collection_reports", {
   sourceFileName: text("source_file_name"),
   createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
   verifiedDealerId: integer("verified_dealer_id"),
+  dealerId: varchar("dealer_id", { length: 255 }),
   userId: integer("user_id"),
   emailReportId: uuid("email_report_id"),
 }, (table) => [
@@ -1137,48 +1184,6 @@ export const collectionReports = myCustomSchema.table("collection_reports", {
   }).onDelete("cascade"),
 ]);
 
-export const projectionReports = myCustomSchema.table("projection_reports", {
-  id: uuid().defaultRandom().primaryKey().notNull(),
-  institution: varchar({ length: 10 }).notNull(),
-  reportDate: date("report_date").notNull(),
-  zone: varchar({ length: 100 }).notNull(),
-  orderDealerName: varchar("order_dealer_name", { length: 255 }),
-  orderQtyMt: numeric("order_qty_mt", { precision: 10, scale: 2 }),
-  collectionDealerName: varchar("collection_dealer_name", { length: 255 }),
-  collectionAmount: numeric("collection_amount", { precision: 14, scale: 2 }),
-  salesPromoterUserId: integer("sales_promoter_user_id"),
-  sourceMessageId: text("source_message_id"),
-  sourceFileName: text("source_file_name"),
-  createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-  verifiedDealerId: integer("verified_dealer_id"),
-  userId: integer("user_id"),
-  emailReportId: uuid("email_report_id"),
-}, (table) => [
-  index("idx_projection_date").using("btree", table.reportDate.asc().nullsLast()),
-  index("idx_projection_email_report").using("btree", table.emailReportId.asc().nullsLast()),
-  index("idx_projection_institution").using("btree", table.institution.asc().nullsLast()),
-  index("idx_projection_user").using("btree", table.userId.asc().nullsLast()),
-  index("idx_projection_verified_dealer").using("btree", table.verifiedDealerId.asc().nullsLast()),
-  index("idx_projection_zone").using("btree", table.zone.asc().nullsLast()),
-  uniqueIndex("uniq_projection_snapshot").using("btree", table.reportDate.asc().nullsLast(), table.orderDealerName.asc().nullsLast(), table.collectionDealerName.asc().nullsLast(), table.institution.asc().nullsLast()),
-  foreignKey({
-    columns: [table.verifiedDealerId],
-    foreignColumns: [verifiedDealers.id],
-    name: "projection_reports_verified_dealer_id_fkey"
-  }).onDelete("set null"),
-  foreignKey({
-    columns: [table.userId],
-    foreignColumns: [users.id],
-    name: "projection_reports_user_id_fkey"
-  }).onDelete("set null"),
-  foreignKey({
-    columns: [table.emailReportId],
-    foreignColumns: [emailReports.id],
-    name: "fk_projection_email_report"
-  }).onDelete("cascade"),
-  unique("projection_reports_unique_key").on(table.institution, table.reportDate, table.zone, table.orderDealerName, table.collectionDealerName),
-]);
-
 export const outstandingReports = myCustomSchema.table("outstanding_reports", {
   id: uuid().defaultRandom().primaryKey().notNull(),
   securityDepositAmt: numeric("security_deposit_amt", { precision: 14, scale: 2 }),
@@ -1194,13 +1199,14 @@ export const outstandingReports = myCustomSchema.table("outstanding_reports", {
   greaterThan90Days: numeric("greater_than_90_days", { precision: 14, scale: 2 }),
   isOverdue: boolean("is_overdue").default(false),
   isAccountJsbJud: boolean("is_account_jsb_jud").default(false),
-  verifiedDealerId: integer("verified_dealer_id"),
   collectionReportId: uuid("collection_report_id"),
   dvrId: varchar("dvr_id", { length: 255 }),
   createdAt: timestamp("created_at", { precision: 6, withTimezone: true, mode: 'string' }).defaultNow().notNull(),
   updatedAt: timestamp("updated_at", { precision: 6, withTimezone: true, mode: 'string' }).defaultNow().notNull(),
   reportDate: date("report_date"),
   tempDealerName: text("temp_dealer_name"),
+  verifiedDealerId: integer("verified_dealer_id"),
+  dealerId: varchar("dealer_id", { length: 255 }),
   emailReportId: uuid("email_report_id"),
   institution: varchar({ length: 10 }).default('UNKNOWN').notNull(),
 }, (table) => [
