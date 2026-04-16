@@ -152,8 +152,8 @@ import setupSalesReportsPostRoutes from './src/routes/formSubmissionRoutes/admin
 
 //----------------MainMasterEMAILWORKER--------------------
 
-const emailRouter = new MasterEmailWorker();
-emailRouter.Start();
+// const emailRouter = new MasterEmailWorker();
+// emailRouter.Start();
 
 //----------------MainMasterEMAILWORKER-------------------- OLD
 
