@@ -11,7 +11,8 @@ import setupAuthAdminRoutes from './src/routes/authAdminApp';
 import setupUsersRoutes from './src/routes/users'; 
 import setupCompaniesRoutes from './src/routes/companies'; 
 import setupLogoutAuthRoutes from './src/routes/logout';
-import setupR2Upload from './src/routes/cloudfareRoutes/cloudfare'; 
+//import setupR2Upload from './src/routes/cloudfareRoutes/cloudfare';
+import setupUploadRoutes from './src/routes/fileUpload/upload'; 
 import setupBrandsAndMappingRoutes from './src/routes/dataFetchingRoutes/salesmanapp/brandMappingFetch';
 import setupCompetitionReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/competetionReports';
 import setupDailyTasksRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dailyTasks';
@@ -136,21 +137,25 @@ import setupAuthLogisticsRoutes from './src/routes/authLogistics';
 import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
 
 //weirdEMAILWORKERthatwillPOLLevery30s
-// import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
+//import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
 import { MasterEmailWorker } from "./src/services/masteremailworker";
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionVsActualReports';
 import { setupAutoApproveCron } from './src/workers/autoApprove';
 
+// admin App Email Worker
+import setupHrReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/hr_reports';
+import setupHrReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/hr_reports';
 
-//---------------------------------------------
+import setupSalesReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/sales_reports';
+import setupSalesReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/sales_reports';
+
 //----------------MainMasterEMAILWORKER--------------------
 
-// const emailRouter = new MasterEmailWorker();
-// emailRouter.Start();
+const emailRouter = new MasterEmailWorker();
+emailRouter.Start();
 
-//----------------MainMasterEMAILWORKER--------------------
-//---------------------------------------------
+//----------------MainMasterEMAILWORKER-------------------- OLD
 
 // const worker = new EmailSystemWorker();
 
@@ -181,20 +186,6 @@ app.use(express.json());
 
 app.use(express.static(path.join(process.cwd(), 'public')));
 
-// Simple logging middleware to see incoming requests
-
-
-
-
-// app.use((req: Request, res: Response, next: NextFunction) => {
-//   console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
-//   next();
-// });
-
-
-
-
-//old one^^^^^
 app.use((req: Request, res: Response, next: NextFunction) => {
   const forwarded = req.headers['x-forwarded-for'];
   const realIp = Array.isArray(forwarded)
@@ -234,14 +225,18 @@ app.get('/api', (req: Request, res: Response) => {
 // --- Modular Route Setup ---
 console.log('🔌 Registering API routes...');
 
-//colection reprts from MAIL NIGGA
+// reports from mail
 setupCollectionReportsRoutes(app);
 setupOutstandingReportsGetRoutes(app);
 setupVerifiedDealersGetRoutes(app);
-
-//YEAHEHE
 setupProjectionVsActualRoutes(app);
 setupProjectionRoutes(app);
+
+// admin app reports 
+setupHrReportsGetRoutes(app);
+setupHrReportsPostRoutes(app);
+setupSalesReportsGetRoutes(app);
+setupSalesReportsPostRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
@@ -377,7 +372,10 @@ setupJourneyOpsRoutes(app);
 setupTeamViewRoutes(app);
 
 //------------ CLOUDFARE ----------------
-setupR2Upload(app);
+//setupR2Upload(app);
+
+// ------- File Upload Route -----
+setupUploadRoutes(app);
 console.log('✅ All routes registered successfully.');
 
 //------------ TelegramBot + AI setup ----------------

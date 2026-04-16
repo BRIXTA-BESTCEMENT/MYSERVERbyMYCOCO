@@ -17,6 +17,7 @@
     "@jridgewell/trace-mapping": "^0.3.25",
     "@neondatabase/serverless": "^0.10.4",
     "@qdrant/js-client-rest": "^1.15.0",
+    "@supabase/supabase-js": "^2.103.2",
     "@turf/turf": "^7.2.0",
     "@types/socket.io": "^3.0.1",
     "@types/uuid": "^10.0.0",

@@ -175,7 +175,7 @@ export class PjpTaskWorker {
                 if (didWork) continue;
 
                 this.state = WorkerState.SLEEPING;
-                console.log("INBOX KHAALI surorbachaa....");
+                console.log("INBOX EMPTY....");
                 await this.sleep(5000);
                 this.state = WorkerState.RUNNING;
 

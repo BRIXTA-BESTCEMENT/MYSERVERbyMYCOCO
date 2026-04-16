@@ -1,6 +1,8 @@
 import { EmailSystem } from "./emailSystem";
 import { PjpProcessor } from "../routes/microsoftEmail/pjpProcessor";
-// import { SalesProcessor } from "./salesProcessor"; <-- You will add this later when ready!
+import { HrReportsProcessor } from "../routes/microsoftEmail/adminappReports/hr_reports";
+import { SalesReportProcessor } from "../routes/microsoftEmail/adminappReports/sales_reports";
+import { CollectionReportProcessor } from "../routes/microsoftEmail/adminappReports/collection_reports";
 
 enum WorkerState {
     IDLE = "IDLE",
@@ -12,8 +14,11 @@ enum WorkerState {
 export class MasterEmailWorker {
     private emailSystem = new EmailSystem();
     private pjpProcessor = new PjpProcessor();
-    private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
+    private hrProcessor = new HrReportsProcessor();
+    private salesReportsProcessor = new SalesReportProcessor();
+    private collectionReportsProcessor = new CollectionReportProcessor();
 
+    private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
     private state: WorkerState = WorkerState.IDLE;
     private shouldStop = false;
     private sleepTimer: NodeJS.Timeout | null = null;
@@ -42,7 +47,7 @@ export class MasterEmailWorker {
     ========================================================= */
     async Start() {
         if (this.state === WorkerState.RUNNING) return;
-        console.log("SOLISEE KELA..AROMBHO HOI GOL XET.. (Master Router Mode)");
+        console.log("Started Mail Extractor Worker NOW!.. (Master Router Mode)");
         this.shouldStop = false;
         this.state = WorkerState.RUNNING;
 
@@ -53,12 +58,12 @@ export class MasterEmailWorker {
                 if (didWork) continue;
 
                 this.state = WorkerState.SLEEPING;
-                console.log("INBOX KHAALI surorbachaa....");
+                console.log("INBOX EMPTY....");
                 await this.sleep(10000);
                 this.state = WorkerState.RUNNING;
 
             } catch (e: any) {
-                console.error("sudi gol.. ERROR TU dekhaabo etiya...", e);
+                console.error("ERROR: ", e);
                 this.state = WorkerState.SLEEPING;
                 await this.sleep(30000);
                 this.state = WorkerState.RUNNING;
@@ -66,7 +71,7 @@ export class MasterEmailWorker {
         }
 
         this.state = WorkerState.STOPPED;
-        console.log("SOB BONDHO...nosole kela..");
+        console.log("Nothing worked. Worker execution failed!");
     }
 
     async stop() {
@@ -104,19 +109,53 @@ export class MasterEmailWorker {
                     continue;
                 }
 
-                // 🚦 THE ROUTER: Send to the correct department based on Subject
+                // 🚦 THE ROUTER : Correct mail to correct inbox
                 if (subject.includes("PJP")) {
                     console.log(`[Router] ➡️ Routing Mail ${mail.id} to PJP Processor...`);
                     await this.pjpProcessor.processFiles(mail.id, subject, files);
-                } 
-                // else if (subject.includes("SALES")) {
-                //     console.log(`[Router] ➡️ Routing Mail to Sales Processor...`);
-                //     await this.salesProcessor.processFiles(mail.id, subject, files);
-                // }
+                }
+                else if (subject.includes("HR REPORT") || subject.includes("HR-REPORT") || subject.includes("HR RECRUITMENT")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to HR Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.hrProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("SALES REPORT") || subject.includes("SALES REPORTS") || subject.includes("SALE REPORT") || subject.includes("SALE REPORTS")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to SALES REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.salesReportsProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("COLLECTION REPORT") || subject.includes("COLLECTION REPORTS")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to COLLECTION REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.collectionReportsProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
                 else {
                     console.log(`[Router] ⚠️ Ignored unknown mail format: ${subject}`);
-                    // Skip cleanup so ignored emails stay in the inbox for human review
-                    continue; 
+                    continue;
                 }
 
                 // 🧹 CLEANUP: Only runs if the processor above successfully finishes
