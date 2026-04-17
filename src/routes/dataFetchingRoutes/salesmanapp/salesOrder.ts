@@ -1,5 +1,4 @@
 // server/src/routes/dataFetchingRoutes/salesmanapp/salesOrder.ts
-// --- UPDATED to include 'status' filter/sort ---
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../../db/db';
@@ -57,10 +56,8 @@ function createAutoCRUD(app: Express, config: {
         return dir === 'asc' ? asc(table.itemPrice) : desc(table.itemPrice);
       case 'orderQty':
         return dir === 'asc' ? asc(table.orderQty) : desc(table.orderQty);
-      // --- ✅ FIX ---
       case 'status':
         return dir === 'asc' ? asc(table.status) : desc(table.status);
-      // --- END FIX ---
       case 'createdAt':
         return dir === 'asc' ? asc(table.createdAt) : desc(table.createdAt);
       default:
@@ -76,6 +73,9 @@ function createAutoCRUD(app: Express, config: {
     const uid = integerish(q.userId);
     if (uid !== undefined) conds.push(eq(table.userId, uid));
     if (q.dealerId) conds.push(eq(table.dealerId, String(q.dealerId)));
+    if (q.verifiedDealerId) {
+      conds.push(eq(table.verifiedDealerId, Number(q.verifiedDealerId)));
+    }
     if (q.dvrId) conds.push(eq(table.dvrId, String(q.dvrId)));
     if (q.pjpId) conds.push(eq(table.pjpId, String(q.pjpId)));
 
@@ -209,6 +209,17 @@ function createAutoCRUD(app: Express, config: {
       console.error(`Get ${tableName}s by Dealer error:`, error);
       res.status(500).json({ success: false, error: `Failed to fetch ${tableName}s` });
     }
+  });
+
+  app.get(`/api/sales-orders/verified-dealer/:verifiedDealerId`, async (req, res) => {
+    const { verifiedDealerId } = req.params;
+
+    const data = await db
+      .select()
+      .from(table)
+      .where(eq(table.verifiedDealerId, Number(verifiedDealerId)));
+
+    res.json({ success: true, data });
   });
 
   // ===== GET ONE =====

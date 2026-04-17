@@ -22,6 +22,7 @@ import setupDealerReportsAndScoresRoutes from './src/routes/dataFetchingRoutes/s
 import setupRatingsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/ratings';
 import setupSalesmanLeaveApplicationsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/salesmanLeaveApplications';
 import setupSalesOrdersRoutes from './src/routes/dataFetchingRoutes/salesmanapp/salesOrder';
+import setupDestinationGetRoutes from './src/routes/dataFetchingRoutes/salesmanapp/destinationList';
 import setupDailyVisitReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/dvr';
 import setupSalesmanAttendanceRoutes from './src/routes/dataFetchingRoutes/salesmanapp/salesmanAttendance';
 import setupTechnicalVisitReportsRoutes from './src/routes/dataFetchingRoutes/salesmanapp/tvr';
@@ -74,6 +75,7 @@ import setupDealerReportsAndScoresPostRoutes from './src/routes/formSubmissionRo
 import setupRatingsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/ratings';
 import setupBrandsPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/brand';
 import setupSalesOrdersPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/salesOrder';
+import setupDestinationPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/destinationList';
 import setupDealerBrandMappingPostRoutes from './src/routes/formSubmissionRoutes/salesmanapp/brandMapping';
 import setupAttendanceCheckInRoutes from './src/routes/formSubmissionRoutes/salesmanapp/attendanceIn';
 import setupAttendanceCheckOutRoutes from './src/routes/formSubmissionRoutes/salesmanapp/attendanceOut';
@@ -265,6 +267,7 @@ setupDealerReportsAndScoresRoutes(app);  // /api/dealer-reports-scores/*
 setupRatingsRoutes(app);                 // /api/ratings/*
 setupSalesmanLeaveApplicationsRoutes(app); // /api/leave-applications/*
 setupSalesOrdersRoutes(app);             // /api/sales-orders/*
+setupDestinationGetRoutes(app);
 setupSalesmanAttendanceRoutes(app);      // /api/salesman-attendance/*
 
 // mason pc side
@@ -297,6 +300,7 @@ setupDealerReportsAndScoresPostRoutes(app); // POST /api/dealer-reports-scores/*
 setupRatingsPostRoutes(app);             // POST /api/ratings/*
 setupBrandsPostRoutes(app);              // POST /api/brands/*
 setupSalesOrdersPostRoutes(app);         // POST /api/sales-orders/*
+setupDestinationPostRoutes(app);
 setupDealerBrandMappingPostRoutes(app);  // POST /api/dealer-brand-mapping/*
 setupDailyVisitReportsPostRoutes(app);   // POST /api/daily-visit-reports/*
 setupAttendanceCheckInRoutes(app);       // POST /api/attendance/check-in/*

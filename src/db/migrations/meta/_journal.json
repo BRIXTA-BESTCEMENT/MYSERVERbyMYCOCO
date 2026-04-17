@@ -344,6 +344,13 @@
       "when": 1776357105327,
       "tag": "0048_loving_the_anarchist",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "7",
+      "when": 1776432520547,
+      "tag": "0049_sturdy_sharon_ventura",
+      "breakpoints": true
     }
   ]
 }

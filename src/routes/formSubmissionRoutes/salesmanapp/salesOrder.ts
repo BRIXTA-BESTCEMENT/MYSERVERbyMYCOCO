@@ -32,17 +32,14 @@ const nullIfEmpty = (v: unknown): string | null =>
 
 // ---------- input schema UPDATED ----------
 const salesOrderInputSchema = z.object({
-  // Relations
   userId: z.coerce.number().int().optional().nullable(),
   dealerId: z.string().max(255).optional().nullable().or(z.literal('')),
+  verifiedDealerId: z.coerce.number().int().optional().nullable(),
   dvrId: z.string().max(255).optional().nullable().or(z.literal('')),
   pjpId: z.string().max(255).optional().nullable().or(z.literal('')),
 
-  // Business
   orderDate: z.union([z.string(), z.date()]),
   orderPartyName: z.string().min(1, 'orderPartyName is required'),
-
-  // ... (all other fields) ...
   partyPhoneNo: z.string().optional().nullable().or(z.literal('')),
   partyArea: z.string().optional().nullable().or(z.literal('')),
   partyRegion: z.string().optional().nullable().or(z.literal('')),
@@ -65,13 +62,9 @@ const salesOrderInputSchema = z.object({
   itemPriceAfterDiscount: z.union([z.string(), z.number()]).optional().nullable(),
   itemType: z.string().max(20).optional().nullable().or(z.literal('')),
   itemGrade: z.string().max(10).optional().nullable().or(z.literal('')),
-
-  // --- ✅ FIX ---
-  status: z.string().max(50).optional().default('Pending'), // Added status
-  // --- END FIX ---
+  status: z.string().max(50).optional().default('Pending'),
+  salesCategory: z.string().max(20).optional(), // trade vs non trade
 });
-
-// ... (rest of the file) ...
 
 function createAutoCRUD(app: Express, config: {
   endpoint: string,
@@ -86,6 +79,7 @@ function createAutoCRUD(app: Express, config: {
 
       // Normalize IDs
       const dealerId = input.dealerId === '' ? null : input.dealerId ?? null;
+      const verifiedDealerId = input.verifiedDealerId ?? null;
       const dvrId = input.dvrId === '' ? null : input.dvrId ?? null;
       const pjpId = input.pjpId === '' ? null : input.pjpId ?? null;
 
@@ -126,6 +120,7 @@ function createAutoCRUD(app: Express, config: {
         id: randomUUID(),
         userId: input.userId ?? null,
         dealerId,
+        verifiedDealerId,
         dvrId,
         pjpId,
         orderDate,
@@ -152,11 +147,8 @@ function createAutoCRUD(app: Express, config: {
         itemPriceAfterDiscount: itemPriceAfterDiscountStr,
         itemType: nullIfEmpty(input.itemType),
         itemGrade: nullIfEmpty(input.itemGrade),
-        
-        // --- ✅ FIX ---
-        status: input.status, // Add status to insert
-        // --- END FIX ---
-        
+        status: input.status, 
+        salesCategory: input.salesCategory ?? null,
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };

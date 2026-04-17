@@ -639,6 +639,14 @@ export const salesOrders = myCustomSchema.table("sales_orders", {
   }).onDelete("set null"),
 ]);
 
+export const destinationMaster = myCustomSchema.table("destination_master", {
+  id: serial("id").primaryKey(),
+  institution: varchar("institution", { length: 20 }),
+  zone: varchar("zone", { length: 100 }),
+  district: varchar("district", { length: 200 }),
+  destination: varchar("destination", { length: 200 })
+});
+
 export const tsoMeetings = myCustomSchema.table("tso_meetings", {
   id: uuid().defaultRandom().primaryKey().notNull(),
   type: varchar({ length: 100 }),
@@ -1661,6 +1669,7 @@ export const insertDailyTaskSchema = createInsertSchema(dailyTasks);
 export const insertDealerReportsAndScoresSchema = createInsertSchema(dealerReportsAndScores);
 export const insertRatingSchema = createInsertSchema(ratings);
 export const insertSalesOrderSchema = createInsertSchema(salesOrders);
+export const insertDestinationMasterSchema = createInsertSchema(destinationMaster);
 export const insertBrandSchema = createInsertSchema(brands);
 export const insertDealerBrandMappingSchema = createInsertSchema(dealerBrandMapping);
 export const insertTsoMeetingSchema = createInsertSchema(tsoMeetings);
