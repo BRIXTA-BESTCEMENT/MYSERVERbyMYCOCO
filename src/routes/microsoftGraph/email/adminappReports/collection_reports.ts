@@ -1,7 +1,7 @@
-// src/routes/microsoftEmail/adminappReports/collection_reports.ts
-import { db } from "../../../db/db";
-import { salesReports } from "../../../db/schema";
-import { ExcelPayloadBuilder } from "../excelPayloadBuilder";
+// src/routes/microsoftEmail/email/adminappReports/collection_reports.ts
+import { db } from "../../../../db/db";
+import { salesReports } from "../../../../db/schema";
+import { ExcelPayloadBuilder } from "../../email/excelPayloadBuilder";
 import { eq } from "drizzle-orm";
 
 export class CollectionReportProcessor {

@@ -1,8 +1,7 @@
 import { EmailSystem } from "./emailSystem";
-import { PjpProcessor } from "../routes/microsoftEmail/pjpProcessor";
-import { HrReportsProcessor } from "../routes/microsoftEmail/adminappReports/hr_reports";
-import { SalesReportProcessor } from "../routes/microsoftEmail/adminappReports/sales_reports";
-import { CollectionReportProcessor } from "../routes/microsoftEmail/adminappReports/collection_reports";
+import { HrReportsProcessor } from "../../routes/microsoftGraph/email/adminappReports/hr_reports";
+import { SalesReportProcessor } from "../../routes/microsoftGraph/email/adminappReports/sales_reports";
+import { CollectionReportProcessor } from "../../routes/microsoftGraph/email/adminappReports/collection_reports";
 
 enum WorkerState {
     IDLE = "IDLE",
@@ -13,7 +12,6 @@ enum WorkerState {
 
 export class MasterEmailWorker {
     private emailSystem = new EmailSystem();
-    private pjpProcessor = new PjpProcessor();
     private hrProcessor = new HrReportsProcessor();
     private salesReportsProcessor = new SalesReportProcessor();
     private collectionReportsProcessor = new CollectionReportProcessor();
@@ -110,11 +108,7 @@ export class MasterEmailWorker {
                 }
 
                 // 🚦 THE ROUTER : Correct mail to correct inbox
-                if (subject.includes("PJP")) {
-                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to PJP Processor...`);
-                    await this.pjpProcessor.processFiles(mail.id, subject, files);
-                }
-                else if (subject.includes("HR REPORT") || subject.includes("HR-REPORT") || subject.includes("HR RECRUITMENT")) {
+                if (subject.includes("HR REPORT") || subject.includes("HR-REPORT") || subject.includes("HR RECRUITMENT")) {
                     console.log(`[Router] ➡️ Routing Mail ${mail.id} to HR Processor...`);
 
                     for (const file of files) {

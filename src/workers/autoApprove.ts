@@ -24,7 +24,7 @@ export function setupAutoApproveCron() {
         .where(
           and(
             // Use 'Assigned' or 'Pending' based on your actual initial status
-            eq(dailyTasks.status, 'Assigned'), 
+            eq(dailyTasks.status, 'Pending'), 
             // Approves tasks older than 24 hours
             lte(dailyTasks.createdAt, sql`NOW() - INTERVAL '24 hours'`) 
           )

@@ -1,6 +1,6 @@
-// src/routes/microsoftEmail/emailRoute.ts
+// src/routes/microsoftEmail/email/emailRoute.ts
 import { Express, Request, Response } from "express";
-import { EmailSystem } from "../../services/emailSystem";
+import { EmailSystem } from "../../../services/email/emailSystem";
 import { z } from "zod";
 
 const sendMailSchema = z.object({

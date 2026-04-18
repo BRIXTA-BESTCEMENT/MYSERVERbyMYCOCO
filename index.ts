@@ -4,10 +4,13 @@ import cors from 'cors';
 import path from 'path';
 import dotenv from 'dotenv';
 dotenv.config({ path: path.resolve(process.cwd(), '.env') });
+
 // --- Import ALL your API route setups ---
-import setupMasonStatsRoute from './src/routes/dataFetchingRoutes/masonpc/masonstatscheck'
 import setupAuthRoutes from './src/routes/auth'; 
 import setupAuthAdminRoutes from './src/routes/authAdminApp';
+import setupAuthCredentialRoutes from './src/routes/authCredentials';
+import setupAuthLogisticsRoutes from './src/routes/authLogistics';
+
 import setupUsersRoutes from './src/routes/users'; 
 import setupCompaniesRoutes from './src/routes/companies'; 
 import setupLogoutAuthRoutes from './src/routes/logout';
@@ -44,6 +47,7 @@ import setupLogisticsIORoutes from './src/routes/dataFetchingRoutes/logistics/lo
 import setupCollectionReportsRoutes from './src/routes/dataFetchingRoutes/adminapp/collectionReports';
 import setupOutstandingReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/outstandingReports';
 import setupVerifiedDealersGetRoutes from './src/routes/dataFetchingRoutes/salesmanapp/verifiedDealers';
+import setupMasonStatsRoute from './src/routes/dataFetchingRoutes/masonpc/masonstatscheck'
 
 // --- Import DELETE route setups ---
 import setupDealersDeleteRoutes from './src/routes/deleteRoutes/salesmanapp/dealers';
@@ -124,26 +128,20 @@ import setupJourneyOpsRoutes from './src/routes/geoTrackingRoutes/journeyOps';
 // ----- TeamView Routes -----
 import setupTeamViewRoutes from './src/routes/teamView/getView';
 
-// --- TelegramBot + AI Bot setups ---
-import setupAiService from './src/bots/aiService';
-//import setupTelegramService from './src/bots/telegramService';
-
 // WEBSOCKET SYSTEM
 import { attachWebSocket } from './src/websocket/socketServer';
 
-//notunRendami
-import setupAuthCredentialRoutes from './src/routes/authCredentials';
-import setupAuthLogisticsRoutes from './src/routes/authLogistics';
+// Sales PJP approve cron job
+import { setupAutoApproveCron } from './src/workers/autoApprove';
 
 // Microsoft Email
-import setupMicrosoftEmailRoutes from './src/routes/microsoftEmail/emailRoute';
+import setupMicrosoftEmailRoutes from './src/routes/microsoftGraph/email/emailRoute';
 
-//weirdEMAILWORKERthatwillPOLLevery30s
-//import { EmailSystemWorker } from './src/routes/microsoftEmail/emailsystemworker';
-import { MasterEmailWorker } from "./src/services/masteremailworker";
+//EMAIL WORKER that will POLL every 30s
+import { MasterEmailWorker } from "./src/services/email/masteremailworker";
 import setupProjectionRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionReports';
 import setupProjectionVsActualRoutes from './src/routes/dataFetchingRoutes/adminapp/projectionVsActualReports';
-import { setupAutoApproveCron } from './src/workers/autoApprove';
+
 
 // admin App Email Worker
 import setupHrReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/hr_reports';
@@ -154,20 +152,13 @@ import setupSalesReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp
 import setupSalesReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/sales_reports';
 import setupSalesReportsUpdateRoutes from './src/routes/updateRoutes/adminapp/sales_reports';
 
-//----------------MainMasterEMAILWORKER--------------------
+// Microsoft Excel
+import setupReadExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/readExcel';
+import setupWriteExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/writeExcel';
 
+//----------------Email Worker--------------------
 // const emailRouter = new MasterEmailWorker();
 // emailRouter.Start();
-
-//----------------MainMasterEMAILWORKER-------------------- OLD
-
-// const worker = new EmailSystemWorker();
-
-// worker.Start().catch((e) => {
-//   console.error("Worker crashed unexpectedly:", e);
-// });
-
-// Initialize environment variables
 
 // ADD THIS DEBUG LINE:
 console.log('DATABASE_URL loaded:', process.env.DATABASE_URL ? 'YES' : 'NO');
@@ -380,6 +371,9 @@ setupJourneyOpsRoutes(app);
 // ------- Team View --------
 setupTeamViewRoutes(app);
 
+// Sales PJP approve cron job
+setupAutoApproveCron();
+
 //------------ CLOUDFARE ----------------
 //setupR2Upload(app);
 
@@ -387,14 +381,13 @@ setupTeamViewRoutes(app);
 setupUploadRoutes(app);
 console.log('✅ All routes registered successfully.');
 
-//------------ TelegramBot + AI setup ----------------
-setupAiService(app);
-//setupTelegramService(app);
 
 // -------- Microsoft Email -------------
 setupMicrosoftEmailRoutes(app);
 
-setupAutoApproveCron();
+//----------Excel Worker----------------
+setupReadExcelRoute(app);
+setupWriteExcelRoute(app);
 
 
 // Handle 404 - Not Found for any routes not matched above

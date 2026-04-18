@@ -1,7 +1,7 @@
-// src/routes/microsoftEmail/adminappReports/hr_reports.ts
-import { db } from "../../../db/db";
-import { hrReports } from "../../../db/schema";
-import { ExcelPayloadBuilder } from "../excelPayloadBuilder";
+// src/routes/microsoftEmail/email/adminappReports/hr_reports.ts
+import { db } from "../../../../db/db";
+import { hrReports } from "../../../../db/schema";
+import { ExcelPayloadBuilder } from "../../email/excelPayloadBuilder";
 
 export class HrReportsProcessor {
     private excelBuilder = new ExcelPayloadBuilder();

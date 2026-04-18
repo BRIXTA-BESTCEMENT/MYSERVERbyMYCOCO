@@ -1,4 +1,4 @@
-// src/services/emailSystem.ts
+// src/services/email/emailSystem.ts
 import axios from "axios";
 
 export class EmailSystem {
