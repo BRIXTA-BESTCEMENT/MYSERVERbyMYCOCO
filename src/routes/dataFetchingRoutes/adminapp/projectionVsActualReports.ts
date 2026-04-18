@@ -1,7 +1,7 @@
 import { Request, Response, Express } from "express";
 import { db } from "../../../db/db";
 import { projectionVsActualReports, users, verifiedDealers } from "../../../db/schema";
-import { eq, and, desc, gte, lte, SQL, getTableColumns, sql } from "drizzle-orm";
+import { eq, and, desc, gte, lte, SQL, getTableColumns, sql, ilike } from "drizzle-orm";
 import { z } from "zod";
 
 /* =========================================================
@@ -16,7 +16,7 @@ const querySchema = z.object({
   userId: z.coerce.number().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
-  limit: z.coerce.number().default(200),
+  limit: z.coerce.number(),
 });
 
 /* =========================================================
@@ -42,7 +42,7 @@ export default function setupProjectionVsActualRoutes(app: Express) {
         filters.push(eq(projectionVsActualReports.zone, q.zone));
 
       if (q.dealerName)
-        filters.push(eq(projectionVsActualReports.dealerName, q.dealerName));
+        filters.push(ilike(projectionVsActualReports.dealerName, `%${q.dealerName}%`));
 
       if (q.verifiedDealerId !== undefined)
         filters.push(eq(projectionVsActualReports.verifiedDealerId, q.verifiedDealerId));
@@ -51,10 +51,10 @@ export default function setupProjectionVsActualRoutes(app: Express) {
         filters.push(eq(projectionVsActualReports.userId, q.userId));
 
       if (q.fromDate)
-        filters.push(gte(projectionVsActualReports.reportDate, q.fromDate));
+        filters.push(gte(projectionVsActualReports.reportDate, new Date(q.fromDate).toISOString()));
 
       if (q.toDate)
-        filters.push(lte(projectionVsActualReports.reportDate, q.toDate));
+        filters.push(lte(projectionVsActualReports.reportDate, new Date(q.toDate).toISOString()));
 
       const rows = await db
         .select({

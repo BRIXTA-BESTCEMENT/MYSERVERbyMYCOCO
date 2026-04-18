@@ -16,7 +16,7 @@ const querySchema = z.object({
   salesPromoterUserId: z.coerce.number().optional(),
   fromDate: z.string().optional(),
   toDate: z.string().optional(),
-  limit: z.coerce.number().default(100),
+  limit: z.coerce.number(),
 });
 
 /* =========================================================
@@ -51,10 +51,10 @@ export default function setupProjectionRoutes(app: Express) {
         filters.push(eq(projectionReports.salesPromoterUserId, q.salesPromoterUserId));
 
       if (q.fromDate)
-        filters.push(gte(projectionReports.reportDate, q.fromDate));
+        filters.push(gte(projectionReports.reportDate, new Date(q.fromDate).toISOString()));
 
       if (q.toDate)
-        filters.push(lte(projectionReports.reportDate, q.toDate));
+        filters.push(lte(projectionReports.reportDate, new Date(q.toDate).toISOString()));
 
       const rows = await db
         .select({
