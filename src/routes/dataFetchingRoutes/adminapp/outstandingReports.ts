@@ -1,7 +1,7 @@
 // server/src/routes/dataFetchingRoutes/adminapp/outstandingReports.ts
 import { Request, Response, Express } from 'express';
 import { db } from '../../../db/db';
-import { outstandingReports, verifiedDealers } from '../../../db/schema'; 
+import { outstandingReports, verifiedDealers } from '../../../db/schema';
 import { eq, and, desc, asc, SQL, getTableColumns, gte, lte, sql, ilike, or } from 'drizzle-orm';
 
 export default function setupOutstandingReportsGetRoutes(app: Express) {
@@ -9,9 +9,9 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
 
     // --- Helpers ---
     const numberish = (v: unknown) => {
-      if (v === null || v === undefined || v === '') return undefined;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : undefined;
+        if (v === null || v === undefined || v === '') return undefined;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : undefined;
     };
 
     const booleanish = (v: unknown) => {
@@ -44,11 +44,6 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             conds.push(eq(outstandingReports.isOverdue, isOverdue));
         }
 
-        const isAccountJsbJud = booleanish(q.isAccountJsbJud);
-        if (isAccountJsbJud !== undefined) {
-            conds.push(eq(outstandingReports.isAccountJsbJud, isAccountJsbJud));
-        }
-
         // 3. Date Filters
         if (q.reportDate) {
             conds.push(eq(outstandingReports.reportDate, String(q.reportDate)));
@@ -60,53 +55,45 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
         if (fromDate) conds.push(gte(outstandingReports.reportDate, fromDate));
         if (toDate) conds.push(lte(outstandingReports.reportDate, toDate));
 
-        // 4. Search (Temp Dealer Name)
+        // 4. Search (Dealer Name)
         if (q.search) {
-    const searchStr = `%${q.search}%`;
-    conds.push(
-        or(
-            ilike(outstandingReports.tempDealerName, searchStr),
-            ilike(verifiedDealers.dealerPartyName, searchStr)  // Search by Verified Name
-        ) as SQL
-    );
-}
+            const searchStr = `%${q.search}%`;
+            conds.push(
+                or(
+                    ilike(outstandingReports.dealerName, searchStr),
+                    ilike(verifiedDealers.dealerPartyName, searchStr)  // Search by Verified Name
+                ) as SQL
+            );
+        }
+
+        if (q.institution) {
+            conds.push(eq(outstandingReports.institution, String(q.institution)));
+        }
 
         if (conds.length === 0) return undefined;
         return conds.length === 1 ? conds[0] : and(...conds);
     };
 
     const buildSort = (sortByRaw?: string, sortDirRaw?: string) => {
-    const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
-    const sortFn = direction === 'asc' ? asc : desc;
+        const direction = (sortDirRaw || '').toLowerCase() === 'asc' ? 'asc' : 'desc';
+        const sortFn = direction === 'asc' ? asc : desc;
 
-    switch (sortByRaw) {
-        case 'securityDepositAmt': return sortFn(outstandingReports.securityDepositAmt);
-        case 'pendingAmt': return sortFn(outstandingReports.pendingAmt);
-        case 'reportDate': return sortFn(outstandingReports.reportDate);
-        
-        // Aging Buckets - Match the Schema Keys exactly
-        case 'lessThan10Days': return sortFn(outstandingReports.lessThan10Days);
-        case 'days10To15': return sortFn(outstandingReports["10To15Days"]); // Fixed
-        case 'days15To21': return sortFn(outstandingReports["15To21Days"]); // Fixed
-        case 'days21To30': return sortFn(outstandingReports["21To30Days"]); // Fixed
-        case 'days30To45': return sortFn(outstandingReports["30To45Days"]); // Fixed
-        case 'days45To60': return sortFn(outstandingReports["45To60Days"]); // Fixed
-        case 'days60To75': return sortFn(outstandingReports["60To75Days"]); // Fixed
-        case 'days75To90': return sortFn(outstandingReports["75To90Days"]); // Fixed
-        case 'greaterThan90Days': return sortFn(outstandingReports.greaterThan90Days);
-        
-        case 'updatedAt': return sortFn(outstandingReports.updatedAt);
-        case 'createdAt': 
-        default:
-            return desc(outstandingReports.createdAt);
-    }
-};
+        switch (sortByRaw) {
+            case 'securityDepositAmt': return sortFn(outstandingReports.securityDepositAmt);
+            case 'pendingAmt': return sortFn(outstandingReports.pendingAmt);
+            case 'reportDate': return sortFn(outstandingReports.reportDate);
+            case 'updatedAt': return sortFn(outstandingReports.updatedAt);
+            case 'createdAt':
+            default:
+                return desc(outstandingReports.createdAt);
+        }
+    };
 
     // --- Main Handler ---
     const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
         try {
-            const { limit = '50', page = '1', sortBy, sortDir, ...filters } = req.query;
-            const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 50));
+            const { limit = '1000', page = '1', sortBy, sortDir, ...filters } = req.query;
+            const lmt = Math.max(1, Math.min(1000, parseInt(String(limit), 10) || 1000));
             const pg = Math.max(1, parseInt(String(page), 10) || 1);
             const offset = (pg - 1) * lmt;
 
@@ -115,7 +102,7 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             const conds: SQL[] = [];
             if (baseWhere) conds.push(baseWhere);
             if (extra) conds.push(extra);
-            
+
             const whereCondition: SQL | undefined = conds.length > 0 ? and(...conds) : undefined;
             const orderExpr = buildSort(String(sortBy), String(sortDir));
 
@@ -125,8 +112,8 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
                 dealerPartyName: verifiedDealers.dealerPartyName,
                 zone: verifiedDealers.zone
             })
-            .from(outstandingReports)
-            .leftJoin(verifiedDealers, eq(outstandingReports.verifiedDealerId, verifiedDealers.id));
+                .from(outstandingReports)
+                .leftJoin(verifiedDealers, eq(outstandingReports.verifiedDealerId, verifiedDealers.id));
 
             if (whereCondition) {
                 dataQuery.where(whereCondition);
@@ -146,19 +133,19 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
             if (whereCondition) {
                 countQuery.where(whereCondition);
             }
-            
+
             const [totalRes] = await countQuery;
             const total = Number(totalRes?.count || 0);
             const totalPages = Math.ceil(total / lmt);
 
-            res.json({ 
-                success: true, 
-                page: pg, 
-                limit: lmt, 
+            res.json({
+                success: true,
+                page: pg,
+                limit: lmt,
                 total,       // Total matching records
                 totalPages,  // Total pages available
                 count: data.length, // Count on this specific page
-                data 
+                data
             });
 
         } catch (error) {

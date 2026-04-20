@@ -71,8 +71,8 @@ export default function setupCollectionReportsRoutes(app: Express) {
   // Generic list handler for reuse in specific routes
   const listHandler = async (req: Request, res: Response, baseWhere?: SQL) => {
     try {
-      const { limit = '50', page = '1', sortBy, sortDir, ...filters } = req.query;
-      const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 50));
+      const { limit = '500', page = '1', sortBy, sortDir, ...filters } = req.query;
+      const lmt = Math.max(1, Math.min(500, parseInt(String(limit), 10) || 500));
       const pg = Math.max(1, parseInt(String(page), 10) || 1);
       const offset = (pg - 1) * lmt;
 
