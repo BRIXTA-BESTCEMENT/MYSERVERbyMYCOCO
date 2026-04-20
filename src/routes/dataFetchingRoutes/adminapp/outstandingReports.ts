@@ -203,5 +203,35 @@ export default function setupOutstandingReportsGetRoutes(app: Express) {
         return listHandler(req, res, base);
     });
 
+    // Fetch the latest outstanding report for a specific verified dealer
+    app.get(`/api/${endpoint}/dealer/:verifiedDealerId`, async (req: Request, res: Response) => {
+        try {
+            const verifiedDealerId = parseInt(req.params.verifiedDealerId, 10);
+
+            if (isNaN(verifiedDealerId)) {
+                return res.status(400).json({ success: false, error: 'Invalid Dealer ID' });
+            }
+
+            // Fetch the most recent report for this dealer
+            const [latestReport] = await db.select()
+                .from(outstandingReports)
+                .where(eq(outstandingReports.verifiedDealerId, verifiedDealerId))
+                .orderBy(desc(outstandingReports.reportDate)) // Get the newest one
+                .limit(1);
+
+            if (!latestReport) {
+                // It's perfectly normal for a dealer to not have an outstanding report yet
+                return res.json({ success: true, data: [] }); 
+            }
+
+            // Wrap in array to match your Flutter app's expectation (List<OutstandingReport>)
+            res.json({ success: true, data: [latestReport] });
+
+        } catch (error) {
+            console.error(`Error fetching outstanding report:`, error);
+            res.status(500).json({ success: false, error: 'Failed to fetch outstanding data' });
+        }
+    });
+
     console.log('✅ Outstanding Reports GET endpoints setup complete');
 }
