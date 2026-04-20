@@ -1,17 +1,16 @@
 // server/src/routes/dataFetchingRoutes/salesmanapp/verifiedDealers.ts
 import { Request, Response, Express } from 'express';
 import { db } from '../../../db/db';
-// Removed users and dealers since those relations no longer exist on verifiedDealers
-import { verifiedDealers } from '../../../db/schema'; 
-import { eq, and, desc, asc, SQL } from 'drizzle-orm';
+import { verifiedDealers } from '../../../db/schema';
+import { eq, and, desc, asc, SQL, ilike } from 'drizzle-orm';
 
 export default function setupVerifiedDealersGetRoutes(app: Express) {
     const endpoint = 'verified-dealers';
 
     const numberish = (v: unknown) => {
-      if (v === null || v === undefined || v === '') return undefined;
-      const n = Number(v);
-      return Number.isFinite(n) ? n : undefined;
+        if (v === null || v === undefined || v === '') return undefined;
+        const n = Number(v);
+        return Number.isFinite(n) ? n : undefined;
     };
 
     const buildWhere = (q: any): SQL | undefined => {
@@ -30,6 +29,10 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
         const salesPromoterId = numberish(q.salesPromoterId);
         if (salesPromoterId !== undefined) {
             conds.push(eq(verifiedDealers.salesPromoterId, salesPromoterId));
+        }
+
+        if (q.search) {
+            conds.push(ilike(verifiedDealers.dealerPartyName, `%${String(q.search)}%`));
         }
 
         if (conds.length === 0) return undefined;
@@ -60,11 +63,11 @@ export default function setupVerifiedDealersGetRoutes(app: Express) {
             const offset = (pg - 1) * lmt;
 
             const extra = buildWhere(filters);
-            
+
             const conds: SQL[] = [];
             if (baseWhere) conds.push(baseWhere);
             if (extra) conds.push(extra);
-            
+
             const whereCondition: SQL | undefined = conds.length > 0 ? and(...conds) : undefined;
             const orderExpr = buildSort(String(sortBy), String(sortDir));
 
