@@ -2,6 +2,7 @@ import { EmailSystem } from "./emailSystem";
 import { HrReportsProcessor } from "../../routes/microsoftGraph/email/adminappReports/hr_reports";
 import { SalesReportProcessor } from "../../routes/microsoftGraph/email/adminappReports/sales_reports";
 import { CollectionReportProcessor } from "../../routes/microsoftGraph/email/adminappReports/collection_reports";
+import { OutstandingReportsProcessor } from "../../routes/microsoftGraph/email/adminappReports/outstanding_reports";
 
 enum WorkerState {
     IDLE = "IDLE",
@@ -15,6 +16,7 @@ export class MasterEmailWorker {
     private hrProcessor = new HrReportsProcessor();
     private salesReportsProcessor = new SalesReportProcessor();
     private collectionReportsProcessor = new CollectionReportProcessor();
+    private outstandingReportsProcessor = new OutstandingReportsProcessor();
 
     private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
     private state: WorkerState = WorkerState.IDLE;
@@ -108,7 +110,7 @@ export class MasterEmailWorker {
                 }
 
                 // 🚦 THE ROUTER : Correct mail to correct inbox
-                if (subject.includes("HR REPORT") || subject.includes("HR-REPORT") || subject.includes("HR RECRUITMENT")) {
+                if (subject.includes("HR REPORT") || subject.includes("HR-REPORT") || subject.includes("HR REPORTS")) {
                     console.log(`[Router] ➡️ Routing Mail ${mail.id} to HR Processor...`);
 
                     for (const file of files) {
@@ -121,7 +123,9 @@ export class MasterEmailWorker {
                         });
                     }
                 }
-                else if (subject.includes("SALES REPORT") || subject.includes("SALES REPORTS") || subject.includes("SALE REPORT") || subject.includes("SALE REPORTS")) {
+                else if (subject.includes("SALES REPORT") || subject.includes("SALES REPORTS") || 
+                        subject.includes("SALE REPORT") || subject.includes("SALE REPORTS") || subject.includes("SALES REPORT") || 
+                        subject.includes("SALES") || subject.includes("SALE")) {
                     console.log(`[Router] ➡️ Routing Mail ${mail.id} to SALES REPORTS Processor...`);
 
                     for (const file of files) {
@@ -134,13 +138,26 @@ export class MasterEmailWorker {
                         });
                     }
                 }
-                else if (subject.includes("COLLECTION REPORT") || subject.includes("COLLECTION REPORTS")) {
+                else if (subject.includes("COLLECTION REPORT") || subject.includes("COLLECTION REPORTS") || subject.includes("COLLECTION")) {
                     console.log(`[Router] ➡️ Routing Mail ${mail.id} to COLLECTION REPORTS Processor...`);
 
                     for (const file of files) {
                         const buffer = Buffer.from(file.contentBytes, "base64");
 
                         await this.collectionReportsProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("OUTSTANDING REPORT") || subject.includes("OUTSTANDING REPORTS") || subject.includes("OUTSTANDING")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to OUTSTANDING REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.outstandingReportsProcessor.processFile(buffer, {
                             messageId: mail.id,
                             fileName: file.name,
                             subject: mail.subject,

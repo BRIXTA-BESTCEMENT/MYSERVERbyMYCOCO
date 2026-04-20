@@ -1,6 +1,7 @@
 // src/routes/microsoftEmail/email/adminappReports/hr_reports.ts
 import { db } from "../../../../db/db";
 import { hrReports } from "../../../../db/schema";
+import { eq } from "drizzle-orm";
 import { ExcelPayloadBuilder } from "../../email/excelPayloadBuilder";
 
 export class HrReportsProcessor {
@@ -11,7 +12,9 @@ export class HrReportsProcessor {
         fileName: string;
         subject?: string;
     }) {
-        // 1️⃣ Build raw payload (same system as others)
+        /* =========================================================
+           1️⃣ BUILD PAYLOAD
+        ========================================================= */
         const payload = await this.excelBuilder.buildFromBuffer(fileBuffer, {
             messageId: meta.messageId,
             fileName: meta.fileName,
@@ -19,12 +22,27 @@ export class HrReportsProcessor {
             sender: null,
         });
 
-        // 2️⃣ Extract HR data
+        /* =========================================================
+           2️⃣ EXTRACT DATA
+        ========================================================= */
         const extracted = this.extractHrData(payload);
 
-        // 3️⃣ Insert into DB
+        const reportDate =
+            this.extractReportDate(meta.fileName) ||
+            new Date().toISOString().split("T")[0];
+
+        /* =========================================================
+           3️⃣ UPSERT (DELETE + INSERT)
+        ========================================================= */
+
+        // delete existing report for same date
+        await db
+            .delete(hrReports)
+            .where(eq(hrReports.reportDate, reportDate));
+
+        // insert fresh
         await db.insert(hrReports).values({
-            reportDate: this.extractReportDate(meta.fileName) || new Date().toISOString().split("T")[0],
+            reportDate,
 
             rawPayload: payload,
 
@@ -39,7 +57,7 @@ export class HrReportsProcessor {
             sourceMessageId: meta.messageId,
         });
 
-        console.log(`[HR] ✅ Processed HR report: ${meta.fileName}`);
+        console.log(`[HR] ✅ Upserted HR report for ${reportDate}`);
     }
 
     /* =========================================================

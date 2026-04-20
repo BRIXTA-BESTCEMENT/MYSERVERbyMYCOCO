@@ -1193,35 +1193,28 @@ export const collectionReports = myCustomSchema.table("collection_reports", {
 ]);
 
 export const outstandingReports = myCustomSchema.table("outstanding_reports", {
-  id: uuid().defaultRandom().primaryKey().notNull(),
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date"),
+  dealerName: text("dealer_name"),
   securityDepositAmt: numeric("security_deposit_amt", { precision: 14, scale: 2 }),
   pendingAmt: numeric("pending_amt", { precision: 14, scale: 2 }),
-  lessThan10Days: numeric("less_than_10_days", { precision: 14, scale: 2 }),
-  "10To15Days": numeric("10_to_15_days", { precision: 14, scale: 2 }),
-  "15To21Days": numeric("15_to_21_days", { precision: 14, scale: 2 }),
-  "21To30Days": numeric("21_to_30_days", { precision: 14, scale: 2 }),
-  "30To45Days": numeric("30_to_45_days", { precision: 14, scale: 2 }),
-  "45To60Days": numeric("45_to_60_days", { precision: 14, scale: 2 }),
-  "60To75Days": numeric("60_to_75_days", { precision: 14, scale: 2 }),
-  "75To90Days": numeric("75_to_90_days", { precision: 14, scale: 2 }),
-  greaterThan90Days: numeric("greater_than_90_days", { precision: 14, scale: 2 }),
+  ageingData: jsonb("ageing_data").notNull(), 
+  isDue: boolean("is_due").default(false),
   isOverdue: boolean("is_overdue").default(false),
-  isAccountJsbJud: boolean("is_account_jsb_jud").default(false),
-  collectionReportId: uuid("collection_report_id"),
-  dvrId: varchar("dvr_id", { length: 255 }),
-  createdAt: timestamp("created_at", { precision: 6, withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-  updatedAt: timestamp("updated_at", { precision: 6, withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-  reportDate: date("report_date"),
-  tempDealerName: text("temp_dealer_name"),
+  institution: varchar("institution", { length: 10 }),
+  sourceMessageId: text("source_message_id"),
+  sourceFileName: text("source_file_name"),
   verifiedDealerId: integer("verified_dealer_id"),
   dealerId: varchar("dealer_id", { length: 255 }),
+  collectionReportId: uuid("collection_report_id"),
+  dvrId: varchar("dvr_id", { length: 255 }),
   emailReportId: uuid("email_report_id"),
-  institution: varchar({ length: 10 }).default('UNKNOWN').notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
 }, (table) => [
   index("idx_outstanding_collection_report").using("btree", table.collectionReportId.asc().nullsLast()),
-  index("idx_outstanding_dvr").using("btree", table.dvrId.asc().nullsLast()),
-  index("idx_outstanding_email_report").using("btree", table.emailReportId.asc().nullsLast()),
   index("idx_outstanding_verified_dealer").using("btree", table.verifiedDealerId.asc().nullsLast()),
+  index("idx_outstanding_report_date").using("btree", table.reportDate.asc().nullsLast()),
   foreignKey({
     columns: [table.verifiedDealerId],
     foreignColumns: [verifiedDealers.id],
@@ -1242,7 +1235,6 @@ export const outstandingReports = myCustomSchema.table("outstanding_reports", {
     foreignColumns: [emailReports.id],
     name: "fk_outstanding_email_report"
   }).onDelete("cascade"),
-  unique("unique_outstanding_entry").on(table.isAccountJsbJud, table.verifiedDealerId, table.reportDate),
 ]);
 
 export const emailReports = myCustomSchema.table("email_reports", {
