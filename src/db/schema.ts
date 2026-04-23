@@ -578,6 +578,7 @@ export const technicalSites = myCustomSchema.table("technical_sites", {
 
 export const salesOrders = myCustomSchema.table("sales_orders", {
   id: varchar({ length: 255 }).primaryKey().notNull(),
+  orderId: varchar("order_id", { length: 100 }),
   userId: integer("user_id"),
   dealerId: varchar("dealer_id", { length: 255 }),
   verifiedDealerId: integer("verified_dealer_id"),

@@ -1,16 +1,15 @@
 // server/src/routes/postRoutes/salesmanapp/salesOrders.ts
-// --- UPDATED to include 'status' ---
 
 import { Request, Response, Express } from 'express';
 import { db } from '../../../db/db';
-import { salesOrders } from '../../../db/schema';
+import { salesOrders, verifiedDealers } from '../../../db/schema'; 
 import { z } from 'zod';
 import { randomUUID } from 'crypto';
-import { InferInsertModel } from 'drizzle-orm';
+import { InferInsertModel, eq, sql } from 'drizzle-orm';
 
 type SalesOrderInsert = InferInsertModel<typeof salesOrders>;
 
-// ---------- helpers (Copied from your file) ----------
+// ---------- helpers ----------
 const toYYYYMMDD = (v: unknown): string | null => {
   if (v == null || v === '') return null;
   if (typeof v === 'string') {
@@ -30,8 +29,10 @@ const toDecimalString = (v: unknown): string | null => {
 const nullIfEmpty = (v: unknown): string | null =>
   v == null || (typeof v === 'string' && v.trim() === '') ? null : String(v);
 
-// ---------- input schema UPDATED ----------
+// ---------- input schema ----------
 const salesOrderInputSchema = z.object({
+  // Removed orderID from here since we generate it completely on the backend now
+  // ALTER SEQUENCE bestcement.sales_order_id_seq RESTART WITH 1; // to restart the seq
   userId: z.coerce.number().int().optional().nullable(),
   dealerId: z.string().max(255).optional().nullable().or(z.literal('')),
   verifiedDealerId: z.coerce.number().int().optional().nullable(),
@@ -41,8 +42,8 @@ const salesOrderInputSchema = z.object({
   orderDate: z.union([z.string(), z.date()]),
   orderPartyName: z.string().min(1, 'orderPartyName is required'),
   partyPhoneNo: z.string().optional().nullable().or(z.literal('')),
-  partyArea: z.string().optional().nullable().or(z.literal('')),
-  partyRegion: z.string().optional().nullable().or(z.literal('')),
+  partyArea: z.string().optional().nullable().or(z.literal('')), // District
+  partyRegion: z.string().optional().nullable().or(z.literal('')), // Zone
   partyAddress: z.string().optional().nullable().or(z.literal('')),
   deliveryDate: z.union([z.string(), z.date()]).optional().nullable(),
   deliveryArea: z.string().optional().nullable().or(z.literal('')),
@@ -63,7 +64,7 @@ const salesOrderInputSchema = z.object({
   itemType: z.string().max(20).optional().nullable().or(z.literal('')),
   itemGrade: z.string().max(10).optional().nullable().or(z.literal('')),
   status: z.string().max(50).optional().default('Pending'),
-  salesCategory: z.string().max(20).optional(), // trade vs non trade
+  salesCategory: z.string().max(20).optional(),
 });
 
 function createAutoCRUD(app: Express, config: {
@@ -82,6 +83,45 @@ function createAutoCRUD(app: Express, config: {
       const verifiedDealerId = input.verifiedDealerId ?? null;
       const dvrId = input.dvrId === '' ? null : input.dvrId ?? null;
       const pjpId = input.pjpId === '' ? null : input.pjpId ?? null;
+
+      // ---------------------------------------------------------
+      // 🏗️ BUILD SMART ORDER ID
+      // ---------------------------------------------------------
+      
+      // 1. Get Pincode (Try DB first, fallback to form input, fallback to 000000)
+      let finalPincode = input.deliveryLocPincode || '000000';
+      if (verifiedDealerId) {
+        const [dealerData] = await db
+          .select({ pinCode: verifiedDealers.pinCode }) 
+          .from(verifiedDealers)
+          .where(eq(verifiedDealers.id, verifiedDealerId));
+          
+        if (dealerData?.pinCode) {
+          finalPincode = dealerData.pinCode;
+        }
+      }
+
+      // 2. Format Zone (e.g., "Central Assam" -> "CA")
+      const zoneStr = (input.partyRegion || 'UNK')
+        .split(' ')
+        .map(word => word[0])
+        .join('')
+        .toUpperCase();
+
+      // 3. Format District (First 5 letters, e.g., "Morigaon" -> "MORIG")
+      const distStr = (input.partyArea || 'UNKN')
+        .replace(/\s+/g, '') // remove spaces
+        .substring(0, 5)
+        .toUpperCase();
+
+      // 4. Get Sequence Number from Postgres
+      const { rows } = await db.execute(sql`SELECT nextval('bestcement.sales_order_id_seq')`);
+      const seqNum = rows[0].nextval;
+
+      // Assemble: JUD-CA-MORIG-782105-1
+      const generatedOrderId = `JUD-${zoneStr}-${distStr}-${finalPincode}-${seqNum}`;
+
+      // ---------------------------------------------------------
 
       // Dates
       const orderDate = toYYYYMMDD(input.orderDate);
@@ -118,6 +158,7 @@ function createAutoCRUD(app: Express, config: {
 
       const insertData: SalesOrderInsert = {
         id: randomUUID(),
+        orderId: generatedOrderId, // Add the generated ID here
         userId: input.userId ?? null,
         dealerId,
         verifiedDealerId,
@@ -188,5 +229,5 @@ export default function setupSalesOrdersPostRoutes(app: Express) {
     table: salesOrders,
     tableName: 'Sales Order',
   });
-  console.log('✅ Sales Orders POST endpoint (with status) ready');
+  console.log('✅ Sales Orders POST endpoint ready');
 }
