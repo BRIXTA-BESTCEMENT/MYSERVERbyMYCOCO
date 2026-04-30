@@ -131,7 +131,7 @@ export class EmailSystem {
     const token = await this.getAccessToken();
     const res = await axios.get(
       `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/mailFolders/inbox/messages` +
-      `?$filter=hasAttachments eq true` +
+      `?$filter=hasAttachments eq true and isRead eq false` +
       `&$top=${limit}`,
       {
         headers: { Authorization: `Bearer ${token}` }

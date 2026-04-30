@@ -184,21 +184,21 @@ export class FinanceReportsProcessor {
             );
 
         const sectionCol =
-            headers.findIndex((h : any) =>
+            headers.findIndex((h: any) =>
                 h.toLowerCase().includes(
                     "section"
                 )
             );
 
         const particularsCol =
-            headers.findIndex((h : any) =>
+            headers.findIndex((h: any) =>
                 h.toLowerCase().includes(
                     "particular"
                 )
             );
 
         const remarksCol =
-            headers.findIndex((h : any) =>
+            headers.findIndex((h: any) =>
                 h.toLowerCase().includes(
                     "remark"
                 )
@@ -250,7 +250,7 @@ export class FinanceReportsProcessor {
             const sectionValue =
                 String(
                     values[
-                        sectionCol
+                    sectionCol
                     ] || ""
                 )
                     .replace(
@@ -260,34 +260,45 @@ export class FinanceReportsProcessor {
                     .trim();
 
             const particularsValue =
-                String(
-                    values[
-                        particularsCol
-                    ] || ""
+            String(
+                values[
+                particularsCol
+                ] || ""
+            )
+                .replace(
+                    /\s+/g,
+                    " "
                 )
-                    .replace(
-                        /\s+/g,
-                        " "
-                    )
-                    .trim();
+                .trim();
+
+            if (
+                particularsValue
+                    .toLowerCase()
+                    .includes("query description")
+            ) {
+                continue;
+            }
 
             if (sectionValue) {
+
                 const normalized =
-                    sectionValue.toUpperCase();
+                    sectionValue
+                        .replace(/\s+/g, " ")
+                        .trim()
+                        .toUpperCase();
 
                 if (
                     SECTION_MAP[
-                        normalized
+                    normalized
                     ]
                 ) {
                     currentSection =
                         SECTION_MAP[
-                            normalized
+                        normalized
                         ];
-
-                    continue;
                 }
             }
+
 
             if (
                 !currentSection
@@ -314,23 +325,23 @@ export class FinanceReportsProcessor {
                         month.label
                     ] =
                         values[
-                            month.index
+                        month.index
                         ] || "";
                 }
             );
 
             const rowObj: FinanceRow =
-                {
-                    particular:
-                        particularsValue,
+            {
+                particular:
+                    particularsValue,
 
-                    statuses,
+                statuses,
 
-                    remarks:
-                        values[
-                            remarksCol
-                        ] || "",
-                };
+                remarks:
+                    values[
+                    remarksCol
+                    ] || "",
+            };
 
             (
                 result as any

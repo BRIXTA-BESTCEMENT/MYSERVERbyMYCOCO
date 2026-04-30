@@ -169,7 +169,7 @@ export class MasterEmailWorker {
                     }
                 }
                 else if (subject.includes("LOGISTICS REPORT") || subject.includes("LOGISTICS REPORTS") || subject.includes("LOGISTICS_RAWMATERIAL_CMD_DAILY_REPORT")) {
-                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to OUTSTANDING REPORTS Processor...`);
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to LOGISTICS REPORTS Processor...`);
 
                     for (const file of files) {
                         const buffer = Buffer.from(file.contentBytes, "base64");
@@ -182,7 +182,7 @@ export class MasterEmailWorker {
                     }
                 }
                 else if (subject.includes("FINANCE REPORT") || subject.includes("FINANCE REPORTS") || subject.includes("FINANCE_CMD_DAILY_REPORT")) {
-                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to OUTSTANDING REPORTS Processor...`);
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to FINANCE REPORTS Processor...`);
 
                     for (const file of files) {
                         const buffer = Buffer.from(file.contentBytes, "base64");
@@ -196,6 +196,7 @@ export class MasterEmailWorker {
                 }
                 else {
                     console.log(`[Router] ⚠️ Ignored unknown mail format: ${subject}`);
+                    await this.emailSystem.markAsRead(mail.id);
                     continue;
                 }
 
@@ -207,6 +208,8 @@ export class MasterEmailWorker {
                 processedAnyMail = true;
             } catch (e: any) {
                 console.error(`[Router] ❌ Mail ${mail?.id} crashed.`, e.message);
+                // If a file crashes the parser, mark it as read so it doesn't block the queue forever
+                await this.emailSystem.markAsRead(mail.id);
             }
         }
         return processedAnyMail;
