@@ -3,6 +3,8 @@ import { HrReportsProcessor } from "../../routes/microsoftGraph/email/adminappRe
 import { SalesReportProcessor } from "../../routes/microsoftGraph/email/adminappReports/sales_reports";
 import { CollectionReportProcessor } from "../../routes/microsoftGraph/email/adminappReports/collection_reports";
 import { OutstandingReportsProcessor } from "../../routes/microsoftGraph/email/adminappReports/outstanding_reports";
+import { LogisticsReportsProcessor } from "../../routes/microsoftGraph/email/adminappReports/logistics_reports";
+import { FinanceReportsProcessor } from "../../routes/microsoftGraph/email/adminappReports/finance_reports";
 
 enum WorkerState {
     IDLE = "IDLE",
@@ -17,6 +19,8 @@ export class MasterEmailWorker {
     private salesReportsProcessor = new SalesReportProcessor();
     private collectionReportsProcessor = new CollectionReportProcessor();
     private outstandingReportsProcessor = new OutstandingReportsProcessor();
+    private logisticsReportsProcessor = new LogisticsReportsProcessor();
+    private financeReportsProcessor = new FinanceReportsProcessor();
 
     private processedFolderId = process.env.PROCESSED_FOLDER_ID!;
     private state: WorkerState = WorkerState.IDLE;
@@ -158,6 +162,32 @@ export class MasterEmailWorker {
                         const buffer = Buffer.from(file.contentBytes, "base64");
 
                         await this.outstandingReportsProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("LOGISTICS REPORT") || subject.includes("LOGISTICS REPORTS") || subject.includes("LOGISTICS_RAWMATERIAL_CMD_DAILY_REPORT")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to OUTSTANDING REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.logisticsReportsProcessor.processFile(buffer, {
+                            messageId: mail.id,
+                            fileName: file.name,
+                            subject: mail.subject,
+                        });
+                    }
+                }
+                else if (subject.includes("FINANCE REPORT") || subject.includes("FINANCE REPORTS") || subject.includes("FINANCE_CMD_DAILY_REPORT")) {
+                    console.log(`[Router] ➡️ Routing Mail ${mail.id} to OUTSTANDING REPORTS Processor...`);
+
+                    for (const file of files) {
+                        const buffer = Buffer.from(file.contentBytes, "base64");
+
+                        await this.financeReportsProcessor.processFile(buffer, {
                             messageId: mail.id,
                             fileName: file.name,
                             subject: mail.subject,

@@ -1199,7 +1199,7 @@ export const outstandingReports = myCustomSchema.table("outstanding_reports", {
   dealerName: text("dealer_name"),
   securityDepositAmt: numeric("security_deposit_amt", { precision: 14, scale: 2 }),
   pendingAmt: numeric("pending_amt", { precision: 14, scale: 2 }),
-  ageingData: jsonb("ageing_data").notNull(), 
+  ageingData: jsonb("ageing_data").notNull(),
   isDue: boolean("is_due").default(false),
   isOverdue: boolean("is_overdue").default(false),
   institution: varchar("institution", { length: 10 }),
@@ -1291,9 +1291,37 @@ export const salesReports = myCustomSchema.table("sales_reports", {
   sourceFileName: text("source_file_name"),
   sourceMessageId: text("source_message_id"),
   rawPayload: jsonb("raw_payload").notNull(),
-  salesDataPayload: jsonb("sales_data_payload"), 
-  collectionDataPayload: jsonb("collection_data_payload"), 
+  salesDataPayload: jsonb("sales_data_payload"),
+  collectionDataPayload: jsonb("collection_data_payload"),
   nonTradeDataPayload: jsonb("non_trade_data_payload"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const financeReports = myCustomSchema.table("finance_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+  detectedMonths: jsonb("detected_months"),
+  plbsStatus: jsonb("plbs_status"),
+  costSheetJSB: jsonb("cost_sheet_jsb"),
+  costSheetJUD: jsonb("cost_sheet_jud"),
+  investorQueries: jsonb("investor_queries"),
+  parserWarnings: jsonb("parser_warnings"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const logisticsReports = myCustomSchema.table("logistics_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+  cementDispatchData: jsonb("cement_dispatch_data"),
+  rawMaterialStockData: jsonb("raw_material_stock_data"),
+  transporterPaymentData: jsonb("transporter_payment_data"),
+  parserWarnings: jsonb("parser_warnings"),
   createdAt: timestamp("created_at").defaultNow(),
 });
 
@@ -1712,3 +1740,5 @@ export const insertProjectionReportsSchema = createInsertSchema(projectionReport
 // admin app email reports
 export const insertHrReportsSchema = createInsertSchema(hrReports);
 export const insertSalesReportsSchema = createInsertSchema(salesReports);
+export const insertFinanceReportsSchema = createInsertSchema(financeReports);
+export const insertLogisticsReportsSchema = createInsertSchema(logisticsReports);

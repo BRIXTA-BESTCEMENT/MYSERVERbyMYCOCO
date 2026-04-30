@@ -151,14 +151,16 @@ import setupHrReportsUpdateRoutes from './src/routes/updateRoutes/adminapp/hr_re
 import setupSalesReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/sales_reports';
 import setupSalesReportsPostRoutes from './src/routes/formSubmissionRoutes/adminapp/sales_reports';
 import setupSalesReportsUpdateRoutes from './src/routes/updateRoutes/adminapp/sales_reports';
+import setupLogisticsReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/logistics_reports';
+import setupFinanceReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/finance_reports';
 
 // Microsoft Excel
 import setupReadExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/readExcel';
 import setupWriteExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/writeExcel';
 
 //----------------Email Worker--------------------
-const emailRouter = new MasterEmailWorker();
-emailRouter.Start();
+// const emailRouter = new MasterEmailWorker();
+// emailRouter.Start();
 
 // ADD THIS DEBUG LINE:
 console.log('DATABASE_URL loaded:', process.env.DATABASE_URL ? 'YES' : 'NO');
@@ -235,6 +237,8 @@ setupHrReportsUpdateRoutes(app);
 setupSalesReportsGetRoutes(app);
 setupSalesReportsPostRoutes(app);
 setupSalesReportsUpdateRoutes(app);
+setupLogisticsReportsGetRoutes(app);
+setupFinanceReportsGetRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id
