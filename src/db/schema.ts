@@ -1325,6 +1325,30 @@ export const logisticsReports = myCustomSchema.table("logistics_reports", {
   createdAt: timestamp("created_at").defaultNow(),
 });
 
+export const accountsReports = myCustomSchema.table("accounts_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+});
+
+export const processReports = myCustomSchema.table("process_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+});
+
+export const purchaseReports = myCustomSchema.table("purchase_reports", {
+  id: uuid("id").defaultRandom().primaryKey(),
+  reportDate: date("report_date").notNull(),
+  sourceFileName: text("source_file_name"),
+  sourceMessageId: text("source_message_id"),
+  rawPayload: jsonb("raw_payload").notNull(),
+});
+
 // ------- Mason PC --------
 export const masonPcSide = myCustomSchema.table("mason_pc_side", {
   id: uuid().default(sql`uuid_generate_v4()`).primaryKey().notNull(),
@@ -1741,4 +1765,6 @@ export const insertProjectionReportsSchema = createInsertSchema(projectionReport
 export const insertHrReportsSchema = createInsertSchema(hrReports);
 export const insertSalesReportsSchema = createInsertSchema(salesReports);
 export const insertFinanceReportsSchema = createInsertSchema(financeReports);
-export const insertLogisticsReportsSchema = createInsertSchema(logisticsReports);
+export const insertAccountsReportsSchema = createInsertSchema(accountsReports);
+export const insertProcessReportsSchema = createInsertSchema(processReports);
+export const insertPurchaseReportsSchema = createInsertSchema(purchaseReports);
