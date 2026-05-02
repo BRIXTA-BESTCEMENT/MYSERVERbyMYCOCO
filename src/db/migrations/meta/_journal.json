@@ -365,6 +365,13 @@
       "when": 1776674737388,
       "tag": "0051_clammy_wild_pack",
       "breakpoints": true
+    },
+    {
+      "idx": 52,
+      "version": "7",
+      "when": 1777642555826,
+      "tag": "0052_fancy_jimmy_woo",
+      "breakpoints": true
     }
   ]
 }

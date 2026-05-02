@@ -1331,6 +1331,9 @@ export const accountsReports = myCustomSchema.table("accounts_reports", {
   sourceFileName: text("source_file_name"),
   sourceMessageId: text("source_message_id"),
   rawPayload: jsonb("raw_payload").notNull(),
+  accountsDashboardData: jsonb("accounts_dashboard_data"), 
+  parserWarnings: jsonb("parser_warnings"), 
+  createdAt: timestamp("created_at") .defaultNow(),
 });
 
 export const processReports = myCustomSchema.table("process_reports", {
@@ -1339,6 +1342,12 @@ export const processReports = myCustomSchema.table("process_reports", {
   sourceFileName: text("source_file_name"),
   sourceMessageId: text("source_message_id"),
   rawPayload: jsonb("raw_payload").notNull(),
+  dailyStatusReports: jsonb("daily_status_reports"), 
+  closingStock: jsonb("closing_stock"), 
+  coalConsumption: jsonb("coal_consumption"),
+  targetAchievement: jsonb("target_achievement"), 
+  parserWarnings: jsonb("parser_warnings"), 
+  createdAt: timestamp("created_at") .defaultNow(),
 });
 
 export const purchaseReports = myCustomSchema.table("purchase_reports", {
@@ -1347,6 +1356,11 @@ export const purchaseReports = myCustomSchema.table("purchase_reports", {
   sourceFileName: text("source_file_name"),
   sourceMessageId: text("source_message_id"),
   rawPayload: jsonb("raw_payload").notNull(),
+  dailyMaterials: jsonb("daily_materials"), 
+  monthlyImportantMaterials: jsonb("monthly_important_materials"), 
+  reportStatus: jsonb("report_status"), 
+  parserWarnings: jsonb("parser_warnings"), 
+  createdAt: timestamp("created_at").defaultNow(),
 });
 
 // ------- Mason PC --------

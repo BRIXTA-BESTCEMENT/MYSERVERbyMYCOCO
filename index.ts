@@ -153,6 +153,9 @@ import setupSalesReportsPostRoutes from './src/routes/formSubmissionRoutes/admin
 import setupSalesReportsUpdateRoutes from './src/routes/updateRoutes/adminapp/sales_reports';
 import setupLogisticsReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/logistics_reports';
 import setupFinanceReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/finance_reports';
+import setupAccountsReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/accounts_reports';
+import setupProcessReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/process_reports';
+import setupPurchaseReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/purchase_reports';
 
 // Microsoft Excel
 import setupReadExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/readExcel';
@@ -239,6 +242,9 @@ setupSalesReportsPostRoutes(app);
 setupSalesReportsUpdateRoutes(app);
 setupLogisticsReportsGetRoutes(app);
 setupFinanceReportsGetRoutes(app);
+setupAccountsReportsGetRoutes(app);
+setupProcessReportsGetRoutes(app);
+setupPurchaseReportsGetRoutes(app);
 
 // Authentication and Users (FIRST)
 setupAuthRoutes(app);                    // /api/auth/login, /api/user/:id

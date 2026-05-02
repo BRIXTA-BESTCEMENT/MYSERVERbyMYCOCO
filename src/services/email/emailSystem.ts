@@ -131,7 +131,7 @@ export class EmailSystem {
     const token = await this.getAccessToken();
     const res = await axios.get(
       `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/mailFolders/inbox/messages` +
-      `?$filter=hasAttachments eq true and isRead eq false` +
+      `?$filter=hasAttachments eq true` +
       `&$top=${limit}`,
       {
         headers: { Authorization: `Bearer ${token}` }
@@ -148,12 +148,26 @@ export class EmailSystem {
     // );
     return res.data;
   }
+
   async markAsRead(messageId: string) {
     const token = await this.getAccessToken();
 
     await axios.patch(
       `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/messages/${messageId}`,
       { isRead: true },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+  }
+
+  async flagMail(messageId: string) {
+    const token = await this.getAccessToken();
+    await axios.patch(
+      `${EmailSystem.GRAPH_BASE}/users/${this.mailbox}/messages/${messageId}`,
+      { 
+        flag: { flagStatus: "flagged" }
+      },
       {
         headers: { Authorization: `Bearer ${token}` },
       }
