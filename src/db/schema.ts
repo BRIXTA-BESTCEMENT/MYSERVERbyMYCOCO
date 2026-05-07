@@ -1713,6 +1713,46 @@ export const giftAllocationLogs = myCustomSchema.table("gift_allocation_logs", {
   }),
 ]);
 
+// Internal Office part
+export const itAssets = myCustomSchema.table("it_assets", {
+  id: serial("id").primaryKey(),
+  item: varchar("item", { length: 255 }),
+  purchaseDate: date("purchase_date"),
+  makeModel: text("make_model"),
+  serialNo: text("serial_no"),
+  specification: text("specification"),
+  stockStatus: varchar("stock_status", { length: 100 }),
+  assignedTo: text("assigned_to"),
+  department: varchar("department", { length: 255 }),
+  designation: text("designation"),
+  place: varchar("place", { length: 255 }),
+  assignedDate: date("assigned_date"),
+  handoverDate: date("handover_date"),
+  status: varchar("status", { length: 100 }),
+  remarks: text("remarks"),
+  code: varchar("code", { length: 255 }),
+  accessories: text("accessories"),
+  newUser: text("new_user"),
+  reassignedDate: date("reassigned_date"),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => [
+  index("idx_it_assets_item")
+    .using("btree", table.item.asc().nullsLast()),
+
+  index("idx_it_assets_serial_no")
+    .using("btree", table.serialNo.asc().nullsLast()),
+
+  index("idx_it_assets_assigned_to")
+    .using("btree", table.assignedTo.asc().nullsLast()),
+
+  index("idx_it_assets_status")
+    .using("btree", table.status.asc().nullsLast()),
+
+  index("idx_it_assets_purchase_date")
+    .using("btree", table.purchaseDate.asc().nullsLast()),
+]);
+
 /* ========================= drizzle-zod insert schemas ========================= */
 export const insertCompanySchema = createInsertSchema(companies);
 export const insertUserSchema = createInsertSchema(users);
@@ -1782,3 +1822,6 @@ export const insertFinanceReportsSchema = createInsertSchema(financeReports);
 export const insertAccountsReportsSchema = createInsertSchema(accountsReports);
 export const insertProcessReportsSchema = createInsertSchema(processReports);
 export const insertPurchaseReportsSchema = createInsertSchema(purchaseReports);
+
+// internal office parts
+export const insertItAssetsSchema = createInsertSchema(itAssets);

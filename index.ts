@@ -157,9 +157,15 @@ import setupAccountsReportsGetRoutes from './src/routes/dataFetchingRoutes/admin
 import setupProcessReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/process_reports';
 import setupPurchaseReportsGetRoutes from './src/routes/dataFetchingRoutes/adminapp/purchase_reports';
 
+// internal Office stuff
+import setupItAssetsGetRoutes from './src/routes/dataFetchingRoutes/officeInternal/it_asset';
+import setupItAssetsPostRoutes from './src/routes/formSubmissionRoutes/officeInternal/it_asset';
+import setupItAssetsUpdateRoutes from './src/routes/updateRoutes/officeInternal/it_asset';
+
 // Microsoft Excel
 import setupReadExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/readExcel';
 import setupWriteExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/writeExcel';
+import SaveDashboardOutstanding from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveOutstanding';
 
 //----------------Email Worker--------------------
 const emailRouter = new MasterEmailWorker();
@@ -182,7 +188,8 @@ const PORT = Number.isNaN(parsed) ? DEFAULT_PORT : parsed;
 app.use(cors());
 
 // Enable the express.json middleware to parse JSON request bodies
-app.use(express.json());
+app.use(express.json({ limit: '50mb' })); // setting a 50mb json data payload entry
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
 app.use(express.static(path.join(process.cwd(), 'public')));
 
@@ -392,13 +399,18 @@ setupUploadRoutes(app);
 console.log('✅ All routes registered successfully.');
 
 
+// internal office stuff
+setupItAssetsGetRoutes(app);
+setupItAssetsPostRoutes(app);
+setupItAssetsUpdateRoutes(app);
+
 // -------- Microsoft Email -------------
 setupMicrosoftEmailRoutes(app);
 
 //----------Excel Worker----------------
 setupReadExcelRoute(app);
 setupWriteExcelRoute(app);
-
+SaveDashboardOutstanding(app);
 
 // Handle 404 - Not Found for any routes not matched above
 app.use((req: Request, res: Response) => {
