@@ -372,6 +372,20 @@
       "when": 1777642555826,
       "tag": "0052_fancy_jimmy_woo",
       "breakpoints": true
+    },
+    {
+      "idx": 53,
+      "version": "7",
+      "when": 1778218182103,
+      "tag": "0053_elite_rage",
+      "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "7",
+      "when": 1778221237913,
+      "tag": "0054_mighty_mauler",
+      "breakpoints": true
     }
   ]
 }

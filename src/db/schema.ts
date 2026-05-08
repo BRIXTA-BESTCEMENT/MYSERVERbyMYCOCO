@@ -2,7 +2,7 @@
 import {
   pgSchema, pgTable, uniqueIndex, foreignKey, varchar, text, numeric, timestamp,
   index, integer, date, uuid, boolean, unique, serial, jsonb, doublePrecision,
-  bigserial, check, bigint, real, primaryKey,
+  bigserial, check, bigint, real, primaryKey, decimal
 } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 import { createInsertSchema } from "drizzle-zod";
@@ -1294,7 +1294,19 @@ export const salesReports = myCustomSchema.table("sales_reports", {
   salesDataPayload: jsonb("sales_data_payload"),
   collectionDataPayload: jsonb("collection_data_payload"),
   nonTradeDataPayload: jsonb("non_trade_data_payload"),
-  createdAt: timestamp("created_at").defaultNow(),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+
+  // specific fields for excel
+  area: varchar("area", { length: 255 }),
+  dealerName: varchar("dealer_name", { length: 255 }),
+  responsiblePerson: varchar("responsible_person", { length: 255 }),
+  currentMonthMTDSales: decimal("current_month_mtd_sales", { precision: 10, scale: 2 }),
+  currentMonthTarget: decimal("current_month_target", { precision: 10, scale: 2 }),
+  percentageTargetAchieved: decimal("percentage_target_achieved", { precision: 10, scale: 2 }),
+  balance: decimal("balance", { precision: 10, scale: 2 }),
+  prorataSalesTarget: decimal("prorata_sales_target", { precision: 10, scale: 2 }),
+  percentageAsPerProrata: decimal("percentage_as_per_prorata", { precision: 10, scale: 2 }),
+  askingRate: decimal("asking_rate", { precision: 10, scale: 2 }),
 });
 
 export const financeReports = myCustomSchema.table("finance_reports", {

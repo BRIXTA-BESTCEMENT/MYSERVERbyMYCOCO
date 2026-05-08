@@ -2,7 +2,6 @@
 
 import { Express, Request, Response } from "express";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { verifyDashboardJWT } from "../../../../middleware/verifyDashboardJWT";
 import { db } from "../../../../db/db"; 
 import { outstandingReports, verifiedDealers } from "../../../../db/schema"; 
@@ -96,17 +95,13 @@ export class SaveDashboardOutstanding {
         };
       });
 
-      // 3. Prevent Duplicates
-      const primaryDate = formattedRecords[0].reportDate;
-      if (primaryDate) {
-        await db.delete(outstandingReports)
-          .where(eq(outstandingReports.reportDate, primaryDate));
-      }
+      // 3. Clear Existing Data entirely to prevent DB bloat
+      await db.delete(outstandingReports);
 
-      // 4. Execute Bulk Insert
+      // 4. Execute Bulk Insert of the fresh snapshot
       const insertedData = await db.insert(outstandingReports)
         .values(formattedRecords)
-        .returning({ id: outstandingReports.id }); 
+        .returning({ id: outstandingReports.id });
 
       return res.json({ 
           success: true, 
