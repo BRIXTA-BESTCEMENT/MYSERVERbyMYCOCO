@@ -386,6 +386,13 @@
       "when": 1778221237913,
       "tag": "0054_mighty_mauler",
       "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "7",
+      "when": 1778235925944,
+      "tag": "0055_deep_blizzard",
+      "breakpoints": true
     }
   ]
 }

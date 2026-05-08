@@ -2,13 +2,15 @@
 
 import { Express, Request, Response } from "express";
 import { z } from "zod";
-import { eq } from "drizzle-orm";
 import { verifyDashboardJWT } from "../../../../middleware/verifyDashboardJWT";
-import { db } from "../../../../db/db"; 
-import { salesReports } from "../../../../db/schema"; 
+import { db } from "../../../../db/db";
+import { salesReports } from "../../../../db/schema";
 
 // Helper schema to accept numbers, strings, or empty/null values gracefully
 const looseNumberSchema = z.union([z.string(), z.number()]).nullable().optional();
+
+const daySchemas: Record<string, any> = {};
+for (let i = 1; i <= 31; i++) daySchemas[`day${i}`] = looseNumberSchema;
 
 const salesRecordSchema = z.object({
   reportDate: z.string().nullable().optional(),
@@ -17,8 +19,9 @@ const salesRecordSchema = z.object({
   responsiblePerson: z.string().nullable().optional(),
   salesDataPayload: z.record(z.any()).optional(),
   rawPayload: z.record(z.any()).optional(),
-  
-  // All fields are now loose schemas because they map to decimal columns
+
+  ...daySchemas,
+
   currentMonthMTDSales: looseNumberSchema,
   currentMonthTarget: looseNumberSchema,
   percentageTargetAchieved: looseNumberSchema,
@@ -38,9 +41,9 @@ export class SaveDashboardSales {
       const parsedBody = payloadSchema.safeParse(req.body);
 
       if (!parsedBody.success) {
-        return res.status(400).json({ 
-          error: "Invalid data format", 
-          details: parsedBody.error.format() 
+        return res.status(400).json({
+          error: "Invalid data format",
+          details: parsedBody.error.format()
         });
       }
 
@@ -54,30 +57,31 @@ export class SaveDashboardSales {
       const formattedRecords = records.map(record => {
         let dateString = null;
         if (record.reportDate) {
-           dateString = record.reportDate.split('T')[0]; 
+          dateString = record.reportDate.split('T')[0];
         }
 
         // 🛠️ BULLETPROOF HELPER: Strips commas AND percentage signs!
         const cleanNumeric = (val: any) => {
-            if (val === null || val === undefined) return null;
-            
-            // The regex /[,%]/g removes all commas AND percent symbols
-            let str = String(val).replace(/[,%]/g, '').trim();
-            
-            if (/^[-–—−]+$/.test(str) || str === '') return null; 
-            str = str.replace(/^[–—−]/, '-');
-            
-            if (isNaN(Number(str))) return null;
-            
-            // Return as string to preserve exact decimals for Postgres 'decimal/numeric' columns
-            return str; 
+          if (val === null || val === undefined) return null;
+          let str = String(val).replace(/[,%]/g, '').trim();
+
+          if (/^[-–—−]+$/.test(str) || str === '') return null;
+          str = str.replace(/^[–—−]/, '-');
+          if (isNaN(Number(str))) return null;
+          return str;
         };
+
+        const formattedDays: Record<string, string | null> = {};
+        for (let i = 1; i <= 31; i++) {
+          const key = `day${i}`;
+          formattedDays[key] = cleanNumeric((record as any)[key]);
+        }
 
         return {
           ...record,
-          reportDate: dateString as string, 
-          
-          // Apply the cleanNumeric helper to every decimal field
+          reportDate: dateString as string,
+
+          ...formattedDays,
           currentMonthMTDSales: cleanNumeric(record.currentMonthMTDSales),
           currentMonthTarget: cleanNumeric(record.currentMonthTarget),
           percentageTargetAchieved: cleanNumeric(record.percentageTargetAchieved),
@@ -92,19 +96,19 @@ export class SaveDashboardSales {
         };
       });
 
-      
+
       // 2 Clear Existing Data entirely to prevent DB bloat
       await db.delete(salesReports);
 
       // 3. Execute Bulk Insert
       const insertedData = await db.insert(salesReports)
         .values(formattedRecords)
-        .returning({ id: salesReports.id }); 
+        .returning({ id: salesReports.id });
 
-      return res.json({ 
-          success: true, 
-          message: `Successfully upserted ${insertedData.length} sales records.`,
-          insertedIds: insertedData.map(d => d.id)
+      return res.json({
+        success: true,
+        message: `Successfully upserted ${insertedData.length} sales records.`,
+        insertedIds: insertedData.map(d => d.id)
       });
 
     } catch (err: any) {
@@ -116,8 +120,8 @@ export class SaveDashboardSales {
 
 export default function setupSaveSalesRoute(app: Express) {
   app.post(
-    "/api/excel/sales/save", 
-    verifyDashboardJWT, 
+    "/api/excel/sales/save",
+    verifyDashboardJWT,
     SaveDashboardSales.save
   );
 }
