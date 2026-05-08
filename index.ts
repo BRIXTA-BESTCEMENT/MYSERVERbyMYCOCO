@@ -167,6 +167,7 @@ import setupReadExcelRoute from './src/routes/microsoftGraph/excel/dashboardShee
 import setupWriteExcelRoute from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/writeExcel';
 import SaveDashboardOutstanding from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveOutstanding';
 import SaveDashboardSales from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveSales';
+import SaveDashboardCollection from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveCollection';
 
 //----------------Email Worker--------------------
 const emailRouter = new MasterEmailWorker();
@@ -413,6 +414,7 @@ setupReadExcelRoute(app);
 setupWriteExcelRoute(app);
 SaveDashboardOutstanding(app);
 SaveDashboardSales(app);
+SaveDashboardCollection(app);
 
 // Handle 404 - Not Found for any routes not matched above
 app.use((req: Request, res: Response) => {
