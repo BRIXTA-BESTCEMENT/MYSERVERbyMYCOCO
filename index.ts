@@ -170,8 +170,8 @@ import SaveDashboardSales from './src/routes/microsoftGraph/excel/dashboardSheet
 import SaveDashboardCollection from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveCollection';
 
 //----------------Email Worker--------------------
-const emailRouter = new MasterEmailWorker();
-emailRouter.Start();
+// const emailRouter = new MasterEmailWorker();
+// emailRouter.Start();
 
 // ADD THIS DEBUG LINE:
 console.log('DATABASE_URL loaded:', process.env.DATABASE_URL ? 'YES' : 'NO');
