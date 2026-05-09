@@ -132,7 +132,7 @@ import setupTeamViewRoutes from './src/routes/teamView/getView';
 import { attachWebSocket } from './src/websocket/socketServer';
 
 // Sales PJP approve cron job
-import { setupAutoApproveCron } from './src/workers/autoApprove';
+//import { setupAutoApproveCron } from './src/workers/autoApprove';
 
 // Microsoft Email
 import setupMicrosoftEmailRoutes from './src/routes/microsoftGraph/email/emailRoute';
@@ -391,7 +391,7 @@ setupJourneyOpsRoutes(app);
 setupTeamViewRoutes(app);
 
 // Sales PJP approve cron job
-setupAutoApproveCron();
+//setupAutoApproveCron();
 
 //------------ CLOUDFARE ----------------
 //setupR2Upload(app);
