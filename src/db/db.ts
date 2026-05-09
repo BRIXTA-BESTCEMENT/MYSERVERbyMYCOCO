@@ -23,10 +23,13 @@ const pool =
 
     ssl: false,
 
-    max: 30,
-    idleTimeoutMillis: 30_000,
-    connectionTimeoutMillis: 10_000,
-    statement_timeout: 15000, 
+    max: 10,
+    idleTimeoutMillis: 10_000,
+    connectionTimeoutMillis: 5_000,
+    statement_timeout: 10000,
+    
+    keepAlive: true,
+    allowExitOnIdle: true,
   });
 
 pool.on('error', (err, client) => {
