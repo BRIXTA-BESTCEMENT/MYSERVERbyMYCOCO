@@ -342,17 +342,17 @@ export const dailyVisitReports = myCustomSchema.table("daily_visit_reports", {
   reportDate: date("report_date"),
   dealerType: varchar("dealer_type", { length: 50 }),
   location: varchar("location", { length: 500 }),
-  latitude: numeric("latitude", { precision: 10, scale: 7 }),
-  longitude: numeric("longitude", { precision: 10, scale: 7 }),
+  latitude: numeric("latitude", { precision: 20, scale: 7 }),
+  longitude: numeric("longitude", { precision: 20, scale: 7 }),
   visitType: varchar("visit_type", { length: 50 }),
-  dealerTotalPotential: numeric("dealer_total_potential", { precision: 10, scale: 2 }),
-  dealerBestPotential: numeric("dealer_best_potential", { precision: 10, scale: 2 }),
+  dealerTotalPotential: numeric("dealer_total_potential", { precision: 18, scale: 2 }),
+  dealerBestPotential: numeric("dealer_best_potential", { precision: 18, scale: 2 }),
   brandSelling: text("brand_selling").array(),
   contactPerson: varchar("contact_person", { length: 255 }),
   contactPersonPhoneNo: varchar("contact_person_phone_no", { length: 20 }),
-  todayOrderMt: numeric("today_order_mt", { precision: 10, scale: 2 }),
-  todayCollectionRupees: numeric("today_collection_rupees", { precision: 10, scale: 2 }),
-  overdueAmount: numeric("overdue_amount", { precision: 12, scale: 2 }),
+  todayOrderMt: numeric("today_order_mt", { precision: 18, scale: 2 }),
+  todayCollectionRupees: numeric("today_collection_rupees", { precision: 18, scale: 2 }),
+  overdueAmount: numeric("overdue_amount", { precision: 18, scale: 2 }),
   feedbacks: varchar("feedbacks", { length: 500 }),
   solutionBySalesperson: varchar("solution_by_salesperson", { length: 500 }),
   anyRemarks: varchar("any_remarks", { length: 500 }),
@@ -370,7 +370,7 @@ export const dailyVisitReports = myCustomSchema.table("daily_visit_reports", {
   nameOfParty: varchar("name_of_party", { length: 255 }),
   contactNoOfParty: varchar("contact_no_of_party", { length: 20 }),
   expectedActivationDate: date("expected_activation_date"),
-  currentDealerOutstandingAmt: numeric("current_dealer_outstanding_amt", { precision: 14, scale: 2 }),
+  currentDealerOutstandingAmt: numeric("current_dealer_outstanding_amt", { precision: 18, scale: 2 }),
   idempotencyKey: varchar("idempotency_key", { length: 255 }),
 
   createdAt: timestamp("created_at", { withTimezone: true, precision: 6 }).defaultNow().notNull(),
@@ -1283,6 +1283,11 @@ export const hrReports = myCustomSchema.table("hr_reports", {
   bottomPerformers: jsonb("bottom_performers"),
   interviews: jsonb("interviews"),
   createdAt: timestamp("created_at").defaultNow(),
+
+  // excel specific fields
+  underperformersPlant: jsonb("underperformers_plant"),
+  underperformersHO: jsonb("underperformers_ho"),
+  interviewCandidates: jsonb("interview_candidates"),
 });
 
 export const salesReports = myCustomSchema.table("sales_reports", {
@@ -1347,6 +1352,20 @@ export const accountsReports = myCustomSchema.table("accounts_reports", {
   accountsDashboardData: jsonb("accounts_dashboard_data"), 
   parserWarnings: jsonb("parser_warnings"), 
   createdAt: timestamp("created_at") .defaultNow(),
+
+  // excel specific fields
+  collectionTargetLakhs: numeric("collection_target_lakhs", { precision: 14, scale: 2 }),
+  collectionAchievementLakhs: numeric("collection_achievement_lakhs", { precision: 14, scale: 2 }),
+  spendTargetLakhs: numeric("spend_target_lakhs", { precision: 14, scale: 2 }),
+  spendAchievementLakhs: numeric("spend_achievement_lakhs", { precision: 14, scale: 2 }),
+  pettyCashBalanceLakhs: numeric("petty_cash_balance_lakhs", { precision: 14, scale: 2 }),
+  billsPendingLakhs: numeric("bills_pending_lakhs", { precision: 14, scale: 2 }),
+  tenDaysCashReqCr: numeric("ten_days_cash_req_cr", { precision: 14, scale: 2 }),
+  expectedInflowSalesCr: numeric("expected_inflow_sales_cr", { precision: 14, scale: 2 }),
+  cmdPaymentDueLakhs: numeric("cmd_payment_due_lakhs", { precision: 14, scale: 2 }),
+  cashBookStatusJUD: varchar("cash_book_status_jud", { length: 255 }),
+  cashBookStatusJSB: varchar("cash_book_status_jsb", { length: 255 }),
+  remarks: text("remarks"),
 });
 
 export const processReports = myCustomSchema.table("process_reports", {

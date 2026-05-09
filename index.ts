@@ -168,6 +168,12 @@ import setupWriteExcelRoute from './src/routes/microsoftGraph/excel/dashboardShe
 import SaveDashboardOutstanding from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveOutstanding';
 import SaveDashboardSales from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveSales';
 import SaveDashboardCollection from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveCollection';
+import SaveDashboardAccounts from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveAccounts';
+import SaveDashboardHR from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveHr';
+import SaveDashboardLogistics from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveLogistics';
+import SaveDashboardProcess from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveProcess';
+import SaveDashboardPurchase from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/savePurchase';
+import SaveDashboardFinance from './src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveFinance';
 
 //----------------Email Worker--------------------
 // const emailRouter = new MasterEmailWorker();
@@ -415,6 +421,12 @@ setupWriteExcelRoute(app);
 SaveDashboardOutstanding(app);
 SaveDashboardSales(app);
 SaveDashboardCollection(app);
+SaveDashboardAccounts(app);
+SaveDashboardHR(app);
+SaveDashboardFinance(app);
+SaveDashboardLogistics(app);
+SaveDashboardProcess(app);
+SaveDashboardPurchase(app);
 
 // Handle 404 - Not Found for any routes not matched above
 app.use((req: Request, res: Response) => {
