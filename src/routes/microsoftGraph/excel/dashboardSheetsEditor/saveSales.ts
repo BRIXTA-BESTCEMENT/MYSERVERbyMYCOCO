@@ -1,5 +1,4 @@
 // src/routes/microsoftGraph/excel/dashboardSheetsEditor/saveSales.ts
-
 import { Express, Request, Response } from "express";
 import { z } from "zod";
 import { verifyDashboardJWT } from "../../../../middleware/verifyDashboardJWT";
@@ -71,17 +70,23 @@ export class SaveDashboardSales {
           return str;
         };
 
+        // Pack the 31 days into a single object for the JSONB column
         const formattedDays: Record<string, string | null> = {};
         for (let i = 1; i <= 31; i++) {
           const key = `day${i}`;
           formattedDays[key] = cleanNumeric((record as any)[key]);
         }
 
+        // Explicitly map only the schema fields to avoid Drizzle throwing errors about missing day_x columns
         return {
-          ...record,
           reportDate: dateString as string,
+          area: record.area || null,
+          dealerName: record.dealerName,
+          responsiblePerson: record.responsiblePerson || null,
 
-          ...formattedDays,
+          // Assign the packed JSON object to the new column
+          dayOfMonth: formattedDays,
+
           currentMonthMTDSales: cleanNumeric(record.currentMonthMTDSales),
           currentMonthTarget: cleanNumeric(record.currentMonthTarget),
           percentageTargetAchieved: cleanNumeric(record.percentageTargetAchieved),
@@ -95,7 +100,6 @@ export class SaveDashboardSales {
           salesDataPayload: record.salesDataPayload || {},
         };
       });
-
 
       // 2 Clear Existing Data entirely to prevent DB bloat
       await db.delete(salesReports);

@@ -1,0 +1,32 @@
+ALTER TABLE "bestcement"."sales_reports" ADD COLUMN "dayOfMonth" jsonb;--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_1";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_2";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_3";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_4";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_5";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_6";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_7";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_8";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_9";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_10";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_11";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_12";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_13";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_14";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_15";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_16";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_17";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_18";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_19";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_20";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_21";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_22";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_23";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_24";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_25";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_26";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_27";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_28";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_29";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_30";--> statement-breakpoint
+ALTER TABLE "bestcement"."sales_reports" DROP COLUMN "day_31";

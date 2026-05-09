@@ -353,7 +353,7 @@ setupDealerReportsAndScoresDeleteRoutes(app); // DELETE /api/dealer-reports-scor
 setupTsoMeetingsDeleteRoutes(app);
 
 // UPDATE (PATCH) endpoints
-//setupDealersPatchRoutes(app);
+setupDealersPatchRoutes(app);
 setupDealerScoresPatchRoutes(app);
 setupRatingsPatchRoutes(app);
 setupDailyTaskPatchRoutes(app);
