@@ -2,19 +2,19 @@
 import { Request, Response, Express } from "express";
 import { db } from "../../../db/db";
 import { salesReports } from "../../../db/schema";
-import { desc, isNotNull } from "drizzle-orm";
+import { desc } from "drizzle-orm"; // Removed isNotNull
 
 export default function setupSalesReportsGetRoutes(app: Express) {
   const endpoint = "adminapp/sales-reports";
 
-  // 1. GET Latest Automated Excel Data (Sales & Collections)
+  // 1. GET Latest Excel Data (Sales & Collections)
   app.get(`/api/${endpoint}/latest`, async (req: Request, res: Response) => {
     try {
-      // 1A. Find the absolute latest row (usually Sales)
+      // 1A. Find the absolute latest row
       const [latestRow] = await db
         .select()
         .from(salesReports)
-        .where(isNotNull(salesReports.sourceFileName)) // Ignores manual entries
+        // 🛠️ REMOVED the sourceFileName filter here
         .orderBy(desc(salesReports.reportDate))
         .limit(1);
 
@@ -26,7 +26,7 @@ export default function setupSalesReportsGetRoutes(app: Express) {
       const recentRows = await db
         .select()
         .from(salesReports)
-        .where(isNotNull(salesReports.sourceFileName))
+        // 🛠️ REMOVED the sourceFileName filter here
         .orderBy(desc(salesReports.reportDate))
         .limit(10); 
 
@@ -35,11 +35,10 @@ export default function setupSalesReportsGetRoutes(app: Express) {
         const cols = row.collectionDataPayload as any[];
         if (cols && cols.length > 0) {
           bestCollectionData = cols;
-          break; // Stop looking once we find the most recent non-empty collections
+          break; 
         }
       }
 
-      // 1C. Merge them into a single response
       const mergedResponse = {
          id: latestRow.id,
          reportDate: latestRow.reportDate,
@@ -72,9 +71,7 @@ export default function setupSalesReportsGetRoutes(app: Express) {
 
       return res.json({
         success: true,
-        data: {
-          nonTradeApprovals: aggregatedNonTrade,
-        }
+        data: { nonTradeApprovals: aggregatedNonTrade }
       });
     } catch (err) {
       console.error("[SALES MANUAL DATA FETCH ERROR]", err);
