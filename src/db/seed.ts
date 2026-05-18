@@ -15,19 +15,15 @@ import {
   competitionReports,
   geoTracking,
   dailyTasks,
-  dealerReportsAndScores,
   salesOrders,
-  ratings,
   brands,
   dealerBrandMapping,
   tsoMeetings,
   rewards, 
   giftAllocationLogs,
   masonPcSide,
-  otpVerifications,
   schemesOffers,
   masonOnScheme,
-  masonsOnMeetings,
   rewardCategories,
   kycSubmissions,  
   tsoAssignments,  
@@ -42,15 +38,12 @@ async function seedDatabase() {
 
   // --- 1. Delete deeply nested children / audit logs ---
   await db.delete(pointsLedger);
-  await db.delete(otpVerifications);
   await db.delete(kycSubmissions);
   
   // --- 2. Delete join tables and direct FK children (must precede parents) ---
   await db.delete(tsoAssignments);
   await db.delete(masonOnScheme);
-  await db.delete(masonsOnMeetings);
   await db.delete(dealerBrandMapping);
-  await db.delete(dealerReportsAndScores);
 
   // --- 3. Delete transactional data and logs (must precede reports and core entities) ---
   await db.delete(giftAllocationLogs);
@@ -64,7 +57,6 @@ async function seedDatabase() {
   await db.delete(dailyVisitReports);
   await db.delete(permanentJourneyPlans);
   await db.delete(competitionReports);
-  await db.delete(ratings);
   await db.delete(salesmanLeaveApplications);
   await db.delete(salesmanAttendance);
   await db.delete(geoTracking);

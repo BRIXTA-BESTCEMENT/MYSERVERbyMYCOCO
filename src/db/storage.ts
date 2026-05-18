@@ -12,8 +12,6 @@ import {
   geoTracking,
   salesOrders,
   dailyTasks,
-  dealerReportsAndScores,
-  ratings,
   brands,
   dealerBrandMapping,
   tsoMeetings,
@@ -22,10 +20,8 @@ import {
   rewardRedemptions, // NEW
   giftAllocationLogs,
   masonPcSide,
-  otpVerifications,
   schemesOffers,
   masonOnScheme,
-  masonsOnMeetings,
   kycSubmissions, // NEW
   tsoAssignments, // NEW
   bagLifts, // NEW
@@ -60,10 +56,6 @@ export type DailyTask = typeof dailyTasks.$inferSelect;
 export type InsertDailyTask = typeof dailyTasks.$inferInsert;
 export type SalesOrder = typeof salesOrders.$inferSelect;
 export type InsertSalesOrder = typeof salesOrders.$inferInsert;
-export type DealerReportsAndScores = typeof dealerReportsAndScores.$inferSelect;
-export type InsertDealerReportsAndScores = typeof dealerReportsAndScores.$inferInsert;
-export type Rating = typeof ratings.$inferSelect;
-export type InsertRating = typeof ratings.$inferInsert;
 export type Brand = typeof brands.$inferSelect;
 export type InsertBrand = typeof brands.$inferInsert;
 export type DealerBrandMap = typeof dealerBrandMapping.$inferSelect;
@@ -79,14 +71,10 @@ export type GiftAllocationLog = typeof giftAllocationLogs.$inferSelect;
 export type InsertGiftAllocationLog = typeof giftAllocationLogs.$inferInsert;
 export type MasonPcSide = typeof masonPcSide.$inferSelect;
 export type InsertMasonPcSide = typeof masonPcSide.$inferInsert;
-export type OtpVerification = typeof otpVerifications.$inferSelect;
-export type InsertOtpVerification = typeof otpVerifications.$inferInsert;
 export type SchemeOffer = typeof schemesOffers.$inferSelect;
 export type InsertSchemeOffer = typeof schemesOffers.$inferInsert;
 export type MasonOnScheme = typeof masonOnScheme.$inferSelect;
 export type InsertMasonOnScheme = typeof masonOnScheme.$inferInsert;
-export type MasonsOnMeetings = typeof masonsOnMeetings.$inferSelect;
-export type InsertMasonsOnMeetings = typeof masonsOnMeetings.$inferInsert;
 
 // NEW TYPES
 export type RewardCategory = typeof rewardCategories.$inferSelect;
@@ -177,10 +165,6 @@ export interface IStorage {
   createDailyTask(insertTask: InsertDailyTask): Promise<DailyTask>;
   updateDailyTask(id: string, updates: Partial<InsertDailyTask>): Promise<DailyTask>;
 
-  getDealerReportsAndScores(id: string): Promise<DealerReportsAndScores | undefined>;
-  getDealerReportsAndScoresByDealerId(dealerId: string): Promise<DealerReportsAndScores | undefined>;
-  upsertDealerReportsAndScores(data: InsertDealerReportsAndScores): Promise<DealerReportsAndScores>;
-
   getBusinessMetrics(companyId: number): Promise<any>;
   assignTaskToUser(taskData: InsertDailyTask): Promise<DailyTask>;
 
@@ -195,11 +179,6 @@ export interface IStorage {
   getSalesOrdersByDealerId(dealerId: string): Promise<SalesOrder[]>;
   createSalesOrder(data: InsertSalesOrder): Promise<SalesOrder>;
   updateSalesOrder(id: string, updates: Partial<InsertSalesOrder>): Promise<SalesOrder>;
-
-  getRating(id: number): Promise<Rating | undefined>;
-  getRatingsByUserId(userId: number): Promise<Rating[]>;
-  createRating(data: InsertRating): Promise<Rating>;
-  updateRating(id: number, updates: Partial<InsertRating>): Promise<Rating>;
 
   getBrand(id: number): Promise<Brand | undefined>;
   getBrandByName(name: string): Promise<Brand | undefined>;
@@ -264,11 +243,6 @@ export interface IStorage {
   getPointsLedgerByMasonId(masonId: string): Promise<PointsLedger[]>;
   createPointsLedgerEntry(data: InsertPointsLedger): Promise<PointsLedger>;
 
-  getOtp(id: string): Promise<OtpVerification | undefined>;
-  findOtpByMasonId(masonId: string): Promise<OtpVerification | undefined>;
-  createOtp(data: InsertOtpVerification): Promise<OtpVerification>;
-  deleteOtp(id: string): Promise<void>;
-
   getScheme(id: string): Promise<SchemeOffer | undefined>;
   listSchemes(): Promise<SchemeOffer[]>;
   createScheme(data: InsertSchemeOffer): Promise<SchemeOffer>;
@@ -279,12 +253,6 @@ export interface IStorage {
   getMasonsForScheme(schemeId: string): Promise<MasonOnScheme[]>;
   addMasonToScheme(data: InsertMasonOnScheme): Promise<MasonOnScheme>;
   removeMasonFromScheme(masonId: string, schemeId: string): Promise<void>;
-
-  getMasonOnMeeting(masonId: string, meetingId: string): Promise<MasonsOnMeetings | undefined>;
-  getMeetingsForMason(masonId: string): Promise<MasonsOnMeetings[]>;
-  getMasonsForMeeting(meetingId: string): Promise<MasonsOnMeetings[]>;
-  addMasonToMeeting(data: InsertMasonsOnMeetings): Promise<MasonsOnMeetings>;
-  removeMasonFromMeeting(masonId: string, meetingId: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -711,42 +679,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ========================================
-  // DEALER REPORTS AND SCORES
-  // ========================================
-
-  async getDealerReportsAndScores(id: string): Promise<DealerReportsAndScores | undefined> {
-    const [row] = await db.select().from(dealerReportsAndScores).where(eq(dealerReportsAndScores.id, id));
-    return row || undefined;
-  }
-
-  async getDealerReportsAndScoresByDealerId(dealerId: string): Promise<DealerReportsAndScores | undefined> {
-    const [row] = await db.select().from(dealerReportsAndScores).where(eq(dealerReportsAndScores.dealerId, dealerId));
-    return row || undefined;
-  }
-
-  async upsertDealerReportsAndScores(data: InsertDealerReportsAndScores): Promise<DealerReportsAndScores> {
-    // try insert; on conflict update
-    try {
-      const [row] = await db.insert(dealerReportsAndScores).values(data).returning();
-      return row;
-    } catch {
-      const [row] = await db.update(dealerReportsAndScores)
-        .set({
-          dealerScore: (data as any).dealerScore,
-          trustWorthinessScore: (data as any).trustWorthinessScore,
-          creditWorthinessScore: (data as any).creditWorthinessScore,
-          orderHistoryScore: (data as any).orderHistoryScore,
-          visitFrequencyScore: (data as any).visitFrequencyScore,
-          lastUpdatedDate: (data as any).lastUpdatedDate,
-          updatedAt: new Date().toISOString()
-        })
-        .where(eq(dealerReportsAndScores.dealerId, (data as any).dealerId))
-        .returning();
-      return row;
-    }
-  }
-
-  // ========================================
   // BUSINESS METRICS (example aggregate)
   // ========================================
 
@@ -840,25 +772,6 @@ export class DatabaseStorage implements IStorage {
       updatedAt: new Date().toISOString()
     }).where(eq(technicalSites.id, id)).returning();
     return site;
-  }
-
-  // ========================================
-  // RATINGS
-  // ========================================
-  async getRating(id: number): Promise<Rating | undefined> {
-    const [row] = await db.select().from(ratings).where(eq(ratings.id, id));
-    return row || undefined;
-  }
-  async getRatingsByUserId(userId: number): Promise<Rating[]> {
-    return await db.select().from(ratings).where(eq(ratings.userId, userId));
-  }
-  async createRating(data: InsertRating): Promise<Rating> {
-    const [row] = await db.insert(ratings).values(data).returning();
-    return row;
-  }
-  async updateRating(id: number, updates: Partial<InsertRating>): Promise<Rating> {
-    const [row] = await db.update(ratings).set({ ...updates }).where(eq(ratings.id, id)).returning();
-    return row;
   }
 
   // ========================================
@@ -1106,26 +1019,6 @@ export class DatabaseStorage implements IStorage {
   }
 
   // ========================================
-  // OTP VERIFICATIONS
-  // ========================================
-  async getOtp(id: string): Promise<OtpVerification | undefined> {
-    const [row] = await db.select().from(otpVerifications).where(eq(otpVerifications.id, id));
-    return row || undefined;
-  }
-  async findOtpByMasonId(masonId: string): Promise<OtpVerification | undefined> {
-    // Find the most recent OTP for a mason
-    const [row] = await db.select().from(otpVerifications).where(eq(otpVerifications.masonId, masonId)).orderBy(desc(otpVerifications.expiresAt)).limit(1);
-    return row || undefined;
-  }
-  async createOtp(data: InsertOtpVerification): Promise<OtpVerification> {
-    const [row] = await db.insert(otpVerifications).values(data).returning();
-    return row;
-  }
-  async deleteOtp(id: string): Promise<void> {
-    await db.delete(otpVerifications).where(eq(otpVerifications.id, id));
-  }
-
-  // ========================================
   // SCHEMES & OFFERS
   // ========================================
   async getScheme(id: string): Promise<SchemeOffer | undefined> {
@@ -1165,26 +1058,6 @@ export class DatabaseStorage implements IStorage {
     await db.delete(masonOnScheme).where(and(eq(masonOnScheme.masonId, masonId), eq(masonOnScheme.schemeId, schemeId)));
   }
 
-  // ========================================
-  // MASONS ON MEETINGS
-  // ========================================
-  async getMasonOnMeeting(masonId: string, meetingId: string): Promise<MasonsOnMeetings | undefined> {
-    const [row] = await db.select().from(masonsOnMeetings).where(and(eq(masonsOnMeetings.masonId, masonId), eq(masonsOnMeetings.meetingId, meetingId)));
-    return row || undefined;
-  }
-  async getMeetingsForMason(masonId: string): Promise<MasonsOnMeetings[]> {
-    return await db.select().from(masonsOnMeetings).where(eq(masonsOnMeetings.masonId, masonId));
-  }
-  async getMasonsForMeeting(meetingId: string): Promise<MasonsOnMeetings[]> {
-    return await db.select().from(masonsOnMeetings).where(eq(masonsOnMeetings.meetingId, meetingId));
-  }
-  async addMasonToMeeting(data: InsertMasonsOnMeetings): Promise<MasonsOnMeetings> {
-    const [row] = await db.insert(masonsOnMeetings).values(data).returning();
-    return row;
-  }
-  async removeMasonFromMeeting(masonId: string, meetingId: string): Promise<void> {
-    await db.delete(masonsOnMeetings).where(and(eq(masonsOnMeetings.masonId, masonId), eq(masonsOnMeetings.meetingId, meetingId)));
-  }
 }
 
 export const storage = new DatabaseStorage();
